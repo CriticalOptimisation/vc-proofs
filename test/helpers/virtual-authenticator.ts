@@ -32,7 +32,7 @@ export async function withVirtualAuthenticator<T>(
 ): Promise<T> {
   const session = cdp();
   await session.send("WebAuthn.enable");
-  const { authenticatorId } = (await session.send("WebAuthn.addVirtualAuthenticator", {
+  const { authenticatorId } = await session.send("WebAuthn.addVirtualAuthenticator", {
     options: {
       protocol: "ctap2",
       ctap2Version: "ctap2_1",
@@ -43,7 +43,7 @@ export async function withVirtualAuthenticator<T>(
       automaticPresenceSimulation: options.userPresence ?? true,
       hasPrf: options.prf ?? true,
     },
-  })) as { authenticatorId: string };
+  });
   try {
     return await fn(authenticatorId);
   } finally {
