@@ -1,0 +1,74 @@
+# Publish: on a GitHub Release, run the whole CI, check that the tag is `v` followed by
+# the version of package.json, build and pack the tarball, attest its build provenance,
+# and publish it to GitHub Packages. Run by hand, it is a dry run unless `dry_run` is
+# turned off. See docs/development.md, "Releasing".
+name: Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only report what would be published
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          registry-url: https://npm.pkg.github.com
+          scope: "@criticaloptimisation"
+      - name: Check that the tag matches the version
+        env:
+          TAG: ${{ github.event.release.tag_name || github.ref_name }}
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          echo "tag: $TAG, version: $version, dry run: $DRY_RUN"
+          if [ "$TAG" != "v$version" ]; then
+            if [ "$DRY_RUN" = true ]; then
+              echo "::warning::tag $TAG is not v$version; a real publish would stop here"
+            else
+              echo "::error::tag $TAG is not v$version"
+              exit 1
+            fi
+          fi
+      - run: npm ci
+      - run: npm run build
+      - name: Pack
+        id: pack
+        run: echo "tarball=$(npm pack --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.pack.outputs.tarball }}
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          if [ "$DRY_RUN" = true ]; then
+            npm publish "$TARBALL" --dry-run
+          else
+            npm publish "$TARBALL"
+          fi
