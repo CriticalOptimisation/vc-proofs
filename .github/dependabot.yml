@@ -1,0 +1,20 @@
+# Dependabot: weekly updates of the npm packages and of the GitHub Actions, as pull
+# requests that go through the usual review. See docs/development.md, "Dependencies".
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      development:
+        dependency-type: development
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+# --- Change History -------------------------------------------------------
+# | PR     | Summary                                                       |
+# |--------|---------------------------------------------------------------|
+# | #19    | weekly npm and github-actions updates                         |
