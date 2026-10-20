@@ -74,3 +74,8 @@ describe("each project collects its files", () => {
     }
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #19    | files collected by each project                               |

@@ -66,3 +66,8 @@ describe("withVirtualAuthenticator", () => {
     });
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #19    | cleanup and options of the PRF helper                         |

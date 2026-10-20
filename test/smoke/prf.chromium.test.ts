@@ -53,3 +53,8 @@ test("create and get return the same 32-byte PRF output, with UP and UV", async 
     expect(flags & UV).toBe(UV);
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #19    | WebAuthn ceremony with PRF on a virtual authenticator         |

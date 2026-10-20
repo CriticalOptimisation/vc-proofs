@@ -13,3 +13,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+# --- Change History -------------------------------------------------------
+# | PR     | Summary                                                       |
+# |--------|---------------------------------------------------------------|
+# | #19    | weekly npm and github-actions updates                         |

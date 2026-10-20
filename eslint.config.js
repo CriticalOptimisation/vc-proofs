@@ -62,3 +62,8 @@ export default defineConfig(
   },
   isomorphicRules,
 );
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #19    | strictTypeChecked and the isomorphicRules export              |

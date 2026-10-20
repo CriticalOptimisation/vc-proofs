@@ -72,3 +72,8 @@ jobs:
           else
             npm publish "$TARBALL"
           fi
+
+# --- Change History -------------------------------------------------------
+# | PR     | Summary                                                       |
+# |--------|---------------------------------------------------------------|
+# | #19    | release publish to GitHub Packages with attestation           |

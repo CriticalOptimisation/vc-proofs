@@ -8,3 +8,8 @@
  * imports and the `window`, `document` and `navigator` globals here.
  */
 export {};
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #19    | empty common entry point                                      |

@@ -50,3 +50,8 @@ export async function withVirtualAuthenticator<T>(
     await session.send("WebAuthn.removeVirtualAuthenticator", { authenticatorId });
   }
 }
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #19    | withVirtualAuthenticator, the PRF test helper                 |

@@ -36,3 +36,8 @@ export default defineConfig({
     ],
   },
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #19    | node, chromium, firefox and webkit projects                   |

@@ -74,3 +74,8 @@ describe("after the build", { timeout: 120_000 }, () => {
     ).toEqual([]);
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #19    | exports after the build, tarball contents                     |

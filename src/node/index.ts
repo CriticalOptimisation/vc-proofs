@@ -5,3 +5,8 @@
  * modules (`node:*`). Lint forbids the `window`, `document` and `navigator` globals here.
  */
 export {};
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #19    | empty Node.js entry point                                     |

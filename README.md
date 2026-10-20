@@ -57,3 +57,11 @@ See [docs/development.md](docs/development.md).
 ## Licence
 
 Apache License 2.0: see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+<!--
+Change History
+
+| PR  | Summary |
+|-----|---------|
+| #19 | install, entry points, runtimes, release verification |
+-->

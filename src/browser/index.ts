@@ -5,3 +5,8 @@
  * DOM. Lint forbids `node:*` imports here.
  */
 export {};
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #19    | empty browser entry point                                     |

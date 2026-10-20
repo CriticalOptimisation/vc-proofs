@@ -29,3 +29,8 @@ coverage/
 .idea/
 .DS_Store
 Thumbs.db
+
+# --- Change History -------------------------------------------------------
+# | PR     | Summary                                                       |
+# |--------|---------------------------------------------------------------|
+# | #19    | ignore .vitest/, Vitest's failure screenshots                 |

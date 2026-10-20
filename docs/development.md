@@ -171,3 +171,11 @@ have read-only permissions, and every action is pinned by its commit SHA.
 To check the publish workflow without publishing, run it by hand from the _Actions_
 tab (_Run workflow_): the `dry_run` input is true by default, and `npm publish` then
 only reports what it would publish.
+
+<!--
+Change History
+
+| PR  | Summary |
+|-----|---------|
+| #19 | development guide: Node.js, scripts, layout, tests, CI, release |
+-->

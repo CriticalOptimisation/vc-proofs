@@ -22,3 +22,8 @@ describe("ES256 through globalThis.crypto.subtle", () => {
     expect(await crypto.subtle.verify(es256, keys.publicKey, signature, changed)).toBe(false);
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #19    | ES256 smoke test in Node.js and every browser                 |
