@@ -201,4 +201,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #19 | development guide: Node.js, scripts, layout, tests, CI, release |
+| #28 | Documentation checks |
 -->

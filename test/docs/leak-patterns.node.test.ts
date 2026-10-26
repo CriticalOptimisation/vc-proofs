@@ -48,3 +48,8 @@ test.skipIf(text === undefined)(
     expect(leaks).toEqual([]);
   },
 );
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #28    | no value of the private exclusion list (#27)                  |

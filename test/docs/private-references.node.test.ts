@@ -20,3 +20,8 @@ test.each(publicMarkdown())("%s has no private reference", (path) => {
     [],
   );
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #28    | no section mark or private reference (#27)                    |

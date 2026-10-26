@@ -31,3 +31,8 @@ function isExample(host: string): boolean {
 test.each(publicMarkdown())("%s names example hosts only", (path) => {
   expect([...new Set(hosts(read(path)))].filter((host) => !isExample(host))).toEqual([]);
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #28    | example host names only (#27)                                 |

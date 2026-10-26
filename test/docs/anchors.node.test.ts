@@ -101,3 +101,8 @@ test("docs/threat-model.md labels each threat and residual risk once", () => {
     text.match(new RegExp(`^- \\*\\*${id}\\*\\*`, "gm"))?.length ?? 0;
   expect(ids.filter((id) => count(id) !== 1)).toEqual([]);
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #28    | fixed anchors and threat-model labels (#27)                   |

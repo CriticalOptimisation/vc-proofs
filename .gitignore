@@ -39,3 +39,4 @@ Thumbs.db
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
 # | #19    | ignore .vitest/, Vitest's failure screenshots                 |
+# | #28    | ignore /.leak-patterns, the private exclusion list (#27)      |

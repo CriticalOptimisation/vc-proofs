@@ -67,3 +67,11 @@ vc-proofs has no storage, no logs and no I/O. The application keeps:
 - **policy**: the verifier's authorization of each issuance, its `maxAge` and its age
   thresholds; the issuer's schedule of identity checks and its maximum identity-check
   age.
+
+<!--
+Change History
+
+| PR  | Summary |
+|-----|---------|
+| #28 | vc-proofs calls per endpoint and ceremony (#27) |
+-->

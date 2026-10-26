@@ -32,3 +32,8 @@ function broken(path: string): string[] {
 test.each(publicMarkdown())("%s has no broken relative link", (path) => {
   expect(broken(path)).toEqual([]);
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #28    | relative links and anchors resolve (#27)                      |

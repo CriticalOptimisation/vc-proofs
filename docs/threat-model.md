@@ -157,3 +157,11 @@ can always edit their own wallet, and that must never produce a valid false proo
 
 Added by #6: each claim that an exported function establishes, its adversary, the check
 that enforces it and the test that shows it, mapped to the labels above.
+
+<!--
+Change History
+
+| PR  | Summary |
+|-----|---------|
+| #28 | trust model, threats T1-T11, residual risks A1-A10 (#27) |
+-->

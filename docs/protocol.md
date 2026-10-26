@@ -592,3 +592,11 @@ An illustrative presentation, without the rest of the OpenID4VP response:
 - [RFC 9901](https://www.rfc-editor.org/rfc/rfc9901): Selective Disclosure for JWTs (SD-JWT)
 - [Web Authentication Level 3](https://www.w3.org/TR/webauthn-3/), and its PRF extension
 - [Storage Standard: `navigator.storage.persist()`](https://storage.spec.whatwg.org/#dom-storagemanager-persist)
+
+<!--
+Change History
+
+| PR  | Summary |
+|-----|---------|
+| #28 | the public contract of vc-proofs (#27) |
+-->

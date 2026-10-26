@@ -135,3 +135,8 @@ export function hosts(text: string): string[] {
   }
   return found.map((host) => host.toLowerCase().replace(/\.$/, ""));
 }
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #28    | helpers of the documentation checks (#27)                     |

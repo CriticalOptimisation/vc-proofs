@@ -74,4 +74,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #19 | install, entry points, runtimes, release verification |
+| #28 | Documentation section: protocol, threat model, integration |
 -->
