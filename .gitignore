@@ -5,6 +5,11 @@ analyses/
 # One worktree per branch lives here.
 .worktrees/
 
+# The private exclusion list of the documentation checks (docs/development.md,
+# "Documentation checks"): its values must never be committed. Anchored and
+# without a trailing slash, so that worktree.sh may link it into a worktree.
+/.leak-patterns
+
 # Secrets and local configuration.
 .env
 .env.*
@@ -34,3 +39,4 @@ Thumbs.db
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
 # | #19    | ignore .vitest/, Vitest's failure screenshots                 |
+# | #28    | ignore /.leak-patterns, the private exclusion list (#27)      |

@@ -50,6 +50,16 @@ npm pack @criticaloptimisation/vc-proofs@<version>
 gh attestation verify criticaloptimisation-vc-proofs-<version>.tgz -R CriticalOptimisation/vc-proofs
 ```
 
+## Documentation
+
+- [The age-proof protocol](docs/protocol.md): the contract that the library implements,
+  its parties, credentials, flows and profiles.
+- [Threat model](docs/threat-model.md): the trust model, the threats the library must
+  defeat, and the residual risks it accepts.
+- [Integration](docs/integration.md): the functions an issuer, a wallet and a verifier
+  call at each step.
+- [Development guide](docs/development.md).
+
 ## Development
 
 See [docs/development.md](docs/development.md).
@@ -64,4 +74,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #19 | install, entry points, runtimes, release verification |
+| #28 | Documentation section: protocol, threat model, integration |
 -->

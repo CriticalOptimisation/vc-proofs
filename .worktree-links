@@ -1,0 +1,8 @@
+# Untracked paths that worktree.sh links from the main worktree into each worktree.
+# The private exclusion list of the documentation checks (docs/development.md).
+.leak-patterns
+
+# --- Change History -------------------------------------------------------
+# | PR     | Summary                                                       |
+# |--------|---------------------------------------------------------------|
+# | #28    | new: link .leak-patterns into worktrees (#27)                 |

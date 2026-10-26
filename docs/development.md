@@ -125,6 +125,29 @@ the test server: a secure context, so WebAuthn is available. The virtual authent
 does not replace a test on a real device: the PRF support of the phones is measured
 separately (#7).
 
+### Documentation checks
+
+The tests of `test/docs/` (Node.js only) keep the public documents, `README.md` and
+every Markdown file under `docs/`, fit for a public repository:
+
+- **Anchors**: the headings that issues and documents link to exist, and no document
+  repeats one. Renaming such a heading fails the check: update the links first.
+- **No private reference**: no section mark, no link to a private repository, no
+  quotation of the git-ignored local design notes.
+- **Example host names**: every host a document names, in a URL, a `did:web:` or
+  `x509_san_dns:` value or a backquoted domain name, is an example name of RFC 2606
+  (`verifier.example`, `example.com`), `localhost`, or a site on the allow-list of
+  `test/docs/hosts.node.test.ts`.
+- **Private patterns**: no file that git tracks contains a value of the private
+  exclusion list. The list is never committed. The test reads it from the
+  `LEAK_PATTERNS` environment variable, or else from `.leak-patterns` at the repository
+  root, which git ignores and `worktree.sh` links into each worktree: one literal per
+  line, `#` for comments, compared without regard to case. In CI, `LEAK_PATTERNS` comes
+  from the repository secret of that name. Without either, the test is skipped, and its
+  title says so: a check before a pull request must not be skipped.
+- **Links**: every relative link resolves to a file, and every `#fragment` to a heading
+  of that file.
+
 ## Lint and formatting
 
 ESLint uses the flat configuration `eslint.config.js`, with typescript-eslint's
@@ -178,4 +201,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #19 | development guide: Node.js, scripts, layout, tests, CI, release |
+| #28 | Documentation checks |
 -->
