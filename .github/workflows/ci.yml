@@ -63,6 +63,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:node
+        env:
+          # The private exclusion list of the documentation checks; empty when the
+          # secret is not set or not available (a pull request from a fork).
+          LEAK_PATTERNS: ${{ secrets.LEAK_PATTERNS }}
 
   test-browser:
     runs-on: ubuntu-latest
