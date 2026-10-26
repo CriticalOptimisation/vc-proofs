@@ -13,3 +13,4 @@ export { requestHash } from "./request-hash.js";
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #19    | empty common entry point                                      |
+// | #32    | export requestHash (#29)                                      |

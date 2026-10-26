@@ -26,3 +26,8 @@ describe("request-hash.json", () => {
     expect(typeof input === "string" && compactJws.test(input)).toBe(false);
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #32    | vectors checked with node:crypto (#29)                        |

@@ -30,3 +30,8 @@ export async function requestHash(requestJws: string): Promise<Uint8Array> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(requestJws));
   return new Uint8Array(digest);
 }
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #32    | requestHash (#29)                                             |

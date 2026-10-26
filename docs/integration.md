@@ -114,4 +114,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #28 | vc-proofs calls per endpoint and ceremony (#27) |
+| #32 | Request hash section; requestHash in the Presentation row (#29) |
 -->

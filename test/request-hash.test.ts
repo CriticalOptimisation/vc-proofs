@@ -109,3 +109,8 @@ describe("requestHash, edge cases", () => {
     expect(message).not.toContain(valid.slice(0, 16));
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #32    | vectors and edge cases of requestHash (#29)                   |
