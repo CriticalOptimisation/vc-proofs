@@ -7,7 +7,7 @@
  * `TextEncoder`, `TextDecoder`, typed arrays and `BigInt`. Lint forbids `node:*`
  * imports and the `window`, `document` and `navigator` globals here.
  */
-export {};
+export { requestHash } from "./request-hash.js";
 
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
