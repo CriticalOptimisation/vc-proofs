@@ -59,3 +59,53 @@ describe("requestHash", () => {
     await expect(requestHash(input)).rejects.toThrow(TypeError);
   });
 });
+
+describe("requestHash, edge cases", () => {
+  const valid = vectors.valid[0]?.requestJws ?? "";
+
+  test("hashes a 1 MiB request: no length limit", async () => {
+    const large = `eyJhbGciOiJFUzI1NiJ9.${"A".repeat(1 << 20)}.c2lnbmF0dXJl`;
+    const expected = new Uint8Array(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(large)),
+    );
+    expect(hex(await requestHash(large))).toBe(hex(expected));
+  });
+
+  test("returns a new array on each call", async () => {
+    const first = await requestHash(valid);
+    const expected = hex(first);
+    first.fill(0);
+    const second = await requestHash(valid);
+    expect(second).not.toBe(first);
+    expect(hex(second)).toBe(expected);
+  });
+
+  test("refuses a String object wrapping a valid request", async () => {
+    await expect(requestHash(new String(valid))).rejects.toThrow(TypeError);
+  });
+
+  test("refuses a non-ASCII character in a segment", async () => {
+    await expect(requestHash(`é${valid}`)).rejects.toThrow(TypeError);
+  });
+
+  test("refuses a line break inside a segment", async () => {
+    await expect(requestHash(valid.replace(".", "\r\n."))).rejects.toThrow(TypeError);
+  });
+
+  test("rejects asynchronously: the call itself does not throw", async () => {
+    let result: Promise<Uint8Array> | undefined;
+    expect(() => {
+      result = requestHash(42);
+    }).not.toThrow();
+    await expect(result).rejects.toThrow(TypeError);
+  });
+
+  test("the error message names no part of the input", async () => {
+    const input = `${valid}.secret`;
+    const error: unknown = await requestHash(input).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(TypeError);
+    const message = (error as TypeError).message;
+    expect(message).not.toContain("secret");
+    expect(message).not.toContain(valid.slice(0, 16));
+  });
+});
