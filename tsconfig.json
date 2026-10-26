@@ -4,6 +4,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "resolveJsonModule": true,
     "types": ["node", "@vitest/browser-playwright"],
     "strict": true,
     "noUncheckedIndexedAccess": true,

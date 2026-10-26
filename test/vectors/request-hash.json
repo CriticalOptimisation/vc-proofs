@@ -1,0 +1,94 @@
+{
+  "description": "Test vectors of requestHash (#29): SHA-256 of the ASCII bytes of a signed request object in JWS Compact Serialization, as received. sha256 is the hex digest, computed outside the library.",
+  "check": "printf %s '<requestJws>' | sha256sum",
+  "valid": [
+    {
+      "name": "rfc7515-a3",
+      "source": "RFC 7515, Appendix A.3.1: the ES256 example JWS, in compact serialization, line breaks removed",
+      "requestJws": "eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlfQ.DtEhU3ljbEg8L38VWAfUAqOyKAM6-Xx-F4GawxaepmXFCgfTjDxw5djxLa8ISlSApmWQxfKTUJqPP3-Kg6NU1Q",
+      "sha256": "4634b4dcaca24964bce48e22146fb6e3933ad993e6f24f42575145a2133ae115"
+    },
+    {
+      "name": "request-object",
+      "source": "an OpenID4VP request object shaped like this project's, with .example hosts, signed once with a throwaway P-256 key that was not kept",
+      "requestJws": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QifQ.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19.daNf9NWf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1HhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w",
+      "sha256": "0efb90ed666fc7c3f920a323e1a5f4a45a5d779de76c2ad42e6367935ed7ffe5"
+    },
+    {
+      "name": "request-object-header-byte",
+      "source": "request-object with one character of the header changed (position 29 of the header)",
+      "requestJws": "eyJhbGciOiJFUzI1NiIsInR5cCI6If9hdXRoLWF1dGh6LXJlcStqd3QifQ.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19.daNf9NWf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1HhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w",
+      "sha256": "20530f5ce82d07e04ccc558de52e561dc10d3595a88b8cc57fc0196e86e3b458"
+    },
+    {
+      "name": "request-object-payload-byte",
+      "source": "request-object with one character of the payload changed (position 224 of the payload)",
+      "requestJws": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QifQ.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zfCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19.daNf9NWf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1HhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w",
+      "sha256": "4866bd809132eaf922d3cf957f74c255f47ce12eb2a73ab081ddc2f5ea17edd7"
+    },
+    {
+      "name": "request-object-signature-byte",
+      "source": "request-object with one character of the signature changed (position 43 of the signature)",
+      "requestJws": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QifQ.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19.daNf9NWf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1fhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w",
+      "sha256": "68cb8191457781e0e26ce4981b94bd13283b4baa1d74069252bd1a73695a5dcc"
+    }
+  ],
+  "invalid": [
+    {
+      "name": "empty string",
+      "input": ""
+    },
+    {
+      "name": "trailing newline",
+      "input": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QifQ.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19.daNf9NWf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1HhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w\n"
+    },
+    {
+      "name": "leading space",
+      "input": " eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QifQ.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19.daNf9NWf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1HhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w"
+    },
+    {
+      "name": "two segments",
+      "input": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QifQ.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19"
+    },
+    {
+      "name": "five segments (JWE shape)",
+      "input": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QifQ.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19.daNf9NWf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1HhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19.daNf9NWf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1HhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w"
+    },
+    {
+      "name": "empty header segment",
+      "input": ".eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19.daNf9NWf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1HhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w"
+    },
+    {
+      "name": "empty payload segment (detached payload)",
+      "input": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QifQ..daNf9NWf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1HhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w"
+    },
+    {
+      "name": "empty signature segment (alg none)",
+      "input": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QifQ.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19."
+    },
+    {
+      "name": "'+' in a segment (base64, not base64url)",
+      "input": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QifQ.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19.daNf9+Wf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1HhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w"
+    },
+    {
+      "name": "'/' in a segment (base64, not base64url)",
+      "input": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QifQ.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19.daNf9/Wf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1HhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w"
+    },
+    {
+      "name": "'=' padding",
+      "input": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QifQ.eyJpc3MiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsImF1ZCI6Imh0dHBzOi8vd2FsbGV0LmV4YW1wbGUiLCJjbGllbnRfaWQiOiJ4NTA5X3Nhbl9kbnM6dmVyaWZpZXIuZXhhbXBsZSIsInJlc3BvbnNlX3R5cGUiOiJ2cF90b2tlbiIsInJlc3BvbnNlX21vZGUiOiJkaXJlY3RfcG9zdCIsInJlc3BvbnNlX3VyaSI6Imh0dHBzOi8vdmVyaWZpZXIuZXhhbXBsZS9wcmVzZW50YXRpb25zIiwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJleHAiOjE3OTMwMDAwMDAsImRjcWxfcXVlcnkiOnsiY3JlZGVudGlhbHMiOlt7ImlkIjoiYWdlIiwiZm9ybWF0IjoiZGMrc2Qtand0LXprcCJ9XX19.daNf9NWf10iIH2xIV6UV0dWII7bmhrTo1SlZ0vX4Hn1HhtSI8VrFcxgt0Eddeh4YBC8SleijueKgFuOeTvuy1w=="
+    },
+    {
+      "name": "null",
+      "input": null
+    },
+    {
+      "name": "number",
+      "input": 42
+    },
+    {
+      "name": "object",
+      "input": {}
+    }
+  ]
+}
