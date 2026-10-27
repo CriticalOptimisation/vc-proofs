@@ -25,11 +25,14 @@ npm install @criticaloptimisation/vc-proofs
 
 ## Entry points
 
-| Import                                    | For                        | May use                                          |
-| ----------------------------------------- | -------------------------- | ------------------------------------------------ |
-| `@criticaloptimisation/vc-proofs`         | code common to every side  | WebCrypto, `TextEncoder`, typed arrays, `BigInt` |
-| `@criticaloptimisation/vc-proofs/node`    | the issuer, in Node.js     | the above, and Node.js built-in modules          |
-| `@criticaloptimisation/vc-proofs/browser` | the holder, in the browser | the above, and WebAuthn and the DOM              |
+| Import                                 | Layer      | Exports                                                                     |
+| -------------------------------------- | ---------- | --------------------------------------------------------------------------- |
+| `@criticaloptimisation/vc-proofs`      | high level | the functions that return signed objects and check them, for every side     |
+| `@criticaloptimisation/vc-proofs/core` | low level  | the primitives, such as `requestHash`, on which the high-level API is built |
+
+Both run in Node.js and in the browser: they use only WebCrypto, `TextEncoder`, typed
+arrays and `BigInt`. The high-level entry point exports nothing yet. See
+[Integration](docs/integration.md#entry-points).
 
 The package has no runtime dependencies.
 
@@ -75,4 +78,5 @@ Change History
 |-----|---------|
 | #19 | install, entry points, runtimes, release verification |
 | #28 | Documentation section: protocol, threat model, integration |
+| #32 | entry points: the high-level API and ./core (#29) |
 -->

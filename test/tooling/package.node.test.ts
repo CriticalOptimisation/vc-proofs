@@ -1,7 +1,8 @@
 /**
  * The package as it is published: after the build, each entry point of the `exports` map
- * resolves and imports by the package's own name, and the tarball holds only `dist/`, the
- * licence files, the README and `package.json`.
+ * resolves and imports by the package's own name and exports exactly the names of its
+ * layer, and the tarball holds only `dist/`, the licence files, the README and
+ * `package.json`.
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
@@ -11,7 +12,20 @@ import { beforeAll, describe, expect, test } from "vitest";
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const require = createRequire(import.meta.url);
 const tsc = require.resolve("typescript/bin/tsc");
-const entries = ["", "/node", "/browser"];
+/**
+ * The public surface: each entry point of the `exports` map, and the exact names it
+ * exports. `.` is the high-level API, a placeholder until #21, #22 and #23 fix its
+ * functions; `./core` is the low-level API, the primitives.
+ */
+const surface: Record<string, string[]> = {
+  "": [],
+  "/core": ["requestHash"],
+};
+const entries = Object.keys(surface);
+// REVIEW PLACEHOLDER (#32: the entry points ./node and ./browser are replaced by ./core)
+// const entries = ["", "/node", "/browser"];
+// @criticaloptimisation/vc-proofs/node resolves to dist/ and imports -> @criticaloptimisation/vc-proofs/core resolves to dist/ and imports
+// @criticaloptimisation/vc-proofs/browser resolves to dist/ and imports -> @criticaloptimisation/vc-proofs/core resolves to dist/ and imports
 
 /** Runs a Node.js ES module script in the repository root, as a consumer would. */
 function runModule(script: string) {
@@ -40,6 +54,16 @@ describe("after the build", { timeout: 120_000 }, () => {
       expect(run.status).toBe(0);
       const target = entry === "" ? "dist/index.js" : `dist${entry}/index.js`;
       expect(run.stdout.trim()).toMatch(new RegExp(`/${target.replaceAll(".", "\\.")}$`));
+    });
+
+    test(`${specifier} exports exactly ${JSON.stringify(surface[entry])}`, () => {
+      const run = runModule(
+        `const module = await import(${JSON.stringify(specifier)});\n` +
+          `console.log(JSON.stringify(Object.keys(module).sort()));\n`,
+      );
+      expect(run.stderr).toBe("");
+      expect(run.status).toBe(0);
+      expect(JSON.parse(run.stdout) as string[]).toEqual(surface[entry]);
     });
   }
 
@@ -79,3 +103,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #19    | exports after the build, tarball contents                     |
+// | #32    | entry points . and ./core; the exact names of each (#29)      |

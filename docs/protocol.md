@@ -262,9 +262,29 @@ authoritative.
 
 ### Request hash
 
-The **request hash** is a digest of the signed request object. The issuer and the
-verifier compute it with one shared definition; it binds the issuance transaction, the
-WebAuthn challenges and the proofs to one request. Its canonical input is #9's.
+The **request hash** is a digest of the signed request object. The issuer, the verifier
+and the wallet compute it with one shared definition; it binds the issuance transaction,
+the WebAuthn challenges and the proofs to one request.
+
+```
+request hash = SHA-256( ASCII( request object, in JWS Compact Serialization ) )
+```
+
+- **The input** is the signed request object as received: its JWS Compact Serialization
+  ([RFC 7515](https://www.rfc-editor.org/rfc/rfc7515), the serialization that
+  [RFC 9101](https://www.rfc-editor.org/rfc/rfc9101) requires of a request object), the
+  signature included. Nothing is decoded, trimmed or normalized.
+- **The same request** is the same string. Two signatures over one payload are two
+  requests; two base64url strings that decode to the same bytes are two requests too.
+- **The output** is the raw 32-byte digest. It carries no secret and may be logged and
+  compared in clear.
+- **No domain tag** is hashed with the input, so any SHA-256 tool checks the value. Each
+  use of the digest, such as the issuance context and the presentation challenge, puts it
+  in an input under its own domain tag.
+
+The hash is not a check of the request: the issuer and the verifier verify its signature
+and its claims themselves. The library function is
+[`requestHash`](integration.md#request-hash).
 
 ### Origin check by the wallet
 
@@ -599,4 +619,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #28 | the public contract of vc-proofs (#27) |
+| #32 | the request hash: SHA-256 of the compact JWS, untagged (#29) |
 -->

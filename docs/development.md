@@ -54,17 +54,20 @@ downloaded to `~/.cache/ms-playwright`; on a fresh Linux machine,
 
 ## Source layout and the isomorphic rules
 
-| Directory      | Entry point | May use                                                                               |
-| -------------- | ----------- | ------------------------------------------------------------------------------------- |
-| `src/`         | `.`         | WebCrypto (`globalThis.crypto`), `TextEncoder`, `TextDecoder`, typed arrays, `BigInt` |
-| `src/node/`    | `./node`    | the above, and Node.js built-in modules (`node:*`)                                    |
-| `src/browser/` | `./browser` | the above, and WebAuthn and the DOM                                                   |
+| Directory   | Entry point | Layer                                         |
+| ----------- | ----------- | --------------------------------------------- |
+| `src/`      | `.`         | high level: the functions that sign and check |
+| `src/core/` | `./core`    | low level: the primitives                     |
 
-Lint enforces the split:
+All of `src/` may use only WebCrypto (`globalThis.crypto`), `TextEncoder`,
+`TextDecoder`, typed arrays and `BigInt`, so the same code runs in Node.js and in the
+browser. Lint enforces the rules:
 
-- an import of `node:*` is an error outside `src/node/` and `test/`;
-- a reference to `window`, `document` or `navigator` is an error outside `src/browser/`
-  and `test/`.
+- an import of `node:*` is an error in `src/`;
+- a reference to `window`, `document` or `navigator` is an error in `src/`;
+- the high-level code imports from `src/core/` only its entry point,
+  `src/core/index.ts` (as `./core/index.js`);
+- the code of `src/core/` imports nothing outside `src/core/`, which is flat.
 
 The code is TypeScript in strict mode (with `noUncheckedIndexedAccess` and
 `exactOptionalPropertyTypes`), compiled to ES2022 ES modules with `NodeNext` module
@@ -202,4 +205,5 @@ Change History
 |-----|---------|
 | #19 | development guide: Node.js, scripts, layout, tests, CI, release |
 | #28 | Documentation checks |
+| #32 | the high- and low-level layers; isomorphic rules for all of src/ (#29) |
 -->
