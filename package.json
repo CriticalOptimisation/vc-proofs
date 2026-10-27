@@ -16,13 +16,9 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./node": {
-      "types": "./dist/node/index.d.ts",
-      "default": "./dist/node/index.js"
-    },
-    "./browser": {
-      "types": "./dist/browser/index.d.ts",
-      "default": "./dist/browser/index.js"
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "default": "./dist/core/index.js"
     }
   },
   "files": [

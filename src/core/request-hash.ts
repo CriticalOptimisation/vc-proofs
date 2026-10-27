@@ -34,4 +34,4 @@ export async function requestHash(requestJws: string): Promise<Uint8Array> {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #32    | requestHash (#29)                                             |
+// | #32    | requestHash, in the low-level API (#29)                       |

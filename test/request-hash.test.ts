@@ -8,7 +8,7 @@
  * so that this file compiles before the export exists, and fails on the behaviour.
  */
 import { describe, expect, test } from "vitest";
-import * as entryPoint from "../src/index.js";
+import * as entryPoint from "../src/core/index.js";
 import vectors from "./vectors/request-hash.json" with { type: "json" };
 
 const requestHash = (entryPoint as Record<string, unknown>).requestHash as (
@@ -20,9 +20,16 @@ function hex(bytes: Uint8Array): string {
 }
 
 describe("requestHash", () => {
-  test("is a function exported by the common entry point", () => {
+  test("is a function exported by the low-level entry point", () => {
     expect(typeof requestHash).toBe("function");
   });
+
+  // REVIEW PLACEHOLDER (#32: requestHash moves to the low-level entry point, ./core)
+  // is a function exported by the common entry point -> is a function exported by the low-level entry point
+  //
+  // test("is a function exported by the common entry point", () => {
+  //   expect(typeof requestHash).toBe("function");
+  // });
 
   test.each(vectors.valid)("$name: the 32-byte SHA-256 digest of the string", async (vector) => {
     const digest = await requestHash(vector.requestJws);
@@ -113,4 +120,4 @@ describe("requestHash, edge cases", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #32    | vectors and edge cases of requestHash (#29)                   |
+// | #32    | vectors and edge cases of requestHash, through ./core (#29)   |

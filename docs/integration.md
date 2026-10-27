@@ -9,15 +9,29 @@ are fixed by the issues of the three modules: #21 (issuer), #22 (wallet) and #23
 (verifier). Those issues update this document when they fix a name, an input or an
 output.
 
+## Entry points
+
+The package has two layers, one entry point each:
+
+| Import                                 | Layer      | Exports                                                                                                                                                                                                                                     |
+| -------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@criticaloptimisation/vc-proofs`      | high level | the functions that run every check and return signed objects, or check them: the master and pair credentials that the issuer issues, the wallet's presentation, the verifier's check. **Empty for now**: #21, #22 and #23 fix its functions |
+| `@criticaloptimisation/vc-proofs/core` | low level  | the primitives, such as [`requestHash`](#request-hash): each computes or checks one value and returns plain data, never a signed object                                                                                                     |
+
+The high-level API is one API for the three sides: an application imports the functions
+it calls, and its bundler leaves out the rest. It is built on the low-level API and
+reaches it only through its entry point. Which layer each name below belongs to is fixed
+with the name, by #21, #22 and #23.
+
 ## Issuer endpoints
 
 Two entry points sign: `issueRoot`, for the [first issuance](protocol.md#first-issuance)
 after the identity check, and `issueDerived`, for an
 [issuance for a new pair](protocol.md#issuance-for-a-new-pair) from the master
 credential. Each runs every check first, and they are the only functions that produce a
-signed credential. The lower-level functions below are exported too, for the application
-and for tests; how the signing ones are exported without opening a path around the checks
-is #21's to settle.
+signed credential. The lower-level functions below are exported too, by the low-level
+entry point, for the application and for tests; how the signing ones are exported without
+opening a path around the checks is #21's to settle.
 
 | Endpoint (OpenID4VCI)        | vc-proofs calls                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -49,15 +63,16 @@ is #21's to settle.
 ## Request hash
 
 ```ts
-import { requestHash } from "@criticaloptimisation/vc-proofs";
+import { requestHash } from "@criticaloptimisation/vc-proofs/core";
 
 function requestHash(requestJws: string): Promise<Uint8Array>;
 ```
 
 `requestHash` computes the [request hash](protocol.md#request-hash) of a signed request
-object: the SHA-256 digest, 32 bytes, of the request's JWS Compact Serialization. It is
-exported by the common entry point, because the issuer, the verifier and the wallet all
-call it, and the value must be the same on the three sides and in every runtime.
+object: the SHA-256 digest, 32 bytes, of the request's JWS Compact Serialization. It is a
+primitive, exported by the low-level entry point, `./core`. The issuer, the verifier and
+the wallet all use it, directly or through the high-level API, and the value must be the
+same on the three sides and in every runtime.
 
 - **Input**: the request object exactly as it was received, a string of three non-empty
   base64url segments separated by two dots. The function does not decode it, does not
@@ -114,5 +129,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #28 | vc-proofs calls per endpoint and ceremony (#27) |
-| #32 | Request hash section; requestHash in the Presentation row (#29) |
+| #32 | Entry points: the high and low levels; Request hash section, in ./core; requestHash in the Presentation row (#29) |
 -->
