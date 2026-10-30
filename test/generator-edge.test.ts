@@ -237,4 +237,4 @@ describe("findSmallExponent: other bounds and bad inputs", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #34    | new: the edge cases of the derivation of h                    |
+// | #37    | new: the edge cases of the derivation of h (#34)              |

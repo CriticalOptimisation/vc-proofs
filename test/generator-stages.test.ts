@@ -79,4 +79,4 @@ describe("findSmallExponent", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #34    | new: the stages of the derivation of h, against the RFCs      |
+// | #37    | new: the stages of the derivation of h, against the RFCs (#34) |

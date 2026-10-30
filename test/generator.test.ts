@@ -104,4 +104,4 @@ describe("the derivation of a generator", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #34    | new: the vectors of the derivation of h, on every runtime     |
+// | #37    | new: the vectors of the derivation of h, on every runtime (#34) |

@@ -22,4 +22,4 @@ export {};
 // |--------|---------------------------------------------------------------|
 // | #19    | empty common entry point                                      |
 // | #32    | high-level entry point, an empty placeholder (#29)            |
-// | #34    | the runtime dependency @noble/curves                          |
+// | #37    | the runtime dependency @noble/curves (#34)                    |

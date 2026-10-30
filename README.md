@@ -81,5 +81,5 @@ Change History
 | #19 | install, entry points, runtimes, release verification |
 | #28 | Documentation section: protocol, threat model, integration |
 | #32 | entry points: the high-level API and ./core (#29) |
-| #34 | one runtime dependency, @noble/curves |
+| #37 | one runtime dependency, @noble/curves (#34) |
 -->

@@ -218,5 +218,5 @@ Change History
 | #19 | development guide: Node.js, scripts, layout, tests, CI, release |
 | #28 | Documentation checks |
 | #32 | the high- and low-level layers; isomorphic rules for all of src/ (#29) |
-| #34 | the runtime dependency @noble/curves; the independent-h job |
+| #37 | the runtime dependency @noble/curves; the independent-h job (#34) |
 -->

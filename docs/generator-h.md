@@ -252,5 +252,5 @@ Change History
 
 | PR  | Summary |
 |-----|---------|
-| #34 | the derivation of h: construction, parameters, trust argument, vectors |
+| #37 | the derivation of h: construction, parameters, trust argument, vectors (#34) |
 -->

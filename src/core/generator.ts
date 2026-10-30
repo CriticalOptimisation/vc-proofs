@@ -327,4 +327,4 @@ export function findSmallExponent(encoding: Uint8Array, bits: number): bigint | 
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #34    | new: the derivation of a generator (Task 4 stubs, Task 5)     |
+// | #37    | new: the derivation of a generator (#34)                      |

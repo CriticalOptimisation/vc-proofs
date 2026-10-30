@@ -36,4 +36,4 @@ test.each(vectors.vectors)(
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #34    | new: the published values of h are the derived ones           |
+// | #37    | new: the published values of h are the derived ones (#34)     |

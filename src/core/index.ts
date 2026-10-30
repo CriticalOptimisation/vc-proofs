@@ -20,4 +20,4 @@ export {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #32    | low-level entry point; export requestHash (#29)               |
-// | #34    | export the derivation of a generator                          |
+// | #37    | export the derivation of a generator (#34)                    |

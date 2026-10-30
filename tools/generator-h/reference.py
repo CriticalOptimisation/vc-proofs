@@ -398,4 +398,4 @@ if __name__ == "__main__":
 # --- Change History -------------------------------------------------------
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
-# | #34    | new: reference derivation of h, vectors and their check       |
+# | #37    | new: reference derivation of h, vectors and their check (#34) |
