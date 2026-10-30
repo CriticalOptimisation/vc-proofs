@@ -11,7 +11,8 @@
  *
  * Code under `src/` may use only what Node.js 22 and every browser with WebAuthn PRF
  * provide: WebCrypto (`globalThis.crypto`), `TextEncoder`, `TextDecoder`, typed arrays
- * and `BigInt`. Lint forbids `node:*` imports and the `window`, `document` and
+ * and `BigInt`, and the one runtime dependency, `@noble/curves`, for the point
+ * arithmetic of ristretto255 that WebCrypto lacks. Lint forbids `node:*` imports and the `window`, `document` and
  * `navigator` globals.
  */
 export {};
@@ -21,3 +22,4 @@ export {};
 // |--------|---------------------------------------------------------------|
 // | #19    | empty common entry point                                      |
 // | #32    | high-level entry point, an empty placeholder (#29)            |
+// | #34    | the runtime dependency @noble/curves                          |

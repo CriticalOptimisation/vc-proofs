@@ -103,9 +103,20 @@ jobs:
           '
       - run: npm pack --dry-run
 
+  independent-h:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install libsodium
+        run: sudo apt-get update && sudo apt-get install -y libsodium23
+      - name: Recompute the generator vectors in Python and libsodium
+        run: python3 tools/generator-h/reference.py check
+
   ci:
     if: always()
-    needs: [lint, audit, test-node, test-browser, build]
+    needs: [lint, audit, test-node, test-browser, build, independent-h]
     runs-on: ubuntu-latest
     steps:
       - name: Every job succeeded
@@ -123,3 +134,4 @@ jobs:
 # | #19    | lint, audit, tests on Node 22/24/26 and browsers, build, ci   |
 # | #28    | test-node gets the LEAK_PATTERNS secret (#27)                 |
 # | #32    | the build imports the entry points . and ./core (#29)         |
+# | #34    | independent-h: the Python and libsodium check of h            |
