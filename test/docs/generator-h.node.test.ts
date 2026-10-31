@@ -4,7 +4,7 @@
  * published, or a published value that the code does not produce, fails here.
  */
 import { expect, test } from "vitest";
-import { GENERATOR_DST, deriveGeneratorSteps } from "../../src/core/index.js";
+import { GENERATOR_DST, deriveGeneratorSteps } from "../helpers/generator.js";
 import vectors from "../vectors/generator-h.json" with { type: "json" };
 import { read } from "./markdown.js";
 

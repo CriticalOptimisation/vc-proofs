@@ -20,7 +20,7 @@ import {
   findSmallExponent,
   verifyGenerator,
   verifyWith,
-} from "../src/core/generator.js";
+} from "./helpers/generator.js";
 import vectors from "./vectors/generator-h.json" with { type: "json" };
 import rfc from "./vectors/rfc9380-rfc9496.json" with { type: "json" };
 

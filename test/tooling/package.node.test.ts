@@ -19,13 +19,7 @@ const tsc = require.resolve("typescript/bin/tsc");
  */
 const surface: Record<string, string[]> = {
   "": [],
-  "/core": [
-    "GENERATOR_DST",
-    "deriveGenerator",
-    "deriveGeneratorSteps",
-    "requestHash",
-    "verifyGenerator",
-  ],
+  "/core": ["RistrettoElement", "RistrettoScalar", "requestHash"],
 };
 const entries = Object.keys(surface);
 
