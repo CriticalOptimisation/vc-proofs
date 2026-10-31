@@ -159,24 +159,34 @@ describe("verifyGenerator", () => {
   });
 
   test("refuses a long encoding without copying it: its time does not grow with its length", async () => {
-    // The reference is the time of one copy of the long encoding, measured here. A
-    // verifyGenerator that copies before it checks the length takes at least as long.
+    // The reference is the time of `times` copies of the long encoding, measured on this
+    // machine: `times` doubles until that time is well above the resolution of the
+    // clock. A verifyGenerator that copies before it checks the length takes at least
+    // as long for as many calls; one that checks first takes a small fraction of it.
     const message = ascii(age.message);
-    const long = new Uint8Array(16 * 1024 * 1024).fill(0xa5);
-    const fastest = (run: () => unknown): number => {
+    const long = new Uint8Array(1024 * 1024).fill(0xa5);
+    const enough = 25; // milliseconds: 25 times the coarsest clock of a browser
+    const fastest = (run: () => unknown, times: number): number => {
       let best = Infinity;
-      for (let i = 0; i < 5; i++) {
+      for (let attempt = 0; attempt < 3; attempt++) {
         const start = performance.now();
-        run();
+        for (let i = 0; i < times; i++) run();
         best = Math.min(best, performance.now() - start);
       }
       return best;
     };
-    const copy = fastest(() => long.slice());
-    let result: Promise<boolean> | undefined;
-    const call = fastest(() => (result = verifyGenerator(message, long)));
-    expect(await result).toBe(false);
-    expect(copy).toBeGreaterThan(2);
+    const copies: Uint8Array[] = [];
+    const copyOnce = () => (copies[0] = long.slice());
+    let times = 1;
+    let copy = fastest(copyOnce, times);
+    while (copy < enough && times < 2 ** 16) {
+      times *= 2;
+      copy = fastest(copyOnce, times);
+    }
+    const results: Promise<boolean>[] = [];
+    const call = fastest(() => results.push(verifyGenerator(message, long)), times);
+    expect(await Promise.all(results)).toEqual(results.map(() => false));
+    expect(copy).toBeGreaterThanOrEqual(enough);
     expect(call).toBeLessThan(copy / 4);
   });
 
