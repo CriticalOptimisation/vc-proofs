@@ -158,6 +158,28 @@ describe("verifyGenerator", () => {
     expect(await pendingWrong).toBe(false);
   });
 
+  test("refuses a long encoding without copying it: its time does not grow with its length", async () => {
+    // The reference is the time of one copy of the long encoding, measured here. A
+    // verifyGenerator that copies before it checks the length takes at least as long.
+    const message = ascii(age.message);
+    const long = new Uint8Array(16 * 1024 * 1024).fill(0xa5);
+    const fastest = (run: () => unknown): number => {
+      let best = Infinity;
+      for (let i = 0; i < 5; i++) {
+        const start = performance.now();
+        run();
+        best = Math.min(best, performance.now() - start);
+      }
+      return best;
+    };
+    const copy = fastest(() => long.slice());
+    let result: Promise<boolean> | undefined;
+    const call = fastest(() => (result = verifyGenerator(message, long)));
+    expect(await result).toBe(false);
+    expect(copy).toBeGreaterThan(2);
+    expect(call).toBeLessThan(copy / 4);
+  });
+
   test("verifies the message as it was at the call, not as it is changed later", async () => {
     const message = ascii(age.message);
     const pending = verifyGenerator(message, fromHex(age.h));

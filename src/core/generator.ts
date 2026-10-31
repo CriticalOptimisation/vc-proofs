@@ -211,9 +211,11 @@ export async function verifyWith(
   if (!isBytes(message) || !isBytes(encoding)) {
     throw new TypeError("verifyGenerator: message and encoding must be Uint8Arrays");
   }
-  // A copy before the first await: a caller may change its array while the promise runs.
+  // The length first: copying an encoding of any length would cost time and memory
+  // that grow with it. Then a copy before the first await: a caller may change its
+  // array while the promise runs.
+  if (encoding.length !== 32) return false;
   const expected = encoding.slice();
-  if (expected.length !== 32) return false;
   let h: Uint8Array;
   try {
     h = (await deriveStepsWith(message, derivation)).h;
