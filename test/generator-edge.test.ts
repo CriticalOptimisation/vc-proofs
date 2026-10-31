@@ -146,6 +146,25 @@ describe("verifyGenerator", () => {
     expect(await verifyGenerator(ascii(age.message), new Uint8Array())).toBe(false);
   });
 
+  test("verifies the encoding as it was at the call, not as it is changed later", async () => {
+    const message = ascii(age.message);
+    const right = fromHex(age.h);
+    const pendingRight = verifyGenerator(message, right);
+    right.fill(0);
+    const wrong = new Uint8Array(32);
+    const pendingWrong = verifyGenerator(message, wrong);
+    wrong.set(fromHex(age.h));
+    expect(await pendingRight).toBe(true);
+    expect(await pendingWrong).toBe(false);
+  });
+
+  test("verifies the message as it was at the call, not as it is changed later", async () => {
+    const message = ascii(age.message);
+    const pending = verifyGenerator(message, fromHex(age.h));
+    message.fill(0);
+    expect(await pending).toBe(true);
+  });
+
   test("rejects with a TypeError an encoding or a message that is not a Uint8Array", async () => {
     const message = ascii(age.message);
     await expect(verifyGenerator(message, age.h as never)).rejects.toBeInstanceOf(TypeError);

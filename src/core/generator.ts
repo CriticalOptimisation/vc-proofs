@@ -164,7 +164,8 @@ export function deriveGeneratorSteps(message: Uint8Array): Promise<GeneratorStep
  * compares the bytes in constant time.
  *
  * @param message - the message the encoding is said to come from.
- * @param encoding - the published 32-byte encoding.
+ * @param encoding - the published 32-byte encoding. Both arrays are read at the call:
+ *   a change to them while the promise runs does not affect the result.
  * @returns `true` when `encoding` equals `deriveGenerator(message)`; `false` on any
  *   difference, on an encoding that is not 32 bytes, or when the derivation is
  *   refused.
@@ -210,7 +211,9 @@ export async function verifyWith(
   if (!isBytes(message) || !isBytes(encoding)) {
     throw new TypeError("verifyGenerator: message and encoding must be Uint8Arrays");
   }
-  if (encoding.length !== 32) return false;
+  // A copy before the first await: a caller may change its array while the promise runs.
+  const expected = encoding.slice();
+  if (expected.length !== 32) return false;
   let h: Uint8Array;
   try {
     h = (await deriveStepsWith(message, derivation)).h;
@@ -219,7 +222,7 @@ export async function verifyWith(
     throw error;
   }
   let difference = 0;
-  for (let i = 0; i < 32; i++) difference |= (h[i] ?? 0) ^ (encoding[i] ?? 0);
+  for (let i = 0; i < 32; i++) difference |= (h[i] ?? 0) ^ (expected[i] ?? 0);
   return difference === 0;
 }
 
