@@ -67,7 +67,8 @@ browser. Lint enforces the rules:
 - a reference to `window`, `document` or `navigator` is an error in `src/`;
 - the high-level code imports from `src/core/` only its entry point,
   `src/core/index.ts` (as `./core/index.js`);
-- the code of `src/core/` imports nothing outside `src/core/`, which is flat.
+- the code of `src/core/` imports nothing outside `src/core/`, which is flat, except
+  the runtime dependency `@noble/curves` (see [Dependencies](#dependencies)).
 
 The code is TypeScript in strict mode (with `noUncheckedIndexedAccess` and
 `exactOptionalPropertyTypes`), compiled to ES2022 ES modules with `NodeNext` module
@@ -161,14 +162,22 @@ CI checks it with `npm run format:check`.
 
 `.github/workflows/ci.yml` runs on every pull request and on every push to `main`:
 
-| Job            | Node.js    | Does                                                                                |
-| -------------- | ---------- | ----------------------------------------------------------------------------------- |
-| `lint`         | 26         | lint, format check, type check                                                      |
-| `audit`        | 26         | `npm audit --audit-level=high`, `npm audit signatures`                              |
-| `test-node`    | 22, 24, 26 | the `node` project                                                                  |
-| `test-browser` | 26         | the `chromium`, `firefox` and `webkit` projects                                     |
-| `build`        | 26         | the build; imports each entry point by the package's own name; `npm pack --dry-run` |
-| `ci`           |            | succeeds only when every job above succeeded                                        |
+| Job             | Node.js    | Does                                                                                |
+| --------------- | ---------- | ----------------------------------------------------------------------------------- |
+| `lint`          | 26         | lint, format check, type check                                                      |
+| `audit`         | 26         | `npm audit --audit-level=high`, `npm audit signatures`                              |
+| `test-node`     | 22, 24, 26 | the `node` project                                                                  |
+| `test-browser`  | 26         | the `chromium`, `firefox` and `webkit` projects                                     |
+| `build`         | 26         | the build; imports each entry point by the package's own name; `npm pack --dry-run` |
+| `independent-h` |            | the independent check of the generator vectors (see below)                          |
+| `ci`            |            | succeeds only when every job above succeeded                                        |
+
+The `independent-h` job installs libsodium and runs
+`python3 tools/generator-h/reference.py check`: a Python and libsodium implementation
+of the derivation of [the generator h](generator-h.md), written apart from the
+TypeScript code, recomputes `test/vectors/generator-h.json` and fails on any
+difference. To regenerate the file after a deliberate change, run
+`python3 tools/generator-h/reference.py vectors`, then `npx prettier --write` on it.
 
 `ci` is the one check that branch protection requires before a merge. The workflows
 have read-only permissions, and every action is pinned by its commit SHA.
@@ -180,8 +189,11 @@ have read-only permissions, and every action is pinned by its commit SHA.
 - CI audits the dependencies and their registry signatures (`audit` job).
 - Dependabot proposes updates of the npm packages and of the GitHub Actions every
   week, as pull requests that go through the usual review.
-- The package has **no runtime dependencies**. A pull request that adds one must say
-  why the platform (WebCrypto, WebAuthn) is not enough.
+- The package has **one runtime dependency**, `@noble/curves`, which brings
+  `@noble/hashes`. WebCrypto has no point arithmetic, and the Pedersen commitments
+  need the group ristretto255 ([The generator h](generator-h.md)). Everything else,
+  SHA-512 included, comes from WebCrypto. A pull request that adds another dependency
+  must say why the platform (WebCrypto, WebAuthn) and this one are not enough.
 
 ## Releasing
 
@@ -206,4 +218,5 @@ Change History
 | #19 | development guide: Node.js, scripts, layout, tests, CI, release |
 | #28 | Documentation checks |
 | #32 | the high- and low-level layers; isomorphic rules for all of src/ (#29) |
+| #37 | the runtime dependency @noble/curves; the independent-h job (#34) |
 -->

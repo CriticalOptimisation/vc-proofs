@@ -1,0 +1,83 @@
+{
+  "description": "Test vectors of the derivation of h (#34, docs/generator-h.md): hash_to_ristretto255 of RFC 9380 Appendix B with expand_message_xmd(SHA-512), under the DST of vc-proofs. uniform is the output of expand_message_xmd, p0 and p1 the encodings of MAP of its two halves, h the encoding of their sum. Byte strings are lowercase hex. Produced by tools/generator-h/reference.py, outside the TypeScript code; h is also recomputed with libsodium.",
+  "check": "python3 tools/generator-h/reference.py check",
+  "dst": "vc-proofs-V01-CS01-with-ristretto255_XMD:SHA-512_R255MAP_RO_",
+  "dstHex": "76632d70726f6f66732d5630312d435330312d776974682d72697374726574746f3235355f584d443a5348412d3531325f523235354d41505f524f5f",
+  "smallExponentBits": 16,
+  "vectors": [
+    {
+      "name": "empty",
+      "message": "",
+      "messageHex": "",
+      "uniform": "39e46f24e83f1a96876a593e9dc72c4e0550047b1fb39c1ed44949262940d3e82e9b4c9fe57fabedace4caba8bd560c38b3367aae906899f5697c91b20d445b0",
+      "p0": "9acd79274bea66346a792f4279e041e12ad4d456451c7ffcfd480a2f15ba275c",
+      "p1": "f2ecee23aa0eca3cba50a475299db9b3b2c3998b202bd201c9f4f39d52d4293b",
+      "h": "12751dbfd8fd63e993bd6ea14710d9aa64120aebed435192bffe9cffbaf97e31"
+    },
+    {
+      "name": "abc",
+      "message": "abc",
+      "messageHex": "616263",
+      "uniform": "8873bca02f44da6396340232cd6d75c2335716a802d36fd9b6c5076a50f35b5d107af468233ca2c34fbb112bc4ff41b53e08245e3ef699bb875a19b4bc3269ab",
+      "p0": "5c01d63025f268a5785a06531b4bdd203459e536896deaa38434e3bf58f6a711",
+      "p1": "8203b7d590dde8971e3fe22e7e02fadcbed1fdaa7d3d389bbc7bb64a4b334a2f",
+      "h": "18363e8998f6cfdc470379d095c6af1964974c8eb350cc4f26cc3271cdd7714e"
+    },
+    {
+      "name": "age-check",
+      "message": "age-check.calcool.ai/pedersen/h/v1",
+      "messageHex": "6167652d636865636b2e63616c636f6f6c2e61692f706564657273656e2f682f7631",
+      "uniform": "93fa6c6e1055445cb014fd63f25db561ff2a019bd127234b090da881b73a30c0647a490d1c2d710e67adce657c7fa05827631711279dc3f78dbbefe887ec7fe9",
+      "p0": "fe30a3dc2e4d506a31802c6b1cc7a0a2dd1f0a1a57e87a6a05f56e6ee7645139",
+      "p1": "247a2ee6429a1e6c7f622a59c4ebbfce5e4b25679cbc2e7cad80e805f59f9f6c",
+      "h": "249aa3ca590fa8d666326390ef5b7b422b92231a320746e5013c9be76e407347"
+    }
+  ],
+  "smallExponents": {
+    "description": "Planted multiples x*g of the canonical generator. find_small_exponent with bits = smallExponentBits finds x for each refused entry and nothing for each accepted one.",
+    "refused": [
+      {
+        "x": "0",
+        "encoding": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      {
+        "x": "1",
+        "encoding": "e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76"
+      },
+      {
+        "x": "-1",
+        "encoding": "eaffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"
+      },
+      {
+        "x": "12345",
+        "encoding": "b4c1b3cdef7ba1bd94fa95c7b736622046ef663285813c2293c52c5f4f9fb011"
+      },
+      {
+        "x": "-777",
+        "encoding": "9e6edfa85637a830cafc1a05335df4bf17e9f1cdeb90419431706f214ffead3d"
+      },
+      {
+        "x": "65536",
+        "encoding": "a2c1d8e2fbf8821c756c236ff582f55a9ad63d95982544c5e6b332c3bd389b74"
+      },
+      {
+        "x": "-65536",
+        "encoding": "b2ac91c5abd937de3121e968090c28b656a689a126fc7f622896e170952e8c79"
+      }
+    ],
+    "accepted": [
+      {
+        "x": "65537",
+        "encoding": "da319d6ce9d559f17133c697d2eebf2aa9d0551b16c87543139bf8519802f166"
+      },
+      {
+        "x": "-65537",
+        "encoding": "942f0d41904944ba3a39f49ca4f1c7a3337d9aca4ffdbceee0e8e690251c1578"
+      },
+      {
+        "x": "1099511627776",
+        "encoding": "dabbf8b96d4f6044d68ef1ce0c35a094a894dea0b7d474c2b1feeb9a3a56615c"
+      }
+    ]
+  }
+}

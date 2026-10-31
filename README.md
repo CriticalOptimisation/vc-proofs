@@ -31,10 +31,12 @@ npm install @criticaloptimisation/vc-proofs
 | `@criticaloptimisation/vc-proofs/core` | low level  | the primitives, such as `requestHash`, on which the high-level API is built |
 
 Both run in Node.js and in the browser: they use only WebCrypto, `TextEncoder`, typed
-arrays and `BigInt`. The high-level entry point exports nothing yet. See
+arrays, `BigInt` and `@noble/curves`. The high-level entry point exports nothing yet. See
 [Integration](docs/integration.md#entry-points).
 
-The package has no runtime dependencies.
+The package has one runtime dependency, [`@noble/curves`](https://github.com/paulmillr/noble-curves),
+pinned at an exact version: WebCrypto has no point arithmetic, and the Pedersen
+commitments need the group ristretto255 (see [The generator h](docs/generator-h.md)).
 
 ## Supported runtimes
 
@@ -79,4 +81,5 @@ Change History
 | #19 | install, entry points, runtimes, release verification |
 | #28 | Documentation section: protocol, threat model, integration |
 | #32 | entry points: the high-level API and ./core (#29) |
+| #37 | one runtime dependency, @noble/curves (#34) |
 -->

@@ -19,13 +19,15 @@ const tsc = require.resolve("typescript/bin/tsc");
  */
 const surface: Record<string, string[]> = {
   "": [],
-  "/core": ["requestHash"],
+  "/core": [
+    "GENERATOR_DST",
+    "deriveGenerator",
+    "deriveGeneratorSteps",
+    "requestHash",
+    "verifyGenerator",
+  ],
 };
 const entries = Object.keys(surface);
-// REVIEW PLACEHOLDER (#32: the entry points ./node and ./browser are replaced by ./core)
-// const entries = ["", "/node", "/browser"];
-// @criticaloptimisation/vc-proofs/node resolves to dist/ and imports -> @criticaloptimisation/vc-proofs/core resolves to dist/ and imports
-// @criticaloptimisation/vc-proofs/browser resolves to dist/ and imports -> @criticaloptimisation/vc-proofs/core resolves to dist/ and imports
 
 /** Runs a Node.js ES module script in the repository root, as a consumer would. */
 function runModule(script: string) {
@@ -104,3 +106,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // |--------|---------------------------------------------------------------|
 // | #19    | exports after the build, tarball contents                     |
 // | #32    | entry points . and ./core; the exact names of each (#29)      |
+// | #37    | ./core exports the derivation of a generator (#34)            |
