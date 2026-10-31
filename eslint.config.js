@@ -106,3 +106,4 @@ export default defineConfig(
 // |--------|---------------------------------------------------------------|
 // | #19    | strictTypeChecked and the isomorphicRules export              |
 // | #32    | no node:* or DOM global in src/; the core layering (#29)      |
+// | #38    | src/ may not import libsodium (#35)                           |

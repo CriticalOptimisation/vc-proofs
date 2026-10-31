@@ -95,3 +95,8 @@ export async function verifyWith(
   for (let i = 0; i < 32; i++) difference |= (h[i] ?? 0) ^ (expected[i] ?? 0);
   return difference === 0;
 }
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #38    | new: the API of #34, rebuilt on RistrettoElement (#35)        |

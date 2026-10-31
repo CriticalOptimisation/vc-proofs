@@ -529,3 +529,8 @@ export function findSmallExponent(encoding: Uint8Array, bits: number): bigint | 
 function hex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #38    | new: the two classes; the derivation of generator.ts (#35)    |

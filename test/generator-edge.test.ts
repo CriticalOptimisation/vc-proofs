@@ -289,3 +289,4 @@ describe("findSmallExponent: other bounds and bad inputs", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #37    | new: the edge cases of the derivation of h (#34)              |
+// | #38    | imports the fixture of the API of #34 (#35)                   |

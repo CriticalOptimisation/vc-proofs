@@ -212,3 +212,8 @@ describe("RistrettoScalar against libsodium", () => {
     });
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #38    | new: both classes against libsodium (#35)                     |

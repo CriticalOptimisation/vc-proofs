@@ -226,4 +226,5 @@ Change History
 | #28 | Documentation checks |
 | #32 | the high- and low-level layers; isomorphic rules for all of src/ (#29) |
 | #37 | the runtime dependency @noble/curves; the independent-h job (#34) |
+| #38 | the test-only libsodium; src/ may not import it (#35) |
 -->

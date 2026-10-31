@@ -44,3 +44,8 @@ describe.each(classes)("docs/core/ristretto255.md, section %s", (title, cls) => 
     expect(section(title)).toMatch(new RegExp("`" + escaped + "[`(]"));
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #38    | new: the page names every public member (#35)                 |

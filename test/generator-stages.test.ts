@@ -80,3 +80,4 @@ describe("findSmallExponent", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #37    | new: the stages of the derivation of h, against the RFCs (#34) |
+// | #38    | imports the fixture of the API of #34 (#35)                   |

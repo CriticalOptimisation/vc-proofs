@@ -272,3 +272,8 @@ describe("RistrettoScalar", () => {
     expect(hex(g().multiplyScalar(a.add(b)).encode())).toBe(multiples[2]);
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #38    | new: both classes against RFC 9496 and the vectors of h (#35) |

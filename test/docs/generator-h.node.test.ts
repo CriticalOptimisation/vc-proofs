@@ -37,3 +37,4 @@ test.each(vectors.vectors)(
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #37    | new: the published values of h are the derived ones (#34)     |
+// | #38    | imports the fixture of the API of #34 (#35)                   |

@@ -109,3 +109,4 @@ describe("the derivation of a generator", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #37    | new: the vectors of the derivation of h, on every runtime (#34) |
+// | #38    | through the fixture; the entry-point case is a placeholder (#35) |

@@ -258,4 +258,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #37 | the derivation of h: construction, parameters, trust argument, vectors (#34) |
+| #38 | h as the factory RistrettoElement.deriveGenerator (#35) |
 -->

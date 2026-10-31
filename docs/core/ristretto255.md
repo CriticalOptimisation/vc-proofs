@@ -247,3 +247,11 @@ cannot import it.
 Expected values come either from the text of an RFC or from libsodium, never from code
 of vc-proofs. libsodium has no `hash_to_ristretto255`; `hashToGroup` is checked as
 [hashToGroup](#hashtogroup) says.
+
+<!--
+Change History
+
+| PR  | Summary |
+|-----|---------|
+| #38 | new: RistrettoElement and RistrettoScalar (#35) |
+-->

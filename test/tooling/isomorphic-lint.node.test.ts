@@ -111,3 +111,4 @@ describe("layering: the high-level code and src/core/", () => {
 // |--------|---------------------------------------------------------------|
 // | #19    | the isomorphic lint rules                                     |
 // | #32    | no node:* or DOM global in src/; the core layering (#29)      |
+// | #38    | the libsodium rule; placeholders of #32 removed (#35)         |

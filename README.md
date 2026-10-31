@@ -86,4 +86,5 @@ Change History
 | #28 | Documentation section: protocol, threat model, integration |
 | #32 | entry points: the high-level API and ./core (#29) |
 | #37 | one runtime dependency, @noble/curves (#34) |
+| #38 | links The group ristretto255 and The generator h (#35) |
 -->
