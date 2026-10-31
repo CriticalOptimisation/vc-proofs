@@ -20,7 +20,7 @@ import {
   findSmallExponent,
   verifyGenerator,
   verifyWith,
-} from "../src/core/generator.js";
+} from "./helpers/generator.js";
 import vectors from "./vectors/generator-h.json" with { type: "json" };
 import rfc from "./vectors/rfc9380-rfc9496.json" with { type: "json" };
 
@@ -289,3 +289,4 @@ describe("findSmallExponent: other bounds and bad inputs", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #37    | new: the edge cases of the derivation of h (#34)              |
+// | #38    | imports the fixture of the API of #34 (#35)                   |
