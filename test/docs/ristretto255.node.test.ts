@@ -18,7 +18,7 @@ function section(title: string): string {
 }
 
 /** The public members of a class: its static members and those of its prototype. */
-function members(cls: abstract new (...args: never[]) => unknown): string[] {
+function members(cls: { readonly prototype: unknown }): string[] {
   const statics = Object.getOwnPropertyNames(cls).filter(
     (name) => !["length", "name", "prototype"].includes(name),
   );
