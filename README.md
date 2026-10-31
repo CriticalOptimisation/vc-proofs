@@ -63,6 +63,10 @@ gh attestation verify criticaloptimisation-vc-proofs-<version>.tgz -R CriticalOp
   defeat, and the residual risks it accepts.
 - [Integration](docs/integration.md): the functions an issuer, a wallet and a verifier
   call at each step.
+- [The group ristretto255](docs/core/ristretto255.md): `RistrettoElement` and
+  `RistrettoScalar`, the group values of the low-level entry point.
+- [The generator h](docs/generator-h.md): how the Pedersen generator `h` is derived, and
+  why nobody knows its discrete logarithm.
 - [Development guide](docs/development.md).
 
 ## Development
