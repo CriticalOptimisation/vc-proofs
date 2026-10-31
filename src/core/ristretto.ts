@@ -398,6 +398,9 @@ export async function deriveGeneratorWith(
   const dst = new TextEncoder().encode(RistrettoElement.GENERATOR_DST);
   const uniform = await expandMessageXmd(copy, dst, 64);
   const element = derivation(uniform);
+  if (!(element instanceof RistrettoElement)) {
+    throw new TypeError("deriveGenerator: the derivation must return a RistrettoElement");
+  }
   if (findSmallExponent(element.encode(), SMALL_EXPONENT_BITS) !== null) {
     throw new RangeError(
       `deriveGenerator: the derived element is x·g with |x| ≤ 2^${String(SMALL_EXPONENT_BITS)}; choose another message`,
