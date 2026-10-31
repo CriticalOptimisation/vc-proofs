@@ -1,8 +1,9 @@
 /**
  * The isomorphic and layering rules of the source layout (docs/development.md): no
- * `node:*` import and no `window`, `document` or `navigator` global in `src/`; the
- * high-level code reaches `src/core/` only through `src/core/index.ts`, and `src/core/`
- * imports nothing outside it.
+ * `node:*` import, no libsodium import (a development dependency, #35) and no
+ * `window`, `document` or `navigator` global in `src/`; the high-level code reaches
+ * `src/core/` only through `src/core/index.ts`, and `src/core/` imports nothing
+ * outside it.
  *
  * The rules are the `isomorphicRules` export of `eslint.config.js`, which the default
  * export includes. They need no type information, so they are checked here on code
@@ -31,23 +32,29 @@ describe("node:* imports", () => {
   test("are an error in the low-level code", async () => {
     expect(await errorsAt("src/core/x.ts", code)).toEqual(["no-restricted-imports"]);
   });
+});
 
-  // REVIEW PLACEHOLDER (#32: src/browser/ and src/node/ are gone; node:* is an error in all of src/)
-  // are an error in the common code -> are an error in the high-level code
-  // are an error in the browser code -> are an error in the high-level code
-  // are allowed in src/node/ -> are an error in the low-level code
-  //
-  // test("are an error in the common code", async () => {
-  //   expect(await errorsAt("src/x.ts", code)).toEqual(["no-restricted-imports"]);
-  // });
-  //
-  // test("are an error in the browser code", async () => {
-  //   expect(await errorsAt("src/browser/x.ts", code)).toEqual(["no-restricted-imports"]);
-  // });
-  //
-  // test("are allowed in src/node/", async () => {
-  //   expect(await errorsAt("src/node/x.ts", code)).toEqual([]);
-  // });
+describe("libsodium imports (#35)", () => {
+  test.each(["libsodium-wrappers-sumo", "libsodium-wrappers", "libsodium"])(
+    "%s is an error in the high-level code",
+    async (name) => {
+      const code = `import sodium from "${name}";\nexport const s = sodium;\n`;
+      expect(await errorsAt("src/x.ts", code)).toEqual(["no-restricted-imports"]);
+    },
+  );
+
+  test.each(["libsodium-wrappers-sumo", "libsodium-wrappers", "libsodium"])(
+    "%s is an error in the low-level code",
+    async (name) => {
+      const code = `import sodium from "${name}";\nexport const s = sodium;\n`;
+      expect(await errorsAt("src/core/x.ts", code)).toEqual(["no-restricted-imports"]);
+    },
+  );
+
+  test("the other imports of src/core/ are still allowed", async () => {
+    const code = 'export { ristretto255 } from "@noble/curves/ed25519.js";\n';
+    expect(await errorsAt("src/core/x.ts", code)).toEqual([]);
+  });
 });
 
 describe("window, document and navigator", () => {
@@ -61,23 +68,6 @@ describe("window, document and navigator", () => {
     test(`${name} is an error in the low-level code`, async () => {
       expect(await errorsAt("src/core/x.ts", code)).toEqual(["no-restricted-globals"]);
     });
-
-    // REVIEW PLACEHOLDER (#32: src/browser/ and src/node/ are gone; the globals are an error in all of src/)
-    // ${name} is an error in the common code -> ${name} is an error in the high-level code
-    // ${name} is an error in the node code -> ${name} is an error in the low-level code
-    // ${name} is allowed in src/browser/ -> ${name} is an error in the low-level code
-    //
-    // test(`${name} is an error in the common code`, async () => {
-    //   expect(await errorsAt("src/x.ts", code)).toEqual(["no-restricted-globals"]);
-    // });
-    //
-    // test(`${name} is an error in the node code`, async () => {
-    //   expect(await errorsAt("src/node/x.ts", code)).toEqual(["no-restricted-globals"]);
-    // });
-    //
-    // test(`${name} is allowed in src/browser/`, async () => {
-    //   expect(await errorsAt("src/browser/x.ts", code)).toEqual([]);
-    // });
   }
 });
 
