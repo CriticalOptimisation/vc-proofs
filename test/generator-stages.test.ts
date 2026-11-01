@@ -3,8 +3,8 @@
  * its official vectors: `expand_message_xmd` with SHA-512 (RFC 9380, Appendix K.3) and
  * the element derivation of RFC 9496 (Appendix A.3), cross-checked against
  * `@noble/curves`; and the small-exponent search, on planted multiples of `g`.
- * These functions are exported by src/core/generator.ts for the tests, not by the
- * entry point.
+ * These functions are exported by src/core/ristretto.ts for the tests, not by the
+ * entry point, and reach this file through the fixture test/helpers/generator.ts (#35).
  */
 import { ristretto255_hasher } from "@noble/curves/ed25519.js";
 import { describe, expect, test } from "vitest";
@@ -13,7 +13,7 @@ import {
   elementDerivation,
   expandMessageXmd,
   findSmallExponent,
-} from "../src/core/generator.js";
+} from "./helpers/generator.js";
 import vectors from "./vectors/generator-h.json" with { type: "json" };
 import rfc from "./vectors/rfc9380-rfc9496.json" with { type: "json" };
 
@@ -80,3 +80,4 @@ describe("findSmallExponent", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #37    | new: the stages of the derivation of h, against the RFCs (#34) |
+// | #38    | imports the fixture of the API of #34 (#35)                   |

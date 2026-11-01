@@ -5,19 +5,15 @@
  * through this file.
  *
  * Code under `src/core/` imports nothing outside `src/core/`, except the pinned
- * `@noble/curves` for the point arithmetic of ristretto255 (docs/generator-h.md).
+ * `@noble/curves` for the arithmetic of ristretto255, which `ristretto.ts` wraps in the
+ * classes `RistrettoElement` and `RistrettoScalar` (docs/core/ristretto255.md).
  */
 export { requestHash } from "./request-hash.js";
-export {
-  GENERATOR_DST,
-  deriveGenerator,
-  deriveGeneratorSteps,
-  verifyGenerator,
-  type GeneratorSteps,
-} from "./generator.js";
+export { RistrettoElement, RistrettoScalar } from "./ristretto.js";
 
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #32    | low-level entry point; export requestHash (#29)               |
 // | #37    | export the derivation of a generator (#34)                    |
+// | #38    | export RistrettoElement and RistrettoScalar, not generator (#35) |

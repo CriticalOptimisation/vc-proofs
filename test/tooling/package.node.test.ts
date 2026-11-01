@@ -19,13 +19,7 @@ const tsc = require.resolve("typescript/bin/tsc");
  */
 const surface: Record<string, string[]> = {
   "": [],
-  "/core": [
-    "GENERATOR_DST",
-    "deriveGenerator",
-    "deriveGeneratorSteps",
-    "requestHash",
-    "verifyGenerator",
-  ],
+  "/core": ["RistrettoElement", "RistrettoScalar", "requestHash"],
 };
 const entries = Object.keys(surface);
 
@@ -107,3 +101,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #19    | exports after the build, tarball contents                     |
 // | #32    | entry points . and ./core; the exact names of each (#29)      |
 // | #37    | ./core exports the derivation of a generator (#34)            |
+// | #38    | ./core exports RistrettoElement, RistrettoScalar (#35)        |

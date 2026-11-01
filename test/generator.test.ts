@@ -4,12 +4,12 @@
  * tools/generator-h/reference.py, a Python and libsodium implementation written apart
  * from the code under test. The same file runs in Node.js and in every headless browser.
  *
- * The functions are looked up on the entry point's namespace rather than imported by
- * name, so that this file compiles before the exports exist, and fails on the behaviour.
+ * Since #35, the derivation is `RistrettoElement.deriveGenerator`, and the API of #34
+ * that this file tests is rebuilt on it by the fixture test/helpers/generator.ts.
  */
 import { ristretto255 } from "@noble/curves/ed25519.js";
 import { describe, expect, test } from "vitest";
-import * as entryPoint from "../src/core/index.js";
+import * as fixture from "./helpers/generator.js";
 import vectors from "./vectors/generator-h.json" with { type: "json" };
 
 interface Steps {
@@ -20,7 +20,7 @@ interface Steps {
   h: Uint8Array;
 }
 
-const api = entryPoint as Record<string, unknown>;
+const api = fixture as Record<string, unknown>;
 const GENERATOR_DST = api.GENERATOR_DST as string;
 const deriveGenerator = api.deriveGenerator as (message: unknown) => Promise<Uint8Array>;
 const deriveGeneratorSteps = api.deriveGeneratorSteps as (message: unknown) => Promise<Steps>;
@@ -40,12 +40,16 @@ function fromHex(text: string): Uint8Array {
 const ascii = (text: string): Uint8Array => new TextEncoder().encode(text);
 
 describe("the derivation of a generator", () => {
-  test("is exported by the low-level entry point", () => {
-    expect(typeof GENERATOR_DST).toBe("string");
-    expect(typeof deriveGenerator).toBe("function");
-    expect(typeof deriveGeneratorSteps).toBe("function");
-    expect(typeof verifyGenerator).toBe("function");
-  });
+  // REVIEW PLACEHOLDER (#35): the low-level entry point no longer exports these names.
+  // is exported by the low-level entry point -> test/tooling/package.node.test.ts:
+  //   "@criticaloptimisation/vc-proofs/core exports exactly [...]" (RistrettoElement,
+  //   RistrettoScalar, requestHash), and test/ristretto.test.ts: "deriveGenerator ...".
+  // test("is exported by the low-level entry point", () => {
+  //   expect(typeof GENERATOR_DST).toBe("string");
+  //   expect(typeof deriveGenerator).toBe("function");
+  //   expect(typeof deriveGeneratorSteps).toBe("function");
+  //   expect(typeof verifyGenerator).toBe("function");
+  // });
 
   test("GENERATOR_DST is the 60 ASCII bytes of the published tag", () => {
     expect(GENERATOR_DST).toBe(vectors.dst);
@@ -105,3 +109,4 @@ describe("the derivation of a generator", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #37    | new: the vectors of the derivation of h, on every runtime (#34) |
+// | #38    | through the fixture; the entry-point case is a placeholder (#35) |

@@ -117,7 +117,7 @@ them.
 
 ## Refused results
 
-`deriveGenerator` refuses, with a `RangeError`, a derived element `h = x·g` with
+`RistrettoElement.deriveGenerator` refuses, with a `RangeError`, a derived element `h = x·g` with
 `|x| ≤ 2¹⁶` (`SMALL_EXPONENT_BITS = 16`). That covers the identity (`x = 0`), `g` and
 `−g`. The search is a baby-step giant-step with 2⁸ baby steps and 2⁹ giant steps, about
 800 group additions on each derivation. It is exact: it misses no `x` in range.
@@ -139,40 +139,38 @@ No result is recorded yet.
 
 ## WebCrypto and @noble/curves
 
-| Step                         | Implementation                                                                                                                                 |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `expand_message_xmd`         | written in vc-proofs, over WebCrypto's SHA-512 (`crypto.subtle.digest`). The derivation is therefore asynchronous                              |
-| `MAP`                        | written in vc-proofs from RFC 9496, Section 4.3.4, over the field arithmetic of `@noble/curves`, which implements `MAP` but does not export it |
-| Addition, encoding, decoding | [`@noble/curves`](https://github.com/paulmillr/noble-curves) 2.4.0, pinned at that exact version                                               |
+| Step                         | Implementation                                                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `expand_message_xmd`         | written in vc-proofs, over WebCrypto's SHA-512 (`crypto.subtle.digest`). The derivation is therefore asynchronous                                                        |
+| `MAP`                        | written in vc-proofs (`src/core/ristretto.ts`) from RFC 9496, Section 4.3.4, over the field arithmetic of `@noble/curves`, which implements `MAP` but does not export it |
+| Addition, encoding, decoding | [`@noble/curves`](https://github.com/paulmillr/noble-curves) 2.4.0, pinned at that exact version                                                                         |
 
 WebCrypto has no point arithmetic, and no ristretto255: its Ed25519 only signs and
 verifies. `@noble/curves` is the one runtime dependency of the package.
 
 ## The API
 
-`@criticaloptimisation/vc-proofs/core` exports:
+The derivation is a factory of `RistrettoElement`, in
+`@criticaloptimisation/vc-proofs/core` (see [The group ristretto255](core/ristretto255.md)):
 
 ```ts
-const GENERATOR_DST: string;
-function deriveGenerator(message: Uint8Array): Promise<Uint8Array>;
-function deriveGeneratorSteps(message: Uint8Array): Promise<GeneratorSteps>;
-function verifyGenerator(message: Uint8Array, encoding: Uint8Array): Promise<boolean>;
-
-interface GeneratorSteps {
-  dst: Uint8Array; // the bytes of GENERATOR_DST
-  uniform: Uint8Array; // 64 bytes: expand_message_xmd
-  p0: Uint8Array; // 32 bytes: MAP of uniform[0:32]
-  p1: Uint8Array; // 32 bytes: MAP of uniform[32:64]
-  h: Uint8Array; // 32 bytes: the encoding of p0 + p1
+class RistrettoElement {
+  static readonly GENERATOR_DST: string; // the tag above
+  static deriveGenerator(message: Uint8Array): Promise<RistrettoElement>;
+  static hashToGroup(message: Uint8Array, dst: Uint8Array): Promise<RistrettoElement>;
+  encode(): Uint8Array; // the 32 bytes of h
+  // ...
 }
 ```
 
-- `deriveGenerator` returns the 32-byte encoding of `h`. It rejects with a `TypeError`
-  when `message` is not a `Uint8Array`, and with a `RangeError` when `h` is refused.
-- `deriveGeneratorSteps` returns every stage, so that the intermediate vectors can be
-  reproduced. It rejects as `deriveGenerator` does.
-- `verifyGenerator` recomputes `h` from `message` and compares it in constant time with
-  `encoding`.
+- `deriveGenerator(message)` is `hashToGroup(message, GENERATOR_DST)`, followed by the
+  check of [Refused results](#refused-results). It rejects with a `TypeError` when
+  `message` is not a `Uint8Array`, and with a `RangeError` when `h` is refused.
+- `(await RistrettoElement.deriveGenerator(message)).encode()` is the published 32-byte
+  encoding of `h`.
+- The intermediate values of the [test vectors](#test-vectors) (`uniform`, `p0`, `p1`)
+  are not part of the API. The tests reproduce them from the internal functions of
+  `src/core/ristretto.ts`.
 
 ## Runtime use
 
@@ -180,8 +178,15 @@ An application may hold the published encoding of `h` rather than derive it on e
 commitment. Decoding that encoding checks only that it is a canonical encoding of a
 group element. It does not refuse the identity, which is a valid element encoded as 32
 zero bytes. **Decoding says nothing about where the element came from.** To check that
-the encoding is the `h` derived from its message, call `verifyGenerator(message,
-encoding)` once, for example when the application starts or in its tests.
+the encoding is the `h` derived from its message, derive it once and compare, for
+example when the application starts or in its tests:
+
+```ts
+const h = RistrettoElement.decode(published); // throws on bytes that encode no element
+if (!(await RistrettoElement.deriveGenerator(message)).equals(h)) {
+  throw new Error("h is not the generator derived from its message");
+}
+```
 
 ## Reproducing h
 
@@ -253,4 +258,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #37 | the derivation of h: construction, parameters, trust argument, vectors (#34) |
+| #38 | h as the factory RistrettoElement.deriveGenerator (#35) |
 -->
