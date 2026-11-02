@@ -60,8 +60,9 @@ downloaded to `~/.cache/ms-playwright`; on a fresh Linux machine,
 | `src/core/` | `./core`    | low level: the primitives                     |
 
 All of `src/` may use only WebCrypto (`globalThis.crypto`), `TextEncoder`,
-`TextDecoder`, typed arrays and `BigInt`, so the same code runs in Node.js and in the
-browser. Lint enforces the rules:
+`TextDecoder`, typed arrays, `BigInt` and `setTimeout`, so the same code runs in
+Node.js and in the browser. `setTimeout` schedules background work, such as the queue
+of [the blinding context](core/blinding-context.md#the-queue-of-blindings). Lint enforces the rules:
 
 - an import of `node:*` is an error in `src/`;
 - a reference to `window`, `document` or `navigator` is an error in `src/`;
@@ -169,7 +170,7 @@ CI checks it with `npm run format:check`.
 | `test-node`     | 22, 24, 26 | the `node` project                                                                  |
 | `test-browser`  | 26         | the `chromium`, `firefox` and `webkit` projects                                     |
 | `build`         | 26         | the build; imports each entry point by the package's own name; `npm pack --dry-run` |
-| `independent-h` |            | the independent check of the generator vectors (see below)                          |
+| `independent-h` |            | the independent check of the generator and blinding-context vectors (see below)     |
 | `ci`            |            | succeeds only when every job above succeeded                                        |
 
 The `independent-h` job installs libsodium and runs
@@ -178,6 +179,9 @@ of the derivation of [the generator h](generator-h.md), written apart from the
 TypeScript code, recomputes `test/vectors/generator-h.json` and fails on any
 difference. To regenerate the file after a deliberate change, run
 `python3 tools/generator-h/reference.py vectors`, then `npx prettier --write` on it.
+The same job then runs `python3 tools/blinding-context/reference.py check`, which does
+the same for `test/vectors/blinding-context.json`: the serialization and the
+commitments of [the blinding context](core/blinding-context.md#test-vectors).
 
 `ci` is the one check that branch protection requires before a merge. The workflows
 have read-only permissions, and every action is pinned by its commit SHA.
@@ -227,4 +231,5 @@ Change History
 | #32 | the high- and low-level layers; isomorphic rules for all of src/ (#29) |
 | #37 | the runtime dependency @noble/curves; the independent-h job (#34) |
 | #38 | the test-only libsodium; src/ may not import it (#35) |
+| #39 | setTimeout in src/; independent-h checks the blinding-context vectors |
 -->

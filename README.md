@@ -25,13 +25,13 @@ npm install @criticaloptimisation/vc-proofs
 
 ## Entry points
 
-| Import                                 | Layer      | Exports                                                                     |
-| -------------------------------------- | ---------- | --------------------------------------------------------------------------- |
-| `@criticaloptimisation/vc-proofs`      | high level | the functions that return signed objects and check them, for every side     |
-| `@criticaloptimisation/vc-proofs/core` | low level  | the primitives, such as `requestHash`, on which the high-level API is built |
+| Import                                 | Layer      | Exports                                                                                           |
+| -------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------- |
+| `@criticaloptimisation/vc-proofs`      | high level | the functions that return signed objects and check them, for every side                           |
+| `@criticaloptimisation/vc-proofs/core` | low level  | the primitives, such as `requestHash` and `BlindingContext`, on which the high-level API is built |
 
 Both run in Node.js and in the browser: they use only WebCrypto, `TextEncoder`, typed
-arrays, `BigInt` and `@noble/curves`. The high-level entry point exports nothing yet. See
+arrays, `BigInt`, `setTimeout` and `@noble/curves`. The high-level entry point exports nothing yet. See
 [Integration](docs/integration.md#entry-points).
 
 The package has one runtime dependency, [`@noble/curves`](https://github.com/paulmillr/noble-curves),
@@ -69,6 +69,8 @@ gh attestation verify criticaloptimisation-vc-proofs-<version>.tgz -R CriticalOp
   entry point, which will carry the bounds of a value.
 - [The generator h](docs/generator-h.md): how the Pedersen generator `h` is derived, and
   why nobody knows its discrete logarithm.
+- [The blinding context](docs/core/blinding-context.md): `BlindingContext`, the
+  constants of one application and the Pedersen commitments made with them.
 - [Development guide](docs/development.md).
 
 ## Development
@@ -90,4 +92,5 @@ Change History
 | #37 | one runtime dependency, @noble/curves (#34) |
 | #38 | links The group ristretto255 and The generator h (#35) |
 | #42 | links Bounded integers (#41) |
+| #39 | links The blinding context; setTimeout |
 -->

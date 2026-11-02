@@ -11,7 +11,8 @@ The commitments and proofs of vc-proofs work in the group ristretto255
 They are the only way the rest of the library handles group values. They hold the
 arithmetic of [`@noble/curves`](https://github.com/paulmillr/noble-curves), but never
 expose its types. They carry no protocol: the Pedersen context (the generators `g` and
-`h` and the commitments built on them) is a class of its own, built on these two.
+`h` and the commitments built on them) is a class of its own, built on these two:
+[the blinding context](blinding-context.md).
 
 ```ts
 import { RistrettoElement, RistrettoScalar } from "@criticaloptimisation/vc-proofs/core";
@@ -254,4 +255,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #38 | new: RistrettoElement and RistrettoScalar (#35) |
+| #39 | links the blinding context |
 -->
