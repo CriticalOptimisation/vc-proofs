@@ -1,0 +1,301 @@
+/**
+ * `BlindingContext` (#39; docs/core/blinding-context.md): the validation in the
+ * constructor, the members that await it, the serialization, the commitments, their
+ * openings and the queue of blindings. The expected values come from
+ * test/vectors/generator-h.json and test/vectors/blinding-context.json, which
+ * tools/generator-h/reference.py and tools/blinding-context/reference.py compute apart
+ * from the TypeScript code, with libsodium. The same file runs in Node.js and in every
+ * headless browser.
+ *
+ * The class is looked up on the entry point's namespace, and the seams of
+ * src/core/blinding-context.ts are imported dynamically, so that this file compiles and
+ * runs before they exist, and fails on the behaviour.
+ */
+import { describe, expect, test, vi } from "vitest";
+import * as entryPoint from "../src/core/index.js";
+import { RistrettoElement, RistrettoScalar } from "../src/core/index.js";
+import contextVectors from "./vectors/blinding-context.json" with { type: "json" };
+import generatorVectors from "./vectors/generator-h.json" with { type: "json" };
+
+interface Blinded {
+  readonly commitment: RistrettoElement;
+  readonly blinding: RistrettoScalar;
+}
+
+interface Context {
+  readonly group: unknown;
+  readonly message: Uint8Array;
+  h(): Promise<RistrettoElement>;
+  serialize(): Promise<Uint8Array>;
+  blind(scalar: RistrettoScalar): Promise<Blinded>;
+  isOpeningOf(
+    scalar: RistrettoScalar,
+    blinding: RistrettoScalar,
+    commitment: RistrettoElement,
+  ): Promise<boolean>;
+}
+
+interface ContextClass {
+  fromEncoded(h: Uint8Array, message: Uint8Array): Context;
+}
+
+interface Seams {
+  BlindingContext?: ContextClass;
+  blindWith?: (
+    context: Context,
+    scalar: RistrettoScalar,
+    draw: () => RistrettoScalar,
+  ) => Promise<Blinded>;
+  queuedBlindings?: (context: Context) => number;
+}
+
+const BlindingContext = (entryPoint as Record<string, unknown>).BlindingContext as ContextClass;
+/**
+ * The seams of src/core/blinding-context.ts, which the entry point does not export. The
+ * specifier is not a literal, so that neither TypeScript nor Vite resolves it before the
+ * file exists; it names the `.ts` file, which Vite serves to the browsers as it is.
+ * A browser may load that file as a second instance of the module, whose seams reach
+ * only its own contexts: the tests of the seams build theirs with its `BlindingContext`.
+ */
+const seamsPath = ["..", "src", "core", "blinding-context.ts"].join("/");
+const seams = (await import(/* @vite-ignore */ seamsPath).catch(() => ({}))) as Seams;
+
+function hex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function fromHex(text: string): Uint8Array {
+  return Uint8Array.from(text.match(/../g) ?? [], (pair) => parseInt(pair, 16));
+}
+
+/** The vector `name` of test/vectors/generator-h.json: its message and its h. */
+function generator(name: string): { message: Uint8Array; h: Uint8Array } {
+  const vector = generatorVectors.vectors.find((v) => v.name === name);
+  if (vector === undefined) throw new Error(`no generator vector ${name}`);
+  return { message: fromHex(vector.messageHex), h: fromHex(vector.h) };
+}
+
+const ageCheck = () => generator("age-check");
+const abc = () => generator("abc");
+const g = () => RistrettoElement.canonicalGenerator();
+const scalar = (n: bigint) => RistrettoScalar.fromBigInt(n);
+
+/** m·g + r·h, by the group classes of #35. */
+function pedersen(m: RistrettoScalar, r: RistrettoScalar, h: RistrettoElement): RistrettoElement {
+  return g().multiplyScalar(m).add(h.multiplyScalar(r));
+}
+
+/** The age-check context, built from fresh arrays. */
+function ageCheckContext(): Context {
+  const { h, message } = ageCheck();
+  return BlindingContext.fromEncoded(h, message);
+}
+
+/** The age-check context, from the module instance of the seams. */
+function seamContext(): Context {
+  const { h, message } = ageCheck();
+  return (seams.BlindingContext ?? BlindingContext).fromEncoded(h, message);
+}
+
+/** The contexts whose h is not derived from their message. */
+const invalid: [string, () => Context][] = [
+  ["the h of another message", () => BlindingContext.fromEncoded(abc().h, ageCheck().message)],
+  ["another message", () => BlindingContext.fromEncoded(ageCheck().h, abc().message)],
+  ["the identity as h", () => BlindingContext.fromEncoded(new Uint8Array(32), ageCheck().message)],
+];
+
+/** The rejections that reach no handler while `run` and a few macrotasks run. */
+async function unhandledRejections(run: () => void): Promise<unknown[]> {
+  const seen: unknown[] = [];
+  const browser = "onunhandledrejection" in globalThis;
+  const onBrowser = (event: PromiseRejectionEvent) => {
+    seen.push(event.reason);
+  };
+  const onNode = (reason: unknown) => {
+    seen.push(reason);
+  };
+  if (browser) globalThis.addEventListener("unhandledrejection", onBrowser);
+  else process.on("unhandledRejection", onNode);
+  try {
+    run();
+    for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 20));
+  } finally {
+    if (browser) globalThis.removeEventListener("unhandledrejection", onBrowser);
+    else process.off("unhandledRejection", onNode);
+  }
+  return seen;
+}
+
+describe("BlindingContext: construction and validation", () => {
+  test("is a class exported by the low-level entry point", () => {
+    expect(typeof BlindingContext).toBe("function");
+    expect(typeof BlindingContext.fromEncoded).toBe("function");
+  });
+
+  test("fromEncoded builds the age-check context synchronously, and it validates", async () => {
+    const { h, message } = ageCheck();
+    const context = BlindingContext.fromEncoded(h, message);
+    expect(context).not.toBeInstanceOf(Promise);
+    expect(hex(context.message)).toBe(contextVectors.context.messageHex);
+    expect(hex((await context.h()).encode())).toBe(contextVectors.context.h);
+    expect(hex(await context.serialize())).toBe(contextVectors.context.serialized);
+  });
+
+  test("serialize() is the ASCII bytes of Ristretto255, then the 32 bytes of h", async () => {
+    const serialized = await ageCheckContext().serialize();
+    expect(serialized.length).toBe(44);
+    expect(new TextDecoder().decode(serialized.subarray(0, 12))).toBe("Ristretto255");
+    expect(hex(serialized.subarray(0, 12))).toBe(contextVectors.suiteNameHex);
+    expect(hex(serialized.subarray(12))).toBe(contextVectors.context.h);
+  });
+
+  test.each(invalid)(
+    "%s: fromEncoded returns, and h, serialize, blind and isOpeningOf reject with a RangeError",
+    async (_name, build) => {
+      const context = build();
+      expect(context).toBeDefined();
+      const one = scalar(1n);
+      await expect(context.h()).rejects.toThrow(RangeError);
+      await expect(context.serialize()).rejects.toThrow(RangeError);
+      await expect(context.blind(one)).rejects.toThrow(RangeError);
+      await expect(context.isOpeningOf(one, one, g())).rejects.toThrow(RangeError);
+    },
+  );
+
+  test("a late change to the caller's arrays changes nothing in a valid context", async () => {
+    const { h, message } = ageCheck();
+    const context = BlindingContext.fromEncoded(h, message);
+    // Before anything is awaited: the validation has not ended yet.
+    h.set(abc().h);
+    message.fill(0x61);
+    expect(hex(context.message)).toBe(contextVectors.context.messageHex);
+    expect(hex((await context.h()).encode())).toBe(contextVectors.context.h);
+    expect(hex(await context.serialize())).toBe(contextVectors.context.serialized);
+  });
+
+  test("a late change to the caller's arrays does not make an invalid context valid", async () => {
+    const h = abc().h;
+    const context = BlindingContext.fromEncoded(h, ageCheck().message);
+    h.set(ageCheck().h);
+    await expect(context.h()).rejects.toThrow(RangeError);
+    await expect(context.serialize()).rejects.toThrow(RangeError);
+  });
+
+  test("an invalid context that is never used causes no unhandled rejection", async () => {
+    const seen = await unhandledRejections(() => {
+      const build = invalid[0]?.[1];
+      if (build === undefined) throw new Error("no invalid context");
+      build();
+    });
+    expect(seen).toEqual([]);
+  });
+
+  test("group is the class RistrettoElement", () => {
+    expect(ageCheckContext().group).toBe(RistrettoElement);
+  });
+});
+
+describe("BlindingContext: commitments", () => {
+  test("blind gives C = m·g + r·h with the returned r, and r ≠ 0", async () => {
+    const context = ageCheckContext();
+    const m = scalar(20000n);
+    const { commitment, blinding } = await context.blind(m);
+    expect(blinding.isZero()).toBe(false);
+    expect(commitment.equals(pedersen(m, blinding, await context.h()))).toBe(true);
+  });
+
+  test("two commitments to the same scalar have different r and C", async () => {
+    const context = ageCheckContext();
+    const m = scalar(20000n);
+    const first = await context.blind(m);
+    const second = await context.blind(m);
+    expect(first.blinding.equals(second.blinding)).toBe(false);
+    expect(first.commitment.equals(second.commitment)).toBe(false);
+  });
+
+  test.each(contextVectors.commitments)(
+    "blindWith a fixed r gives the commitment of vector $name",
+    async (vector) => {
+      expect(typeof seams.blindWith).toBe("function");
+      const r = RistrettoScalar.decode(fromHex(vector.r));
+      const m = RistrettoScalar.decode(fromHex(vector.mHex));
+      const blinded = await seams.blindWith?.(seamContext(), m, () => r);
+      expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(vector.commitment);
+      expect(blinded?.blinding.equals(r)).toBe(true);
+    },
+  );
+
+  test("blindWith draws again when the draw is 0", async () => {
+    expect(typeof seams.blindWith).toBe("function");
+    const vector = contextVectors.commitments[0];
+    if (vector === undefined) throw new Error("no commitment vector");
+    const r = RistrettoScalar.decode(fromHex(vector.r));
+    const draws = [scalar(0n), r];
+    const draw = vi.fn(() => draws.shift() ?? scalar(0n));
+    const blinded = await seams.blindWith?.(
+      seamContext(),
+      RistrettoScalar.decode(fromHex(vector.mHex)),
+      draw,
+    );
+    expect(draw).toHaveBeenCalledTimes(2);
+    expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(vector.commitment);
+  });
+});
+
+describe("BlindingContext: openings", () => {
+  test("isOpeningOf accepts the opening that blind returned", async () => {
+    const context = ageCheckContext();
+    const m = scalar(20000n);
+    const { commitment, blinding } = await context.blind(m);
+    expect(await context.isOpeningOf(m, blinding, commitment)).toBe(true);
+  });
+
+  test("isOpeningOf refuses a wrong scalar and a wrong blinding factor", async () => {
+    const context = ageCheckContext();
+    const m = scalar(20000n);
+    const { commitment, blinding } = await context.blind(m);
+    expect(await context.isOpeningOf(scalar(20001n), blinding, commitment)).toBe(false);
+    expect(await context.isOpeningOf(m, blinding.add(scalar(1n)), commitment)).toBe(false);
+  });
+
+  test("isOpeningOf refuses a commitment of another context: contexts are independent", async () => {
+    const ours = ageCheckContext();
+    const theirs = BlindingContext.fromEncoded(abc().h, abc().message);
+    const m = scalar(20000n);
+    const { commitment, blinding } = await theirs.blind(m);
+    expect(await theirs.isOpeningOf(m, blinding, commitment)).toBe(true);
+    expect(await ours.isOpeningOf(m, blinding, commitment)).toBe(false);
+  });
+});
+
+describe("BlindingContext: the queue of blindings", () => {
+  test("after a first blind, the queue fills up to 10 pairs, and no more", async () => {
+    expect(typeof seams.queuedBlindings).toBe("function");
+    const context = seamContext();
+    const queued = () => seams.queuedBlindings?.(context);
+    await context.blind(scalar(1n));
+    await vi.waitFor(() => {
+      expect(queued()).toBe(10);
+    }, 5000);
+    for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(queued()).toBe(10);
+  });
+
+  test("20 concurrent commitments are correct and distinct", async () => {
+    const context = ageCheckContext();
+    const h = await context.h();
+    const values = Array.from({ length: 20 }, (_, i) => scalar(BigInt(i)));
+    const blinded = await Promise.all(values.map((m) => context.blind(m)));
+    blinded.forEach(({ commitment, blinding }, i) => {
+      const m = values[i] ?? scalar(0n);
+      expect(commitment.equals(pedersen(m, blinding, h))).toBe(true);
+    });
+    const commitments = new Set(blinded.map(({ commitment }) => hex(commitment.encode())));
+    expect(commitments.size).toBe(20);
+  });
+});
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #39    | new: the preliminary tests of BlindingContext                 |

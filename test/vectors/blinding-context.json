@@ -1,0 +1,29 @@
+{
+  "description": "Test vectors of the blinding context (#39, docs/core/blinding-context.md). context: the age-check context of test/vectors/generator-h.json and its serialization, the ASCII bytes of suiteName followed by the 32 bytes of h. commitments: C = m*g + r*h for fixed m and r; scalars are 32-byte little-endian encodings. Byte strings are lowercase hex. Produced by tools/blinding-context/reference.py, outside the TypeScript code; every commitment is also recomputed with libsodium.",
+  "check": "python3 tools/blinding-context/reference.py check",
+  "suiteName": "Ristretto255",
+  "suiteNameHex": "52697374726574746f323535",
+  "context": {
+    "name": "age-check",
+    "message": "age-check.calcool.ai/pedersen/h/v1",
+    "messageHex": "6167652d636865636b2e63616c636f6f6c2e61692f706564657273656e2f682f7631",
+    "h": "249aa3ca590fa8d666326390ef5b7b422b92231a320746e5013c9be76e407347",
+    "serialized": "52697374726574746f323535249aa3ca590fa8d666326390ef5b7b422b92231a320746e5013c9be76e407347"
+  },
+  "commitments": [
+    {
+      "name": "day-count",
+      "m": "20000",
+      "mHex": "204e000000000000000000000000000000000000000000000000000000000000",
+      "r": "12a9973154c27763512e00b65140a9247623f6e0c15ccd3967319aa19f76c004",
+      "commitment": "c4a6a523ad038e87c824e1bcf44ad083e9af4c5941f0b28a4c602c6e366af53e"
+    },
+    {
+      "name": "zero",
+      "m": "0",
+      "mHex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "r": "40e6d3a1b1f0468feb89b149cd6edc39b7bdeca842745029dac4c8bf8d3e6f0b",
+      "commitment": "0e3c1344725fc34f24c797fb803fd2888156a98ce522868974c7f7cb073f9464"
+    }
+  ]
+}

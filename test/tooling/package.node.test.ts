@@ -20,7 +20,7 @@ const tsc = require.resolve("typescript/bin/tsc");
  */
 const surface: Record<string, string[]> = {
   "": [],
-  "/core": ["BoundedInt", "RistrettoElement", "RistrettoScalar", "requestHash"],
+  "/core": ["BlindingContext", "BoundedInt", "RistrettoElement", "RistrettoScalar", "requestHash"],
 };
 const entries = Object.keys(surface);
 
@@ -116,3 +116,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #37    | ./core exports the derivation of a generator (#34)            |
 // | #38    | ./core exports RistrettoElement, RistrettoScalar (#35)        |
 // | #42    | ./core exports BoundedInt, and declares it (#41)              |
+// | #39    | ./core exports BlindingContext                                |
