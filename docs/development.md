@@ -231,5 +231,5 @@ Change History
 | #32 | the high- and low-level layers; isomorphic rules for all of src/ (#29) |
 | #37 | the runtime dependency @noble/curves; the independent-h job (#34) |
 | #38 | the test-only libsodium; src/ may not import it (#35) |
-| #39 | setTimeout in src/; independent-h checks the blinding-context vectors |
+| #40 | setTimeout in src/; independent-h checks the blinding-context vectors (#39) |
 -->

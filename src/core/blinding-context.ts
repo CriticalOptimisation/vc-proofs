@@ -274,4 +274,4 @@ export function queuedBlindings(context: BlindingContext): number {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #39    | new: BlindingContext, its validation, queue and seams         |
+// | #40    | new: BlindingContext, its validation, queue and seams (#39)    |

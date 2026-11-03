@@ -298,4 +298,4 @@ describe("BlindingContext: the queue of blindings", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #39    | new: the preliminary tests of BlindingContext                 |
+// | #40    | new: the preliminary tests of BlindingContext (#39)            |

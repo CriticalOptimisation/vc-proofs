@@ -137,4 +137,4 @@ jobs:
 # | #28    | test-node gets the LEAK_PATTERNS secret (#27)                 |
 # | #32    | the build imports the entry points . and ./core (#29)         |
 # | #37    | independent-h: the Python and libsodium check of h (#34)      |
-# | #39    | independent-h: the check of the blinding-context vectors      |
+# | #40    | independent-h: the check of the blinding-context vectors (#39) |

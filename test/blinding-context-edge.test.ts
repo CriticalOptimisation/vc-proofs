@@ -281,4 +281,4 @@ describe("BlindingContext: the queues of blindings", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #39    | new: the edge cases of BlindingContext                        |
+// | #40    | new: the edge cases of BlindingContext (#39)                   |

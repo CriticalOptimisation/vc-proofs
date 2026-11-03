@@ -116,4 +116,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #37    | ./core exports the derivation of a generator (#34)            |
 // | #38    | ./core exports RistrettoElement, RistrettoScalar (#35)        |
 // | #42    | ./core exports BoundedInt, and declares it (#41)              |
-// | #39    | ./core exports BlindingContext                                |
+// | #40    | ./core exports BlindingContext (#39)                           |

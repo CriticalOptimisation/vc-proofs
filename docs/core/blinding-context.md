@@ -198,5 +198,5 @@ Change History
 
 | PR  | Summary |
 |-----|---------|
-| #39 | new: BlindingContext, its validation, serialization and commitments |
+| #40 | new: BlindingContext, its validation, serialization and commitments (#39) |
 -->

@@ -159,4 +159,4 @@ if __name__ == "__main__":
 # --- Change History -------------------------------------------------------
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
-# | #39    | new: the vectors of the blinding context and their check      |
+# | #40    | new: the vectors of the blinding context and their check (#39) |

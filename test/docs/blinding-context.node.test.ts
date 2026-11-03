@@ -78,4 +78,4 @@ test("docs/core/blinding-context.md quotes the serialization of the age-check co
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #39    | new: the page names every public member, and the serialization |
+// | #40    | new: the page names every public member, and the serialization (#39) |

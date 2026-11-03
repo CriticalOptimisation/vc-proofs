@@ -255,5 +255,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #38 | new: RistrettoElement and RistrettoScalar (#35) |
-| #39 | links the blinding context |
+| #40 | links the blinding context (#39) |
 -->

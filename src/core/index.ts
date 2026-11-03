@@ -22,3 +22,4 @@ export { RistrettoElement, RistrettoScalar } from "./ristretto.js";
 // | #37    | export the derivation of a generator (#34)                    |
 // | #38    | export RistrettoElement and RistrettoScalar, not generator (#35) |
 // | #42    | export BoundedInt (#41)                                       |
+// | #40    | export BlindingContext (#39)                                  |

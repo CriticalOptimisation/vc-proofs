@@ -92,5 +92,5 @@ Change History
 | #37 | one runtime dependency, @noble/curves (#34) |
 | #38 | links The group ristretto255 and The generator h (#35) |
 | #42 | links Bounded integers (#41) |
-| #39 | links The blinding context; setTimeout |
+| #40 | links The blinding context; setTimeout (#39) |
 -->
