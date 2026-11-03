@@ -122,6 +122,17 @@ export class RistrettoElement {
    */
   static readonly GENERATOR_DST = "vc-proofs-V01-CS01-with-ristretto255_XMD:SHA-512_R255MAP_RO_";
 
+  /** The name of the suite, which begins the serialization of a blinding context. */
+  static readonly SUITE_NAME = "Ristretto255";
+
+  /**
+   * The class `RistrettoScalar`, the scalars of the group. A getter: `RistrettoScalar`
+   * is declared below, so a static field would read it before its declaration.
+   */
+  static get Scalar(): typeof RistrettoScalar {
+    return RistrettoScalar;
+  }
+
   readonly #point: Point;
 
   private constructor(point: Point) {
@@ -534,3 +545,4 @@ function hex(bytes: Uint8Array): string {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #38    | new: the two classes; the derivation of generator.ts (#35)    |
+// | #40    | SUITE_NAME and Scalar: RistrettoElement is a group (#39)       |

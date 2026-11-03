@@ -11,6 +11,7 @@
  * a value.
  */
 export { BlindingContext } from "./blinding-context.js";
+export type { Group } from "./blinding-context.js";
 export { BoundedInt } from "./bounded-int.js";
 export { requestHash } from "./request-hash.js";
 export { RistrettoElement, RistrettoScalar } from "./ristretto.js";
@@ -22,4 +23,4 @@ export { RistrettoElement, RistrettoScalar } from "./ristretto.js";
 // | #37    | export the derivation of a generator (#34)                    |
 // | #38    | export RistrettoElement and RistrettoScalar, not generator (#35) |
 // | #42    | export BoundedInt (#41)                                       |
-// | #40    | export BlindingContext (#39)                                  |
+// | #40    | export BlindingContext, and the type Group (#39)              |
