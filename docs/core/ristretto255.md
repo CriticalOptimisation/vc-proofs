@@ -48,6 +48,8 @@ const blinding = h.multiplyScalar(r); // r·h
 | `static hashToGroup(message, dst)` | a promise: `hash_to_ristretto255(message, dst)` | none                                      |
 | `static deriveGenerator(message)`  | a promise: a generator with nothing up a sleeve | none                                      |
 | `static GENERATOR_DST`             | the domain separation tag of `deriveGenerator`  | none                                      |
+| `static SUITE_NAME`                | the name of the suite: `Ristretto255`           | none                                      |
+| `static Scalar`                    | the class `RistrettoScalar`                     | none                                      |
 | `encode()`                         | the canonical 32-byte encoding                  | none                                      |
 | `equals(other)`                    | whether both are the same element               | none                                      |
 | `isIdentity()`                     | whether this is the neutral element             | none                                      |
@@ -159,6 +161,14 @@ const derived = await RistrettoElement.deriveGenerator(message);
 const valid = derived.equals(RistrettoElement.decode(published)); // decode throws on bad bytes
 ```
 
+### SUITE_NAME and Scalar
+
+With `SUITE_NAME` and `Scalar`, the class `RistrettoElement` is a
+[group](blinding-context.md#the-group) for a blinding context, which uses no other group
+by default. `SUITE_NAME` is the string `Ristretto255`, which begins the serialization of
+a context. `Scalar` is the class `RistrettoScalar`, from which a context draws and checks
+its scalars.
+
 ## RistrettoScalar
 
 | Member                           | Returns                                       | libsodium counterpart                    |
@@ -255,5 +265,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #38 | new: RistrettoElement and RistrettoScalar (#35) |
-| #40 | links the blinding context (#39) |
+| #40 | links the blinding context; SUITE_NAME and Scalar (#39) |
 -->

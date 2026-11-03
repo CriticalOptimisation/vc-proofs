@@ -7,8 +7,8 @@ to `m`, since opening `C` to another value would reveal the discrete logarithm o
 to the base `g`, which [nobody knows](../generator-h.md).
 
 The low-level entry point, `@criticaloptimisation/vc-proofs/core`, gives the class
-`BlindingContext`. One instance holds the constants of one application: the group, the
-generator `h` and the message that `h` was derived from. It checks them when it is
+`BlindingContext`. One instance holds the constants of one application: the group and
+the generator `h`. It checks `h` against the message it was derived from when it is
 built, and it makes and checks commitments with them. An application may hold several
 contexts side by side, each independent of the others, and may rename the class at
 import to say what its context is for.
@@ -44,9 +44,8 @@ const opens = await context.isOpeningOf(RistrettoScalar.fromBigInt(20000n), blin
 
 | Member                                      | Returns                                                         |
 | ------------------------------------------- | --------------------------------------------------------------- |
-| `static fromEncoded(h, message)`            | a new context, whose validation has started                     |
-| `group`                                     | the class `RistrettoElement`: the group of the context          |
-| `message`                                   | the message `h` was derived from, in a new array                |
+| `static fromEncoded(h, message, group?)`    | a new context, whose validation has started                     |
+| `group`                                     | the group of the context: `RistrettoElement` by default         |
 | `h()`                                       | a promise: the generator `h`, once validated                    |
 | `serialize()`                               | a promise: the 44 bytes that identify the suite, once validated |
 | `blind(scalar)`                             | a promise: a commitment to `scalar` and its blinding factor     |
@@ -54,11 +53,13 @@ const opens = await context.isOpeningOf(RistrettoScalar.fromBigInt(20000n), blin
 
 ### fromEncoded
 
-`fromEncoded(h, message)` takes the published 32-byte encoding of `h` and the message
-it was derived from. It throws a `TypeError` at once when `h` is not a `Uint8Array` of
-32 bytes that is the canonical encoding of an element (RFC 9496, Section 4.3.1), or when
-`message` is not a `Uint8Array`. Otherwise it returns a new context, synchronously, and
-the validation runs in the background.
+`fromEncoded(h, message, group)` takes the published encoding of `h`, the message it
+was derived from, and the [group](#the-group) of the context, `RistrettoElement` when
+it is left out. It throws a `TypeError` at once when `h` or `message` is not a
+`Uint8Array`, or when `group.decode` refuses `h`: for ristretto255, anything but 32
+bytes that are the canonical encoding of an element (RFC 9496, Section 4.3.1).
+Otherwise it returns a new context, synchronously, and the validation runs in the
+background.
 
 ### The validation
 
@@ -68,12 +69,15 @@ The constructor, which every factory calls, does three things, in this order:
 2. it decodes its copy of `h`;
 3. it starts the validation, on its copies only, and keeps the promise of its result.
 
-A caller that changes its arrays after `fromEncoded` returns, even before the
+The copy of the message goes to the validation only: the context keeps no field for it,
+and has no member that gives it back. No party needs the message again once the context
+is built. A caller that changes its arrays after `fromEncoded` returns, even before the
 validation ends, changes nothing in the context: neither what is checked nor what is
 held. The validation is private. If it is ever made public, it must make local copies
 of its parameters in the same way, before its first `await`.
 
-**The check**: `h` is valid when it equals `hash_to_ristretto255(message,
+**The check**: `h` is valid when it equals `group.hashToGroup(message,
+group.GENERATOR_DST)`. For ristretto255, that is `hash_to_ristretto255(message,
 GENERATOR_DST)` ([hashToGroup](ristretto255.md#hashtogroup) under the tag of
 [deriveGenerator](ristretto255.md#derivegenerator-and-generator_dst)). Anyone can repeat
 it from the published `h` and message. It refuses the identity, and every other element
@@ -89,8 +93,8 @@ that is not the generator derived from the message. It does **not**:
 by the context. Every member that yields `h`, or anything computed from `h`, awaits it
 first: `h()`, `serialize()`, `blind()` and `isOpeningOf()`. When the check fails, each of
 them rejects with the same `RangeError`, every time it is called; nothing else of the
-context runs. `group` and `message` do not await it: `g` is defined by its value, which
-RFC 9496 publishes, and `message` is the published input that `h` is checked against.
+context runs. `group` does not await it: `g` is defined by its value, which the group
+publishes (RFC 9496 for ristretto255).
 
 A context is checked once: it is immutable, so nothing ever revalidates it. An
 application that wants to fail at load time awaits `serialize()` once, which it needs
@@ -99,29 +103,31 @@ unhandled rejection.
 
 ### group
 
-`group` is the class `RistrettoElement` itself. The canonical generator is
-`context.group.canonicalGenerator()`, and the neutral element `context.group.identity()`.
+`group` is the group given to `fromEncoded`, by default the class `RistrettoElement`
+itself. The canonical generator is `context.group.canonicalGenerator()`, and the neutral
+element `context.group.identity()`.
 
 ### serialize
 
 The **suite** of a context is the group and the generator `h`: that is all a prover
 written from scratch needs, from the [protocol](../protocol.md), to produce the same
-commitments. `serialize()` resolves to its 44 bytes, in a new array:
+commitments. `serialize()` resolves to the ASCII bytes of `group.SUITE_NAME`, then
+`h.encode()`, in a new array. For ristretto255, these are 44 bytes:
 
 | Bytes | Content                                                           |
 | ----- | ----------------------------------------------------------------- |
 | 0-11  | the 12 ASCII bytes `Ristretto255`, hex `52697374726574746f323535` |
 | 12-43 | the canonical 32-byte encoding of `h`                             |
 
-Both parts have a fixed length, so the string needs no version tag and no length
-prefix. These are the bytes that digest pinning hashes.
+Within one group, both parts have a fixed length, so the string needs no version tag
+and no length prefix. These are the bytes that digest pinning hashes.
 
 The serialization holds neither the message nor `GENERATOR_DST`. How `h` was obtained is
 the evidence that nothing is up anyone's sleeve, not a part of the suite: another
 deterministic, hash-like derivation from a published input that gave the same `h`
 would be equally good evidence, and the suite would not change. A bare "`h` is 0x…" is
-no evidence, since it has no input. The context holds the message for its check, and
-never serializes it.
+no evidence, since it has no input. The context uses the message for its check only: it
+neither keeps nor serializes it.
 
 For the age-check context of [The generator h](../generator-h.md#vector-age-check):
 
@@ -164,6 +170,38 @@ drawing `r` is negligible. Each context therefore keeps a queue of up to 10 pair
   the queue.
 - Contexts do not share their queues.
 
+## The group
+
+The context does its arithmetic only through its group, a value held in a field, and
+never names `RistrettoElement` or `RistrettoScalar` itself: `RistrettoElement` is only
+the default of `fromEncoded`. A group is any object with these members, which
+`RistrettoElement` has (see [ristretto255](ristretto255.md#suite_name-and-scalar)):
+
+| Member of the group         | Used for                                            |
+| --------------------------- | --------------------------------------------------- |
+| `SUITE_NAME`                | the first bytes of `serialize()`                    |
+| `GENERATOR_DST`             | the tag of the check of `h`                         |
+| `decode(bytes)`             | decoding `h` in `fromEncoded`                       |
+| `hashToGroup(message, dst)` | the check of `h`                                    |
+| `canonicalGenerator()`      | `g`, in every commitment                            |
+| `identity()`                | the type check of an element argument               |
+| `Scalar.random()`           | the blinding factors and the masks of `isOpeningOf` |
+| `Scalar.fromBigInt(n)`      | the type check of a scalar argument                 |
+
+Its elements need `encode`, `equals`, `add`, `subtract` and `multiplyScalar`; its
+scalars `add`, `equals` and `isZero`. The context trusts its group: it checks neither
+its members nor its arithmetic.
+
+**In TypeScript**, a group is the interface `Group<E, S>`, of elements `E` and scalars
+`S`, and the class is `BlindingContext<E, S>`, whose parameters default to
+`RistrettoElement` and `RistrettoScalar`. The parameters are inferred from the group
+given to `fromEncoded`, so a caller never writes them: `h()` of a ristretto255 context is
+a `Promise<RistrettoElement>`, not an `any`. They exist only for the type checker:
+there is one class at run time, and the group in its field does all the work. A class
+held in a variable cannot be called with `new` when its constructor is private, as the
+constructors of the group classes are; the context uses only the static factories of
+its group. The entry point exports `Group` as a type.
+
 ## Constant time
 
 The rules of [ristretto255](ristretto255.md#constant-time) apply. The context follows
@@ -198,5 +236,5 @@ Change History
 
 | PR  | Summary |
 |-----|---------|
-| #40 | new: BlindingContext, its validation, serialization and commitments (#39) |
+| #40 | new: BlindingContext, its group, validation, serialization and commitments (#39) |
 -->
