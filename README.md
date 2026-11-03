@@ -63,8 +63,8 @@ gh attestation verify criticaloptimisation-vc-proofs-<version>.tgz -R CriticalOp
   defeat, and the residual risks it accepts.
 - [Integration](docs/integration.md): the functions an issuer, a wallet and a verifier
   call at each step.
-- [The group ristretto255](docs/core/ristretto255.md): `RistrettoElement` and
-  `RistrettoScalar`, the group values of the low-level entry point.
+- [The group ristretto255](docs/core/ristretto255.md): `RistrettoElement`, the group
+  elements of the low-level entry point, and its scalars, which are `bigint`s.
 - [Bounded integers](docs/core/bounded-int.md): `BoundedInt`, the integer of the low-level
   entry point, which will carry the bounds of a value.
 - [The generator h](docs/generator-h.md): how the Pedersen generator `h` is derived, and
@@ -92,5 +92,5 @@ Change History
 | #37 | one runtime dependency, @noble/curves (#34) |
 | #38 | links The group ristretto255 and The generator h (#35) |
 | #42 | links Bounded integers (#41) |
-| #40 | links The blinding context; setTimeout (#39) |
+| #40 | links The blinding context; setTimeout; scalars are bigints (#39) |
 -->

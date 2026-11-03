@@ -14,16 +14,17 @@ contexts side by side, each independent of the others, and may rename the class 
 import to say what its context is for.
 
 The library knows nothing about the values it commits to. The application maps its own
-numbers, such as a day count, to `RistrettoScalar` values.
+numbers, such as a day count, to scalars, which are `bigint`s
+([Scalars](ristretto255.md#scalars)).
 
 ```ts
-import { BlindingContext, RistrettoScalar } from "@criticaloptimisation/vc-proofs/core";
+import { BlindingContext } from "@criticaloptimisation/vc-proofs/core";
 
 const context = BlindingContext.fromEncoded(publishedH, message); // synchronous
 const pin = await context.serialize(); // rejects if h is not derived from message
 
-const { commitment, blinding } = await context.blind(RistrettoScalar.fromBigInt(20000n));
-const opens = await context.isOpeningOf(RistrettoScalar.fromBigInt(20000n), blinding, commitment);
+const { commitment, blinding } = await context.blind(20000n); // blinding is a bigint
+const opens = await context.isOpeningOf(20000n, blinding, commitment);
 ```
 
 ## Values and errors
@@ -33,8 +34,9 @@ const opens = await context.isOpeningOf(RistrettoScalar.fromBigInt(20000n), blin
 - **Copied inputs.** The constructor copies its inputs before anything else, and works
   only on its copies (see [The validation](#the-validation)).
 - **No public constructor.** Contexts come only from the static factory below. A method
-  that receives anything other than an instance of the expected class throws a
-  `TypeError`, as in [ristretto255](ristretto255.md#values-and-errors).
+  that receives anything other than a `bigint` where it expects a scalar, or than an
+  element of its group where it expects an element, throws a `TypeError`, as in
+  [ristretto255](ristretto255.md#values-and-errors).
 - **Errors**: `TypeError` for an input that is not a valid value (wrong type, wrong
   length, a non-canonical encoding), thrown at once by `fromEncoded`; `RangeError` when
   `h` is not the generator derived from the message, as the rejection of every member
@@ -104,8 +106,8 @@ unhandled rejection.
 ### group
 
 `group` is the group given to `fromEncoded`, by default the class `RistrettoElement`
-itself. The canonical generator is `context.group.canonicalGenerator()`, and the neutral
-element `context.group.identity()`.
+itself. The canonical generator is `context.group.canonicalGenerator()`; for
+ristretto255, the neutral element is `context.group.identity()`.
 
 ### serialize
 
@@ -138,10 +140,13 @@ For the age-check context of [The generator h](../generator-h.md#vector-age-chec
 ### blind
 
 `blind(scalar)` resolves to `{ commitment, blinding }`, with `commitment = m·g + r·h`,
-`m` the scalar and `r` the blinding factor. `r` is drawn at random for each commitment,
-is never 0 (`C = m·g` would hide nothing), and is returned, since the holder needs it
-later for the proofs. No method accepts an `r` chosen by the caller for a new
-commitment. `blind` of the zero scalar is allowed, and gives `r·h`.
+`m` the scalar and `r` the blinding factor. Both are `bigint`s. `m` may be any integer:
+since `g` has the order `ℓ` of the group, the commitment binds `m mod ℓ`, so `blind(m)`
+and `blind(m + ℓ)` commit to the same value. `r` is drawn at random for each commitment,
+with the `randomScalar()` of the group, is never `0n` (`C = m·g` would hide nothing),
+and is returned, since the holder needs it later for the proofs. No method accepts an
+`r` chosen by the caller for a new commitment. `blind(0n)` is allowed, and gives `r·h`.
+A `scalar` that is not a `bigint` is a `TypeError`, as a rejection.
 
 ### isOpeningOf
 
@@ -149,9 +154,14 @@ commitment. `blind` of the zero scalar is allowed, and gives `r·h`.
 an opening of `commitment`: whether `commitment = m·g + r·h`. The wallet uses it to
 check a witness when it receives one, before it keeps it.
 
+`scalar` and `blinding` are `bigint`s, and count mod `ℓ`, as in `blind`. Either one
+that is not a `bigint` is a `TypeError`, as a rejection; so is a `commitment` that is
+not an element of the group, which the `equals` of the group's elements refuses.
+
 It computes `r·h` as `(r + s)·h − s·h`, with a fresh random `s`, so that `h` is never
-multiplied by the long-lived `r` itself (see [Constant time](#constant-time)). **Check a
-witness once, on receipt**, not at each use.
+multiplied by the long-lived `r` itself (see [Constant time](#constant-time)). `r + s`
+is a sum of `bigint`s, which the multiplication reduces mod `ℓ`. **Check a witness
+once, on receipt**, not at each use.
 
 ### The queue of blindings
 
@@ -160,6 +170,8 @@ drawing `r` is negligible. Each context therefore keeps a queue of up to 10 pair
 `(x, x·h)`, with `x` random and never 0, each used once, by `blind` (as `(r, r·h)`) or by
 `isOpeningOf` (as `(s, s·h)`).
 
+- The scalars `x` come from the `randomScalar()` of the group; a draw of `0n` is
+  dropped.
 - The queue starts filling at the first call to `blind` or `isOpeningOf`, after the
   validation succeeded. A context that is invalid, or never used for them, holds no
   random scalar.
@@ -173,9 +185,11 @@ drawing `r` is negligible. Each context therefore keeps a queue of up to 10 pair
 ## The group
 
 The context does its arithmetic only through its group, a value held in a field, and
-never names `RistrettoElement` or `RistrettoScalar` itself: `RistrettoElement` is only
-the default of `fromEncoded`. A group is any object with these members, which
-`RistrettoElement` has (see [ristretto255](ristretto255.md#suite_name-and-scalar)):
+never names `RistrettoElement` itself: `RistrettoElement` is only the default of
+`fromEncoded`. The scalars of every group are `bigint`s
+([Scalars](ristretto255.md#scalars)), so a group has no scalar type. A group is any
+object with these members, which `RistrettoElement` has (see
+[ristretto255](ristretto255.md#suite_name-and-randomscalar)):
 
 | Member of the group         | Used for                                            |
 | --------------------------- | --------------------------------------------------- |
@@ -184,23 +198,23 @@ the default of `fromEncoded`. A group is any object with these members, which
 | `decode(bytes)`             | decoding `h` in `fromEncoded`                       |
 | `hashToGroup(message, dst)` | the check of `h`                                    |
 | `canonicalGenerator()`      | `g`, in every commitment                            |
-| `identity()`                | the type check of an element argument               |
-| `Scalar.random()`           | the blinding factors and the masks of `isOpeningOf` |
-| `Scalar.fromBigInt(n)`      | the type check of a scalar argument                 |
+| `randomScalar()`            | the blinding factors and the masks of `isOpeningOf` |
 
-Its elements need `encode`, `equals`, `add`, `subtract` and `multiplyScalar`; its
-scalars `add`, `equals` and `isZero`. The context trusts its group: it checks neither
-its members nor its arithmetic.
+Its elements need `encode`, `equals`, `add`, `subtract` and `multiplyScalar(n)`, with
+`n` a `bigint`. The context checks itself that a scalar argument is a `bigint`; an
+element argument is checked by the `equals` of the group's elements, which throws a
+`TypeError` for anything else. The context trusts its group: it checks neither its
+members nor its arithmetic.
 
-**In TypeScript**, a group is the interface `Group<E, S>`, of elements `E` and scalars
-`S`, and the class is `BlindingContext<E, S>`, whose parameters default to
-`RistrettoElement` and `RistrettoScalar`. The parameters are inferred from the group
-given to `fromEncoded`, so a caller never writes them: `h()` of a ristretto255 context is
-a `Promise<RistrettoElement>`, not an `any`. They exist only for the type checker:
-there is one class at run time, and the group in its field does all the work. A class
-held in a variable cannot be called with `new` when its constructor is private, as the
-constructors of the group classes are; the context uses only the static factories of
-its group. The entry point exports `Group` as a type.
+**In TypeScript**, a group is the interface `Group<E>`, of elements `E`, and the class
+is `BlindingContext<E>`, whose parameter defaults to `RistrettoElement`. The parameter
+is inferred from the group given to `fromEncoded`, so a caller never writes it: `h()` of
+a ristretto255 context is a `Promise<RistrettoElement>`, not an `any`, and the
+`blinding` of `blind` is a `bigint`. It exists only for the type checker: there is one
+class at run time, and the group in its field does all the work. A class held in a
+variable cannot be called with `new` when its constructor is private, as the
+constructor of `RistrettoElement` is; the context uses only the static members of its
+group. The entry point exports `Group` as a type.
 
 ## Constant time
 
@@ -211,6 +225,8 @@ them:
   its own path;
 - `r·h` uses a fresh `r` for each commitment, so `h` is never multiplied twice by the same
   secret in `blind`;
+- the sum `r + s` of `isOpeningOf` is `bigint` arithmetic, whose timing depends on the
+  sizes of `r` and `s`: both are below `ℓ` when they come from `randomScalar()`;
 - `isOpeningOf` masks the long-lived `r` of a witness with a fresh `s`, and is meant to
   run once per witness;
 - the pairs of the queue are secret, like the blinding factors they become: they stay in
@@ -219,7 +235,8 @@ them:
 ## Test vectors
 
 `test/vectors/blinding-context.json` gives the serialization of the age-check context
-and two commitments `C = m·g + r·h` with fixed `m` and `r`, one with `m = 0`.
+and two commitments `C = m·g + r·h` with fixed `m` and `r`, one with `m = 0`. The
+scalars are 32-byte little-endian encodings, which the tests read as `bigint`s.
 `tools/blinding-context/reference.py` computes them apart from the TypeScript code, on
 the Python arithmetic of `tools/generator-h/reference.py`, and recomputes every
 commitment with libsodium:
@@ -236,5 +253,5 @@ Change History
 
 | PR  | Summary |
 |-----|---------|
-| #40 | new: BlindingContext, its group, validation, serialization and commitments (#39) |
+| #40 | new: BlindingContext, its group, validation, serialization and commitments, on bigint scalars (#39) |
 -->

@@ -3,22 +3,20 @@
 The commitments and proofs of vc-proofs work in the group ristretto255
 ([RFC 9496](https://www.rfc-editor.org/rfc/rfc9496.html)), of prime order
 `ℓ = 2²⁵² + 27742317777372353535851937790883648493`. The low-level entry point,
-`@criticaloptimisation/vc-proofs/core`, gives it two classes:
+`@criticaloptimisation/vc-proofs/core`, gives it the class `RistrettoElement`, an
+element of the group. A scalar is a plain `bigint` (see [Scalars](#scalars)).
 
-- `RistrettoElement`, an element of the group;
-- `RistrettoScalar`, an integer modulo `ℓ`.
-
-They are the only way the rest of the library handles group values. They hold the
-arithmetic of [`@noble/curves`](https://github.com/paulmillr/noble-curves), but never
-expose its types. They carry no protocol: the Pedersen context (the generators `g` and
-`h` and the commitments built on them) is a class of its own, built on these two:
+`RistrettoElement` is the only way the rest of the library handles group elements. It
+holds the arithmetic of [`@noble/curves`](https://github.com/paulmillr/noble-curves), but
+never exposes its types. It carries no protocol: the Pedersen context (the generators `g`
+and `h` and the commitments built on them) is a class of its own, built on this one:
 [the blinding context](blinding-context.md).
 
 ```ts
-import { RistrettoElement, RistrettoScalar } from "@criticaloptimisation/vc-proofs/core";
+import { RistrettoElement } from "@criticaloptimisation/vc-proofs/core";
 
 const h = await RistrettoElement.deriveGenerator(new TextEncoder().encode("example/h/v1"));
-const r = RistrettoScalar.random();
+const r = RistrettoElement.randomScalar(); // a bigint
 const blinding = h.multiplyScalar(r); // r·h
 ```
 
@@ -28,14 +26,13 @@ const blinding = h.multiplyScalar(r); // r·h
   new instance, and every `encode()` returns a new array, which the caller may change
   freely.
 - **No public constructor.** Instances come only from the static factories below. A
-  method that receives anything other than an instance of the expected class throws a
-  `TypeError`.
+  method that receives anything other than an element where it expects one, or anything
+  other than a `bigint` where it expects a scalar, throws a `TypeError`.
 - **Byte strings** are `Uint8Array`s, views with an offset included. Anything else, or a
   wrong length, is a `TypeError`.
 - **Errors**: `TypeError` for an input that is not a valid value (wrong type, wrong
   length, invalid or non-canonical encoding); `RangeError` for a valid value that the
-  operation refuses (a zero scalar to invert, an integer out of range, a refused DST, a
-  refused generator).
+  operation refuses (a refused DST, a refused generator).
 
 ## RistrettoElement
 
@@ -49,14 +46,14 @@ const blinding = h.multiplyScalar(r); // r·h
 | `static deriveGenerator(message)`  | a promise: a generator with nothing up a sleeve | none                                      |
 | `static GENERATOR_DST`             | the domain separation tag of `deriveGenerator`  | none                                      |
 | `static SUITE_NAME`                | the name of the suite: `Ristretto255`           | none                                      |
-| `static Scalar`                    | the class `RistrettoScalar`                     | none                                      |
+| `static randomScalar()`            | a uniformly random scalar, a `bigint`           | none                                      |
 | `encode()`                         | the canonical 32-byte encoding                  | none                                      |
 | `equals(other)`                    | whether both are the same element               | none                                      |
 | `isIdentity()`                     | whether this is the neutral element             | none                                      |
 | `add(other)`                       | `this + other`                                  | `crypto_core_ristretto255_add`            |
 | `subtract(other)`                  | `this − other`                                  | `crypto_core_ristretto255_sub`            |
 | `negate()`                         | `−this`                                         | none                                      |
-| `multiplyScalar(scalar)`           | `scalar·this`                                   | `crypto_scalarmult_ristretto255`          |
+| `multiplyScalar(n)`                | `n·this`, for any `bigint` `n`                  | `crypto_scalarmult_ristretto255`          |
 
 ### decode and encode
 
@@ -75,7 +72,7 @@ generator.
 
 The neutral element is a valid element, encoded as 32 zero bytes. `decode` accepts it, as
 RFC 9496 and libsodium do; `identity()` returns it, and `isIdentity()` tells it apart.
-`P.subtract(P)`, `P.add(P.negate())` and `P.multiplyScalar(zero)` all give it.
+`P.subtract(P)`, `P.add(P.negate())` and `P.multiplyScalar(0n)` all give it.
 
 Whether a caller may receive the identity is that caller's policy, decided by each
 caller: a commitment equal to the identity, for instance, may be refused by the code
@@ -90,11 +87,19 @@ combines them, and it does not encode either element.
 
 ### multiplyScalar
 
-`P.multiplyScalar(s)` is `s·P`, the sum of `s` copies of `P`. It uses the fixed-window
-multiplication of `@noble/curves`, whose sequence of point operations does not depend on
-`s` (see [Constant time](#constant-time)). That multiplication refuses the scalar 0, so a
-zero scalar returns the identity before it is called. The only thing this branch can
-reveal is whether `s` is zero.
+`P.multiplyScalar(n)` is `n·P` for any `bigint` `n` (see [Scalars](#scalars)): the sum
+of `n` copies of `P` for `n > 0`, the identity for `n = 0`, and `(−n)·(−P)` for `n < 0`.
+It throws a `TypeError` when `n` is not a `bigint`, a `number` included.
+
+Since `ℓ·P` is the identity, `n·P` depends only on `n mod ℓ`. So `multiplyScalar`
+first reduces `n` mod `ℓ`, with the `Fn` of `@noble/curves`, and multiplies by the
+reduced value only: `multiplyScalar(n + ℓ)` and `multiplyScalar(n − ℓ)` equal
+`multiplyScalar(n)`. That is an optimization, not a part of the definition.
+
+It then uses the fixed-window multiplication of `@noble/curves`, whose sequence of
+point operations does not depend on the scalar (see [Constant time](#constant-time)).
+That multiplication refuses 0, so a scalar that reduces to 0 returns the identity before
+it is called. The only thing this branch can reveal is whether `n mod ℓ` is zero.
 
 libsodium's `crypto_scalarmult_ristretto255` refuses a result equal to the identity;
 `multiplyScalar` returns it.
@@ -161,50 +166,33 @@ const derived = await RistrettoElement.deriveGenerator(message);
 const valid = derived.equals(RistrettoElement.decode(published)); // decode throws on bad bytes
 ```
 
-### SUITE_NAME and Scalar
+### SUITE_NAME and randomScalar
 
-With `SUITE_NAME` and `Scalar`, the class `RistrettoElement` is a
+With `SUITE_NAME` and `randomScalar`, the class `RistrettoElement` is a
 [group](blinding-context.md#the-group) for a blinding context, which uses no other group
 by default. `SUITE_NAME` is the string `Ristretto255`, which begins the serialization of
-a context. `Scalar` is the class `RistrettoScalar`, from which a context draws and checks
-its scalars.
+a context. `randomScalar()` gives the random scalars a context draws.
 
-## RistrettoScalar
+## Scalars
 
-| Member                           | Returns                                       | libsodium counterpart                    |
-| -------------------------------- | --------------------------------------------- | ---------------------------------------- |
-| `static decode(bytes)`           | the scalar of a canonical 32-byte encoding    | none                                     |
-| `static fromBigInt(n)`           | `n mod ℓ`                                     | none                                     |
-| `static fromUniformBytes(bytes)` | 64 bytes, read little-endian, reduced mod `ℓ` | `crypto_core_ristretto255_scalar_reduce` |
-| `static random()`                | a uniformly random scalar                     | `crypto_core_ristretto255_scalar_random` |
-| `encode()`                       | the canonical 32-byte encoding                | none                                     |
-| `equals(other)`                  | whether both are the same scalar              | none                                     |
-| `isZero()`                       | whether this is 0                             | none                                     |
-| `add(other)`                     | `this + other mod ℓ`                          | `crypto_core_ristretto255_scalar_add`    |
-| `subtract(other)`                | `this − other mod ℓ`                          | `crypto_core_ristretto255_scalar_sub`    |
-| `multiply(other)`                | `this · other mod ℓ`                          | `crypto_core_ristretto255_scalar_mul`    |
-| `negate()`                       | `−this mod ℓ`                                 | `crypto_core_ristretto255_scalar_negate` |
-| `invert()`                       | `this⁻¹ mod ℓ`                                | `crypto_core_ristretto255_scalar_invert` |
+A scalar is a `bigint`, any integer: there is no scalar class. `n·P` is `P` added to
+itself `n` times, `(((P + P) + P) + …) + P`. However cyclic the group, nothing bounds the
+number of additions, so `n` is any non-negative integer. And since `−P` is the element
+`Q` such that `Q + P` is the identity, `n·P` for `n < 0` is `(−n)·(−P)`. So `n·P` is
+defined for every integer `n`, in any group.
 
-- **Encoding.** 32 bytes, little-endian, canonical: the integer is below `ℓ`. `decode`
-  throws a `TypeError` for any other length and for an integer `≥ ℓ`, such as the
-  encoding of `ℓ` itself.
-- **`fromBigInt(n)`** accepts a `bigint` with `|n| < 2²⁵¹`, and returns `n mod ℓ`, so
-  `fromBigInt(-1n)` is `ℓ − 1`. Since `2 · 2²⁵¹ < ℓ`, each scalar has at most one signed
-  reading in that range. A larger `|n|` is a `RangeError`, and anything other than a
-  `bigint` is a `TypeError`.
-- **`fromUniformBytes(bytes)`** needs exactly 64 bytes, else a `TypeError`. Reducing 512
-  bits mod `ℓ` leaves a bias below `2⁻²⁵⁹`.
-- **`random()`** is `fromUniformBytes` of 64 bytes from `crypto.getRandomValues`. It may
-  return 0 with probability `1/ℓ`.
-- **`equals`** compares the two encodings with the `equalBytes` of `@noble/curves`, which
-  does not stop at the first difference.
-- **`invert()`** throws a `RangeError` on zero, which has no inverse. It computes
-  `this^(ℓ − 2)`: the exponent is public, so the sequence of operations does not depend
-  on the scalar, unlike an extended Euclid.
-
-`fromBigInt(0n)` and `fromBigInt(1n)` give 0 and 1; there are no separate factories for
-them.
+- **Reduction.** Every operation that uses a scalar reduces it mod `ℓ` before anything
+  else, as an optimization (see [multiplyScalar](#multiplyscalar)). A caller never needs
+  to reduce a scalar itself, and may pass negative and large values.
+- **Arithmetic.** The sum, difference and product of scalars are the `+`, `−` and `*` of
+  `bigint`. The library offers no other scalar arithmetic.
+- **`randomScalar()`** reads 64 bytes from `crypto.getRandomValues` as a little-endian
+  integer, and reduces it mod `ℓ`: a `bigint` from `0` to `ℓ − 1`. Reducing 512 bits mod
+  `ℓ` leaves a bias below `2⁻²⁵⁹`. It may return `0n`, with probability `1/ℓ`; a caller
+  that needs a non-zero scalar draws again.
+- **Type.** Where a scalar is expected, anything other than a `bigint` is a `TypeError`.
+  A `number` is refused too, even when it is an integer: a `number` above `2⁵³` has
+  already lost its precision.
 
 ## Constant time
 
@@ -212,15 +200,14 @@ No JavaScript code can promise constant time: `bigint` operations, the JIT compi
 the garbage collector all have timings that depend on data. The classes do what can be
 done above that:
 
-- every operation on field elements and scalars is a method of the `Fp` (the field of
-  edwards25519) and `Fn` (scalars mod `ℓ`) of `@noble/curves`, never an operation of our
-  own on `bigint`;
+- every operation on field elements is a method of the `Fp` (the field of edwards25519)
+  of `@noble/curves`, and the reduction of a scalar mod `ℓ` is a method of its `Fn`,
+  never an operation of our own on `bigint`;
 - the selections of RFC 9496 (`CT_SELECT`, `CT_ABS`) use `Fp.cmov`, not a JavaScript
   conditional;
 - `multiplyScalar` uses the fixed-window multiplication of `@noble/curves`, whose sequence
   of point operations does not depend on the scalar;
-- `equals` computes every comparison before it combines them: both of RFC 9496 for
-  elements, every byte for scalars.
+- `equals` computes both comparisons of RFC 9496 before it combines them.
 
 `@noble/curves` states two limits, which therefore apply here:
 
@@ -236,9 +223,13 @@ a witness kept by the wallet, enters a proof through scalar arithmetic
 (`z = k + c·r`), never through a point multiplication. Followed, the rule leaves the
 attacker one timing per secret, which is not enough for the attack.
 
+Scalar arithmetic is the `bigint` arithmetic of JavaScript (see [Scalars](#scalars)),
+whose timing depends on the size of its operands. The reduction mod `ℓ` at the start of
+each multiplication bounds the size of what the multiplication itself works on.
+
 ## Checked against libsodium
 
-The tests check both classes against the RFC vectors and against
+The tests check `RistrettoElement` against the RFC vectors and against
 [libsodium](https://github.com/jedisct1/libsodium), an implementation in C written apart
 from `@noble/curves` and from this code. They load libsodium 1.0.22, compiled to
 WebAssembly by [libsodium.js](https://github.com/jedisct1/libsodium.js)
@@ -249,11 +240,13 @@ cannot import it.
 - **The RFC vectors**: RFC 9496, Appendix A.1 (the multiples `0·g` to `15·g`), A.2 (the
   encodings `decode` refuses) and A.3 (the element derivation), and RFC 9380, Appendix
   K.3 (`expand_message_xmd` over SHA-512). libsodium itself is first checked on A.1 and
-  A.3, then the classes are.
+  A.3, then the class is.
 - **Differential tests**: 64 inputs, derived from a counter by SHA-512, so that a failure
   is reproducible. On them, every operation that has a libsodium counterpart in the
-  tables above returns the bytes that libsodium returns, and `decode` accepts exactly the
-  encodings that `crypto_core_ristretto255_is_valid_point` accepts.
+  table above returns the bytes that libsodium returns, and `decode` accepts exactly the
+  encodings that `crypto_core_ristretto255_is_valid_point` accepts. `multiplyScalar` is
+  checked on 512-bit scalars, which it reduces mod `ℓ`, against
+  `crypto_core_ristretto255_scalar_reduce` and `crypto_scalarmult_ristretto255`.
 
 Expected values come either from the text of an RFC or from libsodium, never from code
 of vc-proofs. libsodium has no `hash_to_ristretto255`; `hashToGroup` is checked as
@@ -265,5 +258,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #38 | new: RistrettoElement and RistrettoScalar (#35) |
-| #40 | links the blinding context; SUITE_NAME and Scalar (#39) |
+| #40 | links the blinding context; SUITE_NAME and randomScalar; scalars are bigints, RistrettoScalar removed (#39) |
 -->

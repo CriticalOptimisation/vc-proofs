@@ -199,8 +199,8 @@ have read-only permissions, and every action is pinned by its commit SHA.
   SHA-512 included, comes from WebCrypto. A pull request that adds another dependency
   must say why the platform (WebCrypto, WebAuthn) and this one are not enough.
 - One development dependency is a cryptographic library: `libsodium-wrappers-sumo`,
-  libsodium compiled to WebAssembly. The tests of `RistrettoElement` and
-  `RistrettoScalar` compare them with it in every test project, so that their expected
+  libsodium compiled to WebAssembly. The tests of `RistrettoElement` compare it with
+  libsodium in every test project, so that their expected
   values never come from code of vc-proofs
   ([Checked against libsodium](core/ristretto255.md#checked-against-libsodium)). It is
   not a runtime dependency: `dist/` and the published package do not contain it, and
@@ -231,5 +231,5 @@ Change History
 | #32 | the high- and low-level layers; isomorphic rules for all of src/ (#29) |
 | #37 | the runtime dependency @noble/curves; the independent-h job (#34) |
 | #38 | the test-only libsodium; src/ may not import it (#35) |
-| #40 | setTimeout in src/; independent-h checks the blinding-context vectors (#39) |
+| #40 | setTimeout in src/; independent-h checks the blinding-context vectors; no RistrettoScalar (#39) |
 -->
