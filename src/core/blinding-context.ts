@@ -193,7 +193,7 @@ export class BlindingContext<
    *   `group.decode` refuses `h`: for ristretto255, anything but 32 bytes that are a
    *   canonical encoding.
    */
-  static fromEncoded(h: Uint8Array, message: Uint8Array): BlindingContext;
+  static fromEncoded(h: Uint8Array, message: Uint8Array, group?: undefined): BlindingContext;
   static fromEncoded<E extends GroupElement, S extends GroupScalar>(
     h: Uint8Array,
     message: Uint8Array,

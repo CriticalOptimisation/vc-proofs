@@ -3,12 +3,14 @@
  * types and lengths, a non-canonical `h`, views and Node.js buffers as inputs, the empty
  * message, the array it returns, `blind` of zero, openings with each part swapped,
  * wrong argument classes, the rejection of every awaiting member of an invalid context,
- * and the queues of several contexts. Expected values come from
+ * the queues of several contexts, and contexts over a group of their own: its
+ * diagnostics, its pairing with a ristretto255 context, and the types inferred from it. Expected values come from
  * test/vectors/generator-h.json, computed apart from the TypeScript code, or from the
  * group classes of #35. The same file runs in Node.js and in every headless browser.
  */
-import { describe, expect, test } from "vitest";
+import { describe, expect, expectTypeOf, test } from "vitest";
 import { BlindingContext, RistrettoElement, RistrettoScalar } from "../src/core/index.js";
+import type { Group } from "../src/core/index.js";
 import * as seams from "../src/core/blinding-context.js";
 import contextVectors from "./vectors/blinding-context.json" with { type: "json" };
 import generatorVectors from "./vectors/generator-h.json" with { type: "json" };
@@ -320,7 +322,108 @@ describe("BlindingContext: the queues of blindings", () => {
   });
 });
 
+describe("BlindingContext over a group of its own", () => {
+  const encoder = new TextEncoder();
+  const message = () => encoder.encode("vc-proofs/test/edge-group");
+
+  /**
+   * The arithmetic of ristretto255 under another suite name and tag, with 3·g as its
+   * generator; its scalars come from a plain object, not from a named class.
+   */
+  function plainGroup(overrides: Partial<Group<RistrettoElement, RistrettoScalar>> = {}) {
+    const group: Group<RistrettoElement, RistrettoScalar> = {
+      SUITE_NAME: "Edge",
+      GENERATOR_DST: "vc-proofs-test-edge-group",
+      Scalar: {
+        random: () => RistrettoScalar.random(),
+        fromBigInt: (n) => RistrettoScalar.fromBigInt(n),
+      },
+      decode: (bytes) => RistrettoElement.decode(bytes),
+      hashToGroup: (bytes, dst) => RistrettoElement.hashToGroup(bytes, dst),
+      canonicalGenerator: () => g().multiplyScalar(scalar(3n)),
+      identity: () => RistrettoElement.identity(),
+      ...overrides,
+    };
+    return group;
+  }
+
+  async function hOf(group: Group<RistrettoElement, RistrettoScalar>): Promise<Uint8Array> {
+    return (
+      await RistrettoElement.hashToGroup(message(), encoder.encode(group.GENERATOR_DST))
+    ).encode();
+  }
+
+  test("a group left undefined is the default group", async () => {
+    const context = BlindingContext.fromEncoded(ageCheck().h, ageCheck().message, undefined);
+    expect(context.group).toBe(RistrettoElement);
+    expect(hex(await context.serialize())).toBe(contextVectors.context.serialized);
+  });
+
+  test("a refusal of the group's decode is a TypeError at once, with the refusal as its cause", () => {
+    const refusal = new TypeError("refused by the group");
+    const group = plainGroup({
+      decode: () => {
+        throw refusal;
+      },
+    });
+    let thrown: unknown;
+    try {
+      BlindingContext.fromEncoded(ageCheck().h, message(), group);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(TypeError);
+    expect((thrown as Error).message).toMatch(/h is not a canonical encoding/);
+    expect((thrown as Error).cause).toBe(refusal);
+  });
+
+  test("a wrong argument is named after the group when its classes have no name", async () => {
+    const group = plainGroup();
+    const context = BlindingContext.fromEncoded(await hOf(group), message(), group);
+    const one = scalar(1n);
+    await expect(context.blind(1n as unknown as RistrettoScalar)).rejects.toThrow(
+      /blind: scalar must be a scalar of the group/,
+    );
+    await expect(context.isOpeningOf(one, one, {} as RistrettoElement)).rejects.toThrow(
+      /isOpeningOf: commitment must be an element of the group/,
+    );
+  });
+
+  test("a context over another group and a ristretto255 context side by side", async () => {
+    const group = plainGroup();
+    const other = BlindingContext.fromEncoded(await hOf(group), message(), group);
+    const age = BlindingContext.fromEncoded(ageCheck().h, ageCheck().message);
+    expect(other.group).toBe(group);
+    expect(age.group).toBe(RistrettoElement);
+    expect(new TextDecoder().decode((await other.serialize()).subarray(0, 4))).toBe("Edge");
+    expect(hex(await age.serialize())).toBe(contextVectors.context.serialized);
+    const m = scalar(5n);
+    const fromOther = await other.blind(m);
+    const fromAge = await age.blind(m);
+    expect(await other.isOpeningOf(m, fromOther.blinding, fromOther.commitment)).toBe(true);
+    expect(await age.isOpeningOf(m, fromAge.blinding, fromAge.commitment)).toBe(true);
+    // Each opening holds only in the context that made it.
+    expect(await age.isOpeningOf(m, fromOther.blinding, fromOther.commitment)).toBe(false);
+    expect(await other.isOpeningOf(m, fromAge.blinding, fromAge.commitment)).toBe(false);
+  });
+
+  test("the types are inferred from the group, and default to ristretto255", async () => {
+    // Checked by tsc, which type-checks the tests; at run time these are no-ops.
+    expectTypeOf(RistrettoElement).toExtend<Group<RistrettoElement, RistrettoScalar>>();
+    const age = BlindingContext.fromEncoded(ageCheck().h, ageCheck().message);
+    // `BlindingContext` alone is `BlindingContext<RistrettoElement, RistrettoScalar>`.
+    expectTypeOf(age).toEqualTypeOf<BlindingContext>();
+    expectTypeOf(age.h()).toEqualTypeOf<Promise<RistrettoElement>>();
+    expectTypeOf<Parameters<BlindingContext["blind"]>[0]>().toEqualTypeOf<RistrettoScalar>();
+    const group = plainGroup();
+    const other = BlindingContext.fromEncoded(await hOf(group), message(), group);
+    expectTypeOf(other).toEqualTypeOf<BlindingContext>();
+    expectTypeOf(other.group).toEqualTypeOf<Group<RistrettoElement, RistrettoScalar>>();
+    expect((await other.h()).equals(RistrettoElement.decode(await hOf(group)))).toBe(true);
+  });
+});
+
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #40    | new: the edge cases of BlindingContext (#39)                   |
+// | #40    | new: the edge cases of BlindingContext, and of its group (#39) |
