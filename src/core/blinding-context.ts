@@ -32,7 +32,11 @@ export interface Blinded {
   readonly blinding: RistrettoScalar;
 }
 
-/** Throws a `TypeError` unless `value` is a `RistrettoScalar`, by the brand check of #35. */
+/**
+ * `value` itself when it is a `RistrettoScalar`, else a `TypeError`. `equals` throws a
+ * `TypeError` for an argument that is not a scalar (docs/core/ristretto255.md, *Errors*);
+ * only that check is used, the result of the comparison is discarded.
+ */
 function checkScalar(value: unknown, where: string): RistrettoScalar {
   try {
     RistrettoScalar.fromBigInt(0n).equals(value as RistrettoScalar);
@@ -42,7 +46,11 @@ function checkScalar(value: unknown, where: string): RistrettoScalar {
   return value as RistrettoScalar;
 }
 
-/** Throws a `TypeError` unless `value` is a `RistrettoElement`, by the brand check of #35. */
+/**
+ * `value` itself when it is a `RistrettoElement`, else a `TypeError`. `equals` throws a
+ * `TypeError` for an argument that is not an element (docs/core/ristretto255.md,
+ * *Errors*); only that check is used, the result of the comparison is discarded.
+ */
 function checkElement(value: unknown, where: string): RistrettoElement {
   try {
     RistrettoElement.identity().equals(value as RistrettoElement);
@@ -52,16 +60,16 @@ function checkElement(value: unknown, where: string): RistrettoElement {
   return value as RistrettoElement;
 }
 
-/** `m·g + xh`: the commitment to `m` with the blinding term `xh`. */
-function commit(m: RistrettoScalar, xh: RistrettoElement): RistrettoElement {
-  return RistrettoElement.canonicalGenerator().multiplyScalar(m).add(xh);
-}
-
 /** Set by `BlindingContext`: the private state the seams need, after a brand check. */
 let internals: (
   context: unknown,
   where: string,
-) => { readonly ready: Promise<void>; readonly h: RistrettoElement; readonly queued: number };
+) => {
+  readonly ready: Promise<void>;
+  readonly h: RistrettoElement;
+  readonly queued: number;
+  readonly commit: (m: RistrettoScalar, xh: RistrettoElement) => RistrettoElement;
+};
 
 /**
  * The constants of one application and the Pedersen commitments made with them.
@@ -105,7 +113,12 @@ export class BlindingContext {
       if (typeof context !== "object" || context === null || !(#ready in context)) {
         throw new TypeError(`${where} must be a BlindingContext`);
       }
-      return { ready: context.#ready, h: context.#h, queued: context.#queue.length };
+      return {
+        ready: context.#ready,
+        h: context.#h,
+        queued: context.#queue.length,
+        commit: (m, xh) => context.#commit(m, xh),
+      };
     };
   }
 
@@ -146,11 +159,6 @@ export class BlindingContext {
     return RistrettoElement;
   }
 
-  /** The message `h` was derived from, in a new array. */
-  get message(): Uint8Array {
-    return this.#message.slice();
-  }
-
   /**
    * The generator `h`, once validated.
    * @throws RangeError, as a rejection, when `h` is not derived from the message.
@@ -182,7 +190,7 @@ export class BlindingContext {
     await this.#ready;
     const m = checkScalar(scalar, "BlindingContext.blind: scalar");
     const { x: r, xh: rh } = this.#take();
-    return { commitment: commit(m, rh), blinding: r };
+    return { commitment: this.#commit(m, rh), blinding: r };
   }
 
   /**
@@ -202,7 +210,20 @@ export class BlindingContext {
     const c = checkElement(commitment, "BlindingContext.isOpeningOf: commitment");
     const { x: s, xh: sh } = this.#take();
     const rh = this.#h.multiplyScalar(r.add(s)).subtract(sh);
-    return commit(m, rh).equals(c);
+    return this.#commit(m, rh).equals(c);
+  }
+
+  /** The message `h` was derived from, in a new array. */
+  get message(): Uint8Array {
+    return this.#message.slice();
+  }
+
+  /**
+   * `m·g + xh`: the commitment to `m` with the blinding term `xh`, `g` the canonical
+   * generator of the group of the context.
+   */
+  #commit(m: RistrettoScalar, xh: RistrettoElement): RistrettoElement {
+    return this.group.canonicalGenerator().multiplyScalar(m).add(xh);
   }
 
   /**
@@ -254,7 +275,7 @@ export async function blindWith(
   scalar: RistrettoScalar,
   draw: () => RistrettoScalar,
 ): Promise<Blinded> {
-  const { ready, h } = internals(context, "blindWith: context");
+  const { ready, h, commit } = internals(context, "blindWith: context");
   await ready;
   const m = checkScalar(scalar, "blindWith: scalar");
   let r = checkScalar(draw(), "blindWith: draw()");
