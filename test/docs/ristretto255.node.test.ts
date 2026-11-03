@@ -1,10 +1,12 @@
 /**
- * docs/core/ristretto255.md documents every public member of `RistrettoElement` and
- * `RistrettoScalar` (#35), in the section of its class. The members are read from the
- * classes, so a member added without its documentation fails here.
+ * docs/core/ristretto255.md documents every public member of `RistrettoElement` (#35),
+ * in the section of its class, and documents scalars as bigints, with no class of their
+ * own. The members are read from the class, so a member added without its documentation
+ * fails here.
  */
 import { describe, expect, test } from "vitest";
-import { RistrettoElement, RistrettoScalar } from "../../src/core/index.js";
+import * as entryPoint from "../../src/core/index.js";
+import { RistrettoElement } from "../../src/core/index.js";
 import { read } from "./markdown.js";
 
 const page = read("docs/core/ristretto255.md");
@@ -28,10 +30,14 @@ function members(cls: { readonly prototype: unknown }): string[] {
   return [...statics.map((name) => `static ${name}`), ...instance];
 }
 
-const classes = [
-  ["RistrettoElement", RistrettoElement],
-  ["RistrettoScalar", RistrettoScalar],
-] as const;
+// REVIEW PLACEHOLDER (PR #40: scalars are bigints)
+// docs/core/ristretto255.md, section %s: the classes RistrettoElement and RistrettoScalar
+//   -> docs/core/ristretto255.md, section %s: the class RistrettoElement only; and docs/core/ristretto255.md documents scalars as bigints
+// const classes = [
+//   ["RistrettoElement", RistrettoElement],
+//   ["RistrettoScalar", RistrettoScalar],
+// ] as const;
+const classes = [["RistrettoElement", RistrettoElement]] as const;
 
 describe.each(classes)("docs/core/ristretto255.md, section %s", (title, cls) => {
   test("the class has public members", () => {
@@ -45,7 +51,21 @@ describe.each(classes)("docs/core/ristretto255.md, section %s", (title, cls) => 
   });
 });
 
+describe("docs/core/ristretto255.md documents scalars as bigints", () => {
+  test("it has a section Scalars, and none for RistrettoScalar", () => {
+    expect(section("Scalars")).toMatch(/`bigint`/);
+    expect(page).not.toMatch(/\n## RistrettoScalar\n/);
+  });
+
+  test("the entry point exports no RistrettoScalar, and RistrettoElement no Scalar", () => {
+    expect(Object.keys(entryPoint)).not.toContain("RistrettoScalar");
+    expect(members(RistrettoElement)).not.toContain("static Scalar");
+    expect(members(RistrettoElement)).toContain("static randomScalar");
+  });
+});
+
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #38    | new: the page names every public member (#35)                 |
+// | #40    | scalars are bigints: no section RistrettoScalar (#39)         |

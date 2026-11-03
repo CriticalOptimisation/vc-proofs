@@ -20,7 +20,11 @@ const tsc = require.resolve("typescript/bin/tsc");
  */
 const surface: Record<string, string[]> = {
   "": [],
-  "/core": ["BlindingContext", "BoundedInt", "RistrettoElement", "RistrettoScalar", "requestHash"],
+  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
+  // @criticaloptimisation/vc-proofs/core exports exactly ["BlindingContext","BoundedInt","RistrettoElement","RistrettoScalar","requestHash"]
+  //   -> @criticaloptimisation/vc-proofs/core exports exactly ["BlindingContext","BoundedInt","RistrettoElement","requestHash"]
+  // "/core": ["BlindingContext", "BoundedInt", "RistrettoElement", "RistrettoScalar", "requestHash"],
+  "/core": ["BlindingContext", "BoundedInt", "RistrettoElement", "requestHash"],
 };
 const entries = Object.keys(surface);
 
@@ -116,4 +120,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #37    | ./core exports the derivation of a generator (#34)            |
 // | #38    | ./core exports RistrettoElement, RistrettoScalar (#35)        |
 // | #42    | ./core exports BoundedInt, and declares it (#41)              |
-// | #40    | ./core exports BlindingContext (#39)                           |
+// | #40    | ./core exports BlindingContext, and no RistrettoScalar (#39)   |
