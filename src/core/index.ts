@@ -10,6 +10,7 @@
  * `BoundedInt` (docs/core/bounded-int.md) wraps an integer in a class, for the bounds of
  * a value.
  */
+export { BlindingContext } from "./blinding-context.js";
 export { BoundedInt } from "./bounded-int.js";
 export { requestHash } from "./request-hash.js";
 export { RistrettoElement, RistrettoScalar } from "./ristretto.js";
