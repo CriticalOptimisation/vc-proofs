@@ -1,7 +1,7 @@
 /**
  * `BlindingContext` (#39; docs/core/blinding-context.md): the validation in the
  * constructor, the members that await it, the serialization, the commitments, their
- * openings and the queue of blindings. The expected values come from
+ * openings, the queue of blindings, and a context over a group other than the default. The expected values come from
  * test/vectors/generator-h.json and test/vectors/blinding-context.json, which
  * tools/generator-h/reference.py and tools/blinding-context/reference.py compute apart
  * from the TypeScript code, with libsodium. The same file runs in Node.js and in every
@@ -24,7 +24,6 @@ interface Blinded {
 
 interface Context {
   readonly group: unknown;
-  readonly message: Uint8Array;
   h(): Promise<RistrettoElement>;
   serialize(): Promise<Uint8Array>;
   blind(scalar: RistrettoScalar): Promise<Blinded>;
@@ -35,8 +34,19 @@ interface Context {
   ): Promise<boolean>;
 }
 
+/** What a context needs of its group (docs/core/blinding-context.md, The group). */
+interface TestGroup {
+  readonly SUITE_NAME: string;
+  readonly GENERATOR_DST: string;
+  readonly Scalar: { random(): RistrettoScalar; fromBigInt(n: bigint): RistrettoScalar };
+  decode(bytes: Uint8Array): RistrettoElement;
+  hashToGroup(message: Uint8Array, dst: Uint8Array): Promise<RistrettoElement>;
+  canonicalGenerator(): RistrettoElement;
+  identity(): RistrettoElement;
+}
+
 interface ContextClass {
-  fromEncoded(h: Uint8Array, message: Uint8Array): Context;
+  fromEncoded(h: Uint8Array, message: Uint8Array, group?: TestGroup): Context;
 }
 
 interface Seams {
@@ -132,13 +142,30 @@ describe("BlindingContext: construction and validation", () => {
     expect(typeof BlindingContext.fromEncoded).toBe("function");
   });
 
-  test("fromEncoded builds the age-check context synchronously, and it validates", async () => {
+  // REVIEW PLACEHOLDER (PR #40: the context keeps no message)
+  // fromEncoded builds the age-check context synchronously, and it validates
+  //   -> fromEncoded builds the age-check context synchronously, and it validates, keeping no message
+  // test("fromEncoded builds the age-check context synchronously, and it validates", async () => {
+  //   const { h, message } = ageCheck();
+  //   const context = BlindingContext.fromEncoded(h, message);
+  //   expect(context).not.toBeInstanceOf(Promise);
+  //   expect(hex(context.message)).toBe(contextVectors.context.messageHex);
+  //   expect(hex((await context.h()).encode())).toBe(contextVectors.context.h);
+  //   expect(hex(await context.serialize())).toBe(contextVectors.context.serialized);
+  // });
+  test("fromEncoded builds the age-check context synchronously, and it validates, keeping no message", async () => {
     const { h, message } = ageCheck();
     const context = BlindingContext.fromEncoded(h, message);
     expect(context).not.toBeInstanceOf(Promise);
-    expect(hex(context.message)).toBe(contextVectors.context.messageHex);
+    expect("message" in context).toBe(false);
     expect(hex((await context.h()).encode())).toBe(contextVectors.context.h);
     expect(hex(await context.serialize())).toBe(contextVectors.context.serialized);
+  });
+
+  test("a context keeps no message: it has no member message", () => {
+    const context = ageCheckContext();
+    expect("message" in context).toBe(false);
+    expect((context as unknown as Record<string, unknown>).message).toBeUndefined();
   });
 
   test("serialize() is the ASCII bytes of Ristretto255, then the 32 bytes of h", async () => {
@@ -162,13 +189,26 @@ describe("BlindingContext: construction and validation", () => {
     },
   );
 
-  test("a late change to the caller's arrays changes nothing in a valid context", async () => {
+  // REVIEW PLACEHOLDER (PR #40: the context keeps no message)
+  // a late change to the caller's arrays changes nothing in a valid context
+  //   -> a late change to the caller's arrays changes nothing in a valid context: it still validates
+  // test("a late change to the caller's arrays changes nothing in a valid context", async () => {
+  //   const { h, message } = ageCheck();
+  //   const context = BlindingContext.fromEncoded(h, message);
+  //   // Before anything is awaited: the validation has not ended yet.
+  //   h.set(abc().h);
+  //   message.fill(0x61);
+  //   expect(hex(context.message)).toBe(contextVectors.context.messageHex);
+  //   expect(hex((await context.h()).encode())).toBe(contextVectors.context.h);
+  //   expect(hex(await context.serialize())).toBe(contextVectors.context.serialized);
+  // });
+  test("a late change to the caller's arrays changes nothing in a valid context: it still validates", async () => {
     const { h, message } = ageCheck();
     const context = BlindingContext.fromEncoded(h, message);
-    // Before anything is awaited: the validation has not ended yet.
+    // Before anything is awaited: the validation has not ended yet. A changed message
+    // would make the check fail, so a context that resolves validated its own copy.
     h.set(abc().h);
     message.fill(0x61);
-    expect(hex(context.message)).toBe(contextVectors.context.messageHex);
     expect(hex((await context.h()).encode())).toBe(contextVectors.context.h);
     expect(hex(await context.serialize())).toBe(contextVectors.context.serialized);
   });
@@ -192,6 +232,12 @@ describe("BlindingContext: construction and validation", () => {
 
   test("group is the class RistrettoElement", () => {
     expect(ageCheckContext().group).toBe(RistrettoElement);
+  });
+
+  test("RistrettoElement is a group: its SUITE_NAME is Ristretto255, its Scalar RistrettoScalar", () => {
+    const group = RistrettoElement as unknown as Record<string, unknown>;
+    expect(group.SUITE_NAME).toBe("Ristretto255");
+    expect(group.Scalar).toBe(RistrettoScalar);
   });
 });
 
@@ -295,7 +341,80 @@ describe("BlindingContext: the queue of blindings", () => {
   });
 });
 
+describe("BlindingContext over another group", () => {
+  /**
+   * A group of its own: the elements and scalars of ristretto255, under another suite
+   * name and another tag, with 2·g as its canonical generator, and a count of the
+   * scalars it draws. A context that names RistrettoElement anywhere fails here.
+   */
+  function otherGroup(): TestGroup & { readonly drawn: () => number } {
+    let drawn = 0;
+    const g2 = g().add(g());
+    return {
+      SUITE_NAME: "Test-group",
+      GENERATOR_DST: "vc-proofs-test-other-group",
+      Scalar: {
+        random: () => {
+          drawn++;
+          return RistrettoScalar.random();
+        },
+        fromBigInt: (n) => RistrettoScalar.fromBigInt(n),
+      },
+      decode: (bytes) => RistrettoElement.decode(bytes),
+      hashToGroup: (message, dst) => RistrettoElement.hashToGroup(message, dst),
+      canonicalGenerator: () => g2,
+      identity: () => RistrettoElement.identity(),
+      drawn: () => drawn,
+    };
+  }
+
+  const message = () => new TextEncoder().encode("vc-proofs/test/other-group");
+  /** The h of `message()` under the tag of `group`. */
+  async function hOf(group: TestGroup): Promise<RistrettoElement> {
+    return RistrettoElement.hashToGroup(message(), new TextEncoder().encode(group.GENERATOR_DST));
+  }
+
+  test("fromEncoded with a group checks h under the GENERATOR_DST of that group", async () => {
+    const group = otherGroup();
+    const h = await hOf(group);
+    const context = BlindingContext.fromEncoded(h.encode(), message(), group);
+    expect((await context.h()).equals(h)).toBe(true);
+    // The same h is not the generator of ristretto255 for that message.
+    await expect(BlindingContext.fromEncoded(h.encode(), message()).h()).rejects.toThrow(
+      RangeError,
+    );
+  });
+
+  test("group is the group given to fromEncoded", async () => {
+    const group = otherGroup();
+    const context = BlindingContext.fromEncoded((await hOf(group)).encode(), message(), group);
+    expect(context.group).toBe(group);
+  });
+
+  test("serialize() is the SUITE_NAME of the group, then the encoding of h", async () => {
+    const group = otherGroup();
+    const h = await hOf(group);
+    const serialized = await BlindingContext.fromEncoded(h.encode(), message(), group).serialize();
+    expect(new TextDecoder().decode(serialized.subarray(0, 10))).toBe("Test-group");
+    expect(serialized.length).toBe(10 + 32);
+    expect(hex(serialized.subarray(10))).toBe(hex(h.encode()));
+  });
+
+  test("blind commits with the generator of the group, and draws r from its Scalar", async () => {
+    const group = otherGroup();
+    const h = await hOf(group);
+    const context = BlindingContext.fromEncoded(h.encode(), message(), group);
+    const m = scalar(20000n);
+    const { commitment, blinding } = await context.blind(m);
+    const expected = group.canonicalGenerator().multiplyScalar(m).add(h.multiplyScalar(blinding));
+    expect(commitment.equals(expected)).toBe(true);
+    expect(commitment.equals(pedersen(m, blinding, h))).toBe(false);
+    expect(group.drawn()).toBeGreaterThan(0);
+    expect(await context.isOpeningOf(m, blinding, commitment)).toBe(true);
+  });
+});
+
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #40    | new: the preliminary tests of BlindingContext (#39)            |
+// | #40    | new: the preliminary tests of BlindingContext, and its group (#39) |

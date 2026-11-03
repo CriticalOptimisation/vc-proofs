@@ -1,7 +1,7 @@
 /**
  * The edge cases of `BlindingContext` (#39; docs/core/blinding-context.md): wrong
  * types and lengths, a non-canonical `h`, views and Node.js buffers as inputs, the empty
- * message, the arrays it returns, `blind` of zero, openings with each part swapped,
+ * message, the array it returns, `blind` of zero, openings with each part swapped,
  * wrong argument classes, the rejection of every awaiting member of an invalid context,
  * and the queues of several contexts. Expected values come from
  * test/vectors/generator-h.json, computed apart from the TypeScript code, or from the
@@ -85,43 +85,79 @@ describe("BlindingContext.fromEncoded: wrong inputs throw a TypeError at once", 
 });
 
 describe("BlindingContext: inputs and outputs", () => {
-  test("the empty message and its h make a valid context", async () => {
+  // REVIEW PLACEHOLDER (PR #40: the context keeps no message)
+  // the empty message and its h make a valid context
+  //   -> the empty message and its h make a context that validates
+  // test("the empty message and its h make a valid context", async () => {
+  //   const { h, message } = generator("empty");
+  //   const context = BlindingContext.fromEncoded(h, message);
+  //   expect(context.message.length).toBe(0);
+  //   expect(hex((await context.h()).encode())).toBe(hex(h));
+  // });
+  test("the empty message and its h make a context that validates", async () => {
     const { h, message } = generator("empty");
     const context = BlindingContext.fromEncoded(h, message);
-    expect(context.message.length).toBe(0);
     expect(hex((await context.h()).encode())).toBe(hex(h));
   });
 
-  test("views with an offset are read at their offset, and copied", async () => {
+  // REVIEW PLACEHOLDER (PR #40: the context keeps no message)
+  // views with an offset are read at their offset, and copied
+  //   -> views with an offset are read at their offset, and copied before the validation
+  // test("views with an offset are read at their offset, and copied", async () => {
+  //   const h = offsetView(ageCheck().h);
+  //   const message = offsetView(ageCheck().message, 7);
+  //   const context = BlindingContext.fromEncoded(h, message);
+  //   new Uint8Array(h.buffer).fill(0);
+  //   new Uint8Array(message.buffer).fill(0);
+  //   expect(hex(context.message)).toBe(contextVectors.context.messageHex);
+  //   expect(hex(await context.serialize())).toBe(contextVectors.context.serialized);
+  // });
+  test("views with an offset are read at their offset, and copied before the validation", async () => {
     const h = offsetView(ageCheck().h);
     const message = offsetView(ageCheck().message, 7);
     const context = BlindingContext.fromEncoded(h, message);
     new Uint8Array(h.buffer).fill(0);
     new Uint8Array(message.buffer).fill(0);
-    expect(hex(context.message)).toBe(contextVectors.context.messageHex);
     expect(hex(await context.serialize())).toBe(contextVectors.context.serialized);
   });
 
+  // REVIEW PLACEHOLDER (PR #40: the context keeps no message)
+  // a Node.js Buffer is copied, though its slice shares memory
+  //   -> a Node.js Buffer is copied before the validation, though its slice shares memory
+  // test.skipIf(typeof globalThis.Buffer === "undefined")(
+  //   "a Node.js Buffer is copied, though its slice shares memory",
+  //   async () => {
+  //     const h = globalThis.Buffer.from(ageCheck().h);
+  //     const message = globalThis.Buffer.from(ageCheck().message);
+  //     const context = BlindingContext.fromEncoded(h, message);
+  //     h.set(abc().h);
+  //     message.fill(0x61);
+  //     expect(hex(context.message)).toBe(contextVectors.context.messageHex);
+  //     expect(hex((await context.h()).encode())).toBe(contextVectors.context.h);
+  //   },
+  // );
   test.skipIf(typeof globalThis.Buffer === "undefined")(
-    "a Node.js Buffer is copied, though its slice shares memory",
+    "a Node.js Buffer is copied before the validation, though its slice shares memory",
     async () => {
       const h = globalThis.Buffer.from(ageCheck().h);
       const message = globalThis.Buffer.from(ageCheck().message);
       const context = BlindingContext.fromEncoded(h, message);
       h.set(abc().h);
       message.fill(0x61);
-      expect(hex(context.message)).toBe(contextVectors.context.messageHex);
       expect(hex((await context.h()).encode())).toBe(contextVectors.context.h);
     },
   );
 
-  test("message gives a new array on each call", () => {
-    const context = ageCheckContext();
-    const first = context.message;
-    expect(context.message).not.toBe(first);
-    first.fill(0);
-    expect(hex(context.message)).toBe(contextVectors.context.messageHex);
-  });
+  // REVIEW PLACEHOLDER (PR #40: the context keeps no message)
+  // message gives a new array on each call
+  //   -> a context keeps no message: it has no member message (test/blinding-context.test.ts)
+  // test("message gives a new array on each call", () => {
+  //   const context = ageCheckContext();
+  //   const first = context.message;
+  //   expect(context.message).not.toBe(first);
+  //   first.fill(0);
+  //   expect(hex(context.message)).toBe(contextVectors.context.messageHex);
+  // });
 
   test("serialize() gives a new array on each call", async () => {
     const context = ageCheckContext();
@@ -156,10 +192,16 @@ describe("BlindingContext: an invalid context", () => {
     ).rejects.toThrow(RangeError);
   });
 
-  test("still gives its group and its message", () => {
-    const context = invalidContext();
-    expect(context.group).toBe(RistrettoElement);
-    expect(hex(context.message)).toBe(contextVectors.context.messageHex);
+  // REVIEW PLACEHOLDER (PR #40: the context keeps no message)
+  // still gives its group and its message
+  //   -> still gives its group
+  // test("still gives its group and its message", () => {
+  //   const context = invalidContext();
+  //   expect(context.group).toBe(RistrettoElement);
+  //   expect(hex(context.message)).toBe(contextVectors.context.messageHex);
+  // });
+  test("still gives its group", () => {
+    expect(invalidContext().group).toBe(RistrettoElement);
   });
 });
 

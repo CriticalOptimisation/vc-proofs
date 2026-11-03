@@ -50,9 +50,17 @@ function members(cls: { readonly prototype: unknown } | undefined): string[] {
 }
 
 describe("docs/core/blinding-context.md, section BlindingContext", () => {
-  test("the class has the public members of the plan", () => {
+  // REVIEW PLACEHOLDER (PR #40: the context keeps no message)
+  // the class has the public members of the plan
+  //   -> the class has the public members of the plan, and no message
+  // test("the class has the public members of the plan", () => {
+  //   expect(members(BlindingContext).sort()).toEqual(
+  //     ["blind", "group", "h", "isOpeningOf", "message", "serialize", "static fromEncoded"].sort(),
+  //   );
+  // });
+  test("the class has the public members of the plan, and no message", () => {
     expect(members(BlindingContext).sort()).toEqual(
-      ["blind", "group", "h", "isOpeningOf", "message", "serialize", "static fromEncoded"].sort(),
+      ["blind", "group", "h", "isOpeningOf", "serialize", "static fromEncoded"].sort(),
     );
   });
 
