@@ -65,6 +65,8 @@ gh attestation verify criticaloptimisation-vc-proofs-<version>.tgz -R CriticalOp
   call at each step.
 - [The group ristretto255](docs/core/ristretto255.md): `RistrettoElement` and
   `RistrettoScalar`, the group values of the low-level entry point.
+- [Bounded integers](docs/core/bounded-int.md): `BoundedInt`, the integer of the low-level
+  entry point, which will carry the bounds of a value.
 - [The generator h](docs/generator-h.md): how the Pedersen generator `h` is derived, and
   why nobody knows its discrete logarithm.
 - [Development guide](docs/development.md).
@@ -87,4 +89,5 @@ Change History
 | #32 | entry points: the high-level API and ./core (#29) |
 | #37 | one runtime dependency, @noble/curves (#34) |
 | #38 | links The group ristretto255 and The generator h (#35) |
+| #41 | links Bounded integers |
 -->
