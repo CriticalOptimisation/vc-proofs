@@ -112,5 +112,5 @@ Change History
 
 | PR  | Summary |
 |-----|---------|
-| #41 | new: BoundedInt, its casts, conversions and subclasses |
+| #42 | new: BoundedInt, its casts, conversions and subclasses (#41) |
 -->

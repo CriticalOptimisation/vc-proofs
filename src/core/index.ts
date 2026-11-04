@@ -20,4 +20,4 @@ export { RistrettoElement, RistrettoScalar } from "./ristretto.js";
 // | #32    | low-level entry point; export requestHash (#29)               |
 // | #37    | export the derivation of a generator (#34)                    |
 // | #38    | export RistrettoElement and RistrettoScalar, not generator (#35) |
-// | #41    | export BoundedInt                                             |
+// | #42    | export BoundedInt (#41)                                       |

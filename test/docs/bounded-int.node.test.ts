@@ -48,4 +48,4 @@ describe("docs/core/bounded-int.md, section BoundedInt", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #41    | new: the page names every public member of BoundedInt         |
+// | #42    | new: the page names every public member of BoundedInt (#41)   |

@@ -209,4 +209,4 @@ describe("BoundedInt: subclasses", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #41    | new: the casts, refusals and conversions of BoundedInt        |
+// | #42    | new: the casts, refusals and conversions of BoundedInt (#41)  |

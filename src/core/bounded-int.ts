@@ -80,4 +80,4 @@ export class BoundedInt {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #41    | new: BoundedInt, its from, valueOf, toString, toPrimitive     |
+// | #42    | new: BoundedInt, from, valueOf, toString, toPrimitive (#41)   |

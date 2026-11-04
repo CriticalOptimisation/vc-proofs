@@ -142,4 +142,4 @@ describe("BoundedInt: subclasses at the edges", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #41    | new: the edge cases of BoundedInt                             |
+// | #42    | new: the edge cases of BoundedInt (#41)                       |
