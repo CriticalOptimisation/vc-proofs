@@ -22,5 +22,5 @@ export { RistrettoElement } from "./ristretto.js";
 // | #32    | low-level entry point; export requestHash (#29)               |
 // | #37    | export the derivation of a generator (#34)                    |
 // | #38    | export RistrettoElement and RistrettoScalar, not generator (#35) |
-// | #42    | export BoundedInt (#41)                                       |
 // | #40    | export BlindingContext and the type Group; no RistrettoScalar (#39) |
+// | #42    | export BoundedInt (#41)                                       |
