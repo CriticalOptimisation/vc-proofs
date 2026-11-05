@@ -7,7 +7,10 @@
  * Code under `src/core/` imports nothing outside `src/core/`, except the pinned
  * `@noble/curves` for the arithmetic of ristretto255, which `ristretto.ts` wraps in the
  * classes `RistrettoElement` and `RistrettoScalar` (docs/core/ristretto255.md).
+ * `BoundedInt` (docs/core/bounded-int.md) wraps an integer in a class, for the bounds of
+ * a value.
  */
+export { BoundedInt } from "./bounded-int.js";
 export { requestHash } from "./request-hash.js";
 export { RistrettoElement, RistrettoScalar } from "./ristretto.js";
 
@@ -17,3 +20,4 @@ export { RistrettoElement, RistrettoScalar } from "./ristretto.js";
 // | #32    | low-level entry point; export requestHash (#29)               |
 // | #37    | export the derivation of a generator (#34)                    |
 // | #38    | export RistrettoElement and RistrettoScalar, not generator (#35) |
+// | #42    | export BoundedInt (#41)                                       |

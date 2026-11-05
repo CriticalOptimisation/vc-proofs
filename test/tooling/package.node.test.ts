@@ -5,6 +5,7 @@
  * `package.json`.
  */
 import { execFileSync, spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, test } from "vitest";
@@ -19,7 +20,7 @@ const tsc = require.resolve("typescript/bin/tsc");
  */
 const surface: Record<string, string[]> = {
   "": [],
-  "/core": ["RistrettoElement", "RistrettoScalar", "requestHash"],
+  "/core": ["BoundedInt", "RistrettoElement", "RistrettoScalar", "requestHash"],
 };
 const entries = Object.keys(surface);
 
@@ -63,6 +64,18 @@ describe("after the build", { timeout: 120_000 }, () => {
     });
   }
 
+  test("the declarations of ./core declare BoundedInt, its from, value, valueOf and toString", () => {
+    const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
+    expect(index).toMatch(/export \{ BoundedInt \} from "\.\/bounded-int\.js";/);
+    const declarations = readFileSync(`${root}dist/core/bounded-int.d.ts`, "utf8");
+    expect(declarations).toContain("export declare class BoundedInt {");
+    expect(declarations).toContain("protected constructor(");
+    expect(declarations).toContain("static from(n: bigint | number): BoundedInt;");
+    expect(declarations).toContain("get value(): bigint;");
+    expect(declarations).toContain("valueOf(): number;");
+    expect(declarations).toContain("toString(): string;");
+  });
+
   test("a path outside the exports map does not resolve", () => {
     const run = runModule(`await import("@criticaloptimisation/vc-proofs/dist/index.js");\n`);
     expect(run.status).not.toBe(0);
@@ -102,3 +115,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #32    | entry points . and ./core; the exact names of each (#29)      |
 // | #37    | ./core exports the derivation of a generator (#34)            |
 // | #38    | ./core exports RistrettoElement, RistrettoScalar (#35)        |
+// | #42    | ./core exports BoundedInt, and declares it (#41)              |
