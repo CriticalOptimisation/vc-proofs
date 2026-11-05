@@ -33,17 +33,18 @@ days + 1n; // TypeError: no implicit conversion, except to a string
   an integer, pass `x.value` (see [The group ristretto255](ristretto255.md)). Nothing in
   the library returns a `BoundedInt`, except `from`.
 - **Errors**: `TypeError` for an input of the wrong kind, such as a `number` that is not
-  an integer; `RangeError` for an integer that `valueOf()` cannot return as a `number`.
+  an integer; `RangeError` for an integer too large for `valueOf()` to return as a
+  finite `number`.
 
 ## BoundedInt
 
-| Member                       | Returns                                | Errors                                  |
-| ---------------------------- | -------------------------------------- | --------------------------------------- |
-| `static from(n)`             | a new instance holding the integer `n` | see [from](#from)                       |
-| `value`                      | the integer, a `bigint`                | none                                    |
-| `valueOf()`                  | the integer as a `number`              | `RangeError` beyond `±Number.MAX_VALUE` |
-| `toString()`                 | the string of `valueOf()`              | as `valueOf()`                          |
-| `[Symbol.toPrimitive](hint)` | `toString()` for the hint `"string"`   | `TypeError` for any other hint          |
+| Member                       | Returns                                | Errors                               |
+| ---------------------------- | -------------------------------------- | ------------------------------------ |
+| `static from(n)`             | a new instance holding the integer `n` | see [from](#from)                    |
+| `value`                      | the integer, a `bigint`                | none                                 |
+| `valueOf()`                  | the integer as a `number`              | `RangeError` where it is `±Infinity` |
+| `toString()`                 | the string of `valueOf()`              | as `valueOf()`                       |
+| `[Symbol.toPrimitive](hint)` | `toString()` for the hint `"string"`   | `TypeError` for any other hint       |
 
 ### from
 
@@ -73,24 +74,23 @@ override it gets instances of its own.
 `valueOf()` is an ordinary method: it returns the integer as a `number`, for display and
 for comparisons where a relative precision is enough:
 
-| `x.value`                                                     | `x.valueOf()`                                                         |
-| ------------------------------------------------------------- | --------------------------------------------------------------------- |
-| within `±2⁵³`, or any other integer that a `number` holds     | that integer, exactly                                                 |
-| between `-Number.MAX_VALUE` and `Number.MAX_VALUE`, otherwise | the nearest `number` (ties to even): `2n ** 53n + 1n` gives `2 ** 53` |
-| above `Number.MAX_VALUE` or below `-Number.MAX_VALUE`         | `RangeError`                                                          |
+| `x.value`                                                   | `x.valueOf()`                                                         |
+| ----------------------------------------------------------- | --------------------------------------------------------------------- |
+| within `±2⁵³`, or any other integer that a `number` holds   | that integer, exactly                                                 |
+| above `-(2¹⁰²⁴ − 2⁹⁷⁰)` and below `2¹⁰²⁴ − 2⁹⁷⁰`, otherwise | the nearest `number` (ties to even): `2n ** 53n + 1n` gives `2 ** 53` |
+| `2¹⁰²⁴ − 2⁹⁷⁰` or above, `-(2¹⁰²⁴ − 2⁹⁷⁰)` or below         | `RangeError`: the `number` would be `±Infinity`                       |
 
-`Number.MAX_VALUE` is the largest finite `number`, and an integer:
-`2¹⁰²⁴ − 2⁹⁷¹` (about `1.8·10³⁰⁸`); `-Number.MAX_VALUE` is the lowest. They bound
-`valueOf()` exactly: an integer just above `Number.MAX_VALUE` is a `RangeError`, even
-where `Number(x.value)` would still round it down to `Number.MAX_VALUE`.
+The rounding loses precision, never the order of magnitude: the relative error is at
+most `2⁻⁵³`. `valueOf()` throws only where the conversion would give `±Infinity`. The
+largest finite `number`, `Number.MAX_VALUE`, is the integer `2¹⁰²⁴ − 2⁹⁷¹` (about
+`1.8·10³⁰⁸`), and `-Number.MAX_VALUE` is the lowest. Every integer from
+`Number.MAX_VALUE` up to just below `2¹⁰²⁴ − 2⁹⁷⁰` rounds to it.
 
-`from` and `valueOf()` convert back and forth:
-
-- for every integer `number` `n`, `BoundedInt.from(n).valueOf()` is `n`;
-- for every `BoundedInt` `b`, `b.valueOf()` throws a `RangeError`, or
-  `x = BoundedInt.from(b.valueOf())` gives `x.value === b.value` whenever a `number`
-  holds `b.value` (always within `±2⁵³`). Otherwise `x.value` is `b.value` rounded to
-  the nearest `number`, and `x.valueOf() === b.valueOf()`.
+`valueOf()` gives back every `number` that `from` takes: for every finite integer
+`number` `n`, `BoundedInt.from(n).valueOf()` is `n`, since `from(n).value` is exactly
+`n`. Where `n` is `±Infinity`, `NaN` or has a fractional part, `from(n)` throws first.
+The other way, through a `number`, does not keep the integer: `from(b.valueOf()).value`
+is `b.value` rounded to the nearest `number`.
 
 `toString()` returns the string of `valueOf()`, as `String` writes a `number`:
 `from(-7).toString()` is `"-7"`, and `from(10n ** 21n).toString()` is `"1e+21"`. For the
