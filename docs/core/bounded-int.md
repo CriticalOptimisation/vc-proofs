@@ -15,7 +15,7 @@ with class-level constants. Everything else is in the base class.
 ```ts
 import { BoundedInt } from "@criticaloptimisation/vc-proofs/core";
 
-const days = BoundedInt.from(19_000); // a safe integer number is cast
+const days = BoundedInt.from(19_000); // an integer number is cast
 days.value; // 19000n: the integer, a bigint
 days.valueOf(); // 19000: a number, for display and comparison
 `${days}`; // "19000"
@@ -32,8 +32,8 @@ days + 1n; // TypeError: no implicit conversion, except to a string
   it is never reduced mod `ℓ`. The group never takes a `BoundedInt`: wherever it takes
   an integer, pass `x.value` (see [The group ristretto255](ristretto255.md)). Nothing in
   the library returns a `BoundedInt`, except `from`.
-- **Errors**: `TypeError` for an input of the wrong kind; `RangeError` for an integer
-  that cannot be represented as asked.
+- **Errors**: `TypeError` for an input of the wrong kind, such as a `number` that is not
+  an integer; `RangeError` for an integer that `valueOf()` cannot return as a `number`.
 
 ## BoundedInt
 
@@ -41,26 +41,28 @@ days + 1n; // TypeError: no implicit conversion, except to a string
 | ---------------------------- | -------------------------------------- | --------------------------------------- |
 | `static from(n)`             | a new instance holding the integer `n` | see [from](#from)                       |
 | `value`                      | the integer, a `bigint`                | none                                    |
-| `valueOf()`                  | the integer as a `number`              | `RangeError` when it is beyond a number |
+| `valueOf()`                  | the integer as a `number`              | `RangeError` beyond `±Number.MAX_VALUE` |
 | `toString()`                 | the string of `valueOf()`              | as `valueOf()`                          |
 | `[Symbol.toPrimitive](hint)` | `toString()` for the hint `"string"`   | `TypeError` for any other hint          |
 
 ### from
 
-`BoundedInt.from(n: bigint | number)` accepts an integer, as a `bigint` or as a `number`
-that holds it exactly:
+`BoundedInt.from(n: bigint | number)` accepts an integer, as a `bigint` or as a `number`:
 
-| `n`                                                                     | Result                                          |
-| ----------------------------------------------------------------------- | ----------------------------------------------- |
-| a `bigint`                                                              | kept as it is: `from(-1n).value` is `-1n`       |
-| a `number` with `Number.isSafeInteger(n)`                               | `BigInt(n)`: `from(5).value` is `5n`            |
-| `1.5`, `NaN`, `Infinity`, `-Infinity`                                   | `TypeError`: not an integer                     |
-| an integer `number` beyond `±(2⁵³ − 1)`, such as `2 ** 60`              | `RangeError`: it has already lost its precision |
-| anything else: a string, `null`, `undefined`, an object, a `BoundedInt` | `TypeError`                                     |
+| `n`                                                                     | Result                                    |
+| ----------------------------------------------------------------------- | ----------------------------------------- |
+| a `bigint`                                                              | kept as it is: `from(-1n).value` is `-1n` |
+| a `number` with `Number.isInteger(n)`                                   | `BigInt(n)`: `from(5).value` is `5n`      |
+| a `number` with a fractional part, such as `1.5`, and `NaN`             | `TypeError`: not an integer               |
+| `Infinity`, `-Infinity`                                                 | `TypeError`: not an integer               |
+| anything else: a string, `null`, `undefined`, an object, a `BoundedInt` | `TypeError`                               |
 
-A `number` beyond `2⁵³ − 1` is refused rather than cast, because `2 ** 60 + 1` is
-already `2 ** 60` before the call: a cast would hold a value the caller did not write.
-A `BoundedInt` is refused too: a caller that has one already has its `value`. The error
+Every finite `number` without a fractional part is an integer, at any magnitude: above
+`2⁵³` a `number` is a multiple of a power of two, and `BigInt(n)` is that integer,
+exactly. So `from(2 ** 60).value` is `2n ** 60n`, and `from(Number.MAX_VALUE).value` is
+`2n ** 1024n - 2n ** 971n`. `from` never throws a `RangeError`. `-0` gives `0n`.
+
+A `BoundedInt` is refused: a caller that has one already has its `value`. The error
 messages name `from`, and the class it was called on.
 
 `from` makes an instance of the class it is called on, so a subclass that does not
@@ -69,9 +71,26 @@ override it gets instances of its own.
 ### valueOf and toString
 
 `valueOf()` is an ordinary method: it returns the integer as a `number`, for display and
-for comparisons where a relative precision is enough. Up to `2⁵³` it is exact; above, it
-is the nearest `number`. Beyond the range of a `number` (about `1.8·10³⁰⁸`), where the
-conversion would give `±Infinity`, it throws a `RangeError`.
+for comparisons where a relative precision is enough:
+
+| `x.value`                                                     | `x.valueOf()`                                                         |
+| ------------------------------------------------------------- | --------------------------------------------------------------------- |
+| within `±2⁵³`, or any other integer that a `number` holds     | that integer, exactly                                                 |
+| between `-Number.MAX_VALUE` and `Number.MAX_VALUE`, otherwise | the nearest `number` (ties to even): `2n ** 53n + 1n` gives `2 ** 53` |
+| above `Number.MAX_VALUE` or below `-Number.MAX_VALUE`         | `RangeError`                                                          |
+
+`Number.MAX_VALUE` is the largest finite `number`, and an integer:
+`2¹⁰²⁴ − 2⁹⁷¹` (about `1.8·10³⁰⁸`); `-Number.MAX_VALUE` is the lowest. They bound
+`valueOf()` exactly: an integer just above `Number.MAX_VALUE` is a `RangeError`, even
+where `Number(x.value)` would still round it down to `Number.MAX_VALUE`.
+
+`from` and `valueOf()` convert back and forth:
+
+- for every integer `number` `n`, `BoundedInt.from(n).valueOf()` is `n`;
+- for every `BoundedInt` `b`, `b.valueOf()` throws a `RangeError`, or
+  `x = BoundedInt.from(b.valueOf())` gives `x.value === b.value` whenever a `number`
+  holds `b.value` (always within `±2⁵³`). Otherwise `x.value` is `b.value` rounded to
+  the nearest `number`, and `x.valueOf() === b.valueOf()`.
 
 `toString()` returns the string of `valueOf()`, as `String` writes a `number`:
 `from(-7).toString()` is `"-7"`, and `from(10n ** 21n).toString()` is `"1e+21"`. For the
