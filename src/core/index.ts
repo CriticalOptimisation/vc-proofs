@@ -6,7 +6,7 @@
  *
  * Code under `src/core/` imports nothing outside `src/core/`, except the pinned
  * `@noble/curves` for the arithmetic of ristretto255, which `ristretto.ts` wraps in the
- * classes `RistrettoElement` and `RistrettoScalar` (docs/core/ristretto255.md).
+ * class `RistrettoElement`, whose scalars are `bigint`s (docs/core/ristretto255.md).
  * `BoundedInt` (docs/core/bounded-int.md) wraps an integer in a class, for the bounds of
  * a value.
  */
@@ -14,7 +14,7 @@ export { BlindingContext } from "./blinding-context.js";
 export type { Group } from "./blinding-context.js";
 export { BoundedInt } from "./bounded-int.js";
 export { requestHash } from "./request-hash.js";
-export { RistrettoElement, RistrettoScalar } from "./ristretto.js";
+export { RistrettoElement } from "./ristretto.js";
 
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
@@ -23,4 +23,4 @@ export { RistrettoElement, RistrettoScalar } from "./ristretto.js";
 // | #37    | export the derivation of a generator (#34)                    |
 // | #38    | export RistrettoElement and RistrettoScalar, not generator (#35) |
 // | #42    | export BoundedInt (#41)                                       |
-// | #40    | export BlindingContext, and the type Group (#39)              |
+// | #40    | export BlindingContext and the type Group; no RistrettoScalar (#39) |

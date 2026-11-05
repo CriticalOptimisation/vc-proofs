@@ -1,13 +1,14 @@
 /**
- * The group ristretto255 (RFC 9496) as two classes, `RistrettoElement` and
- * `RistrettoScalar` (docs/core/ristretto255.md), and the derivation of a Pedersen
+ * The group ristretto255 (RFC 9496) as the class `RistrettoElement`, whose scalars are
+ * plain `bigint`s (docs/core/ristretto255.md), and the derivation of a Pedersen
  * generator, such as `h`, with nothing up anyone's sleeve (docs/generator-h.md).
  *
  * - The point arithmetic, the encoding and the decoding come from `@noble/curves`. Its
- *   types never leave this file: each class holds its value in a `#private` field.
- * - Every operation on field elements and scalars is a method of noble's `Fp` or `Fn`,
- *   never an operation of our own on `bigint`; the selections of RFC 9496 use
- *   `Fp.cmov` (docs/core/ristretto255.md, *Constant time*).
+ *   types never leave this file: the class holds its point in a `#private` field.
+ * - Every operation on field elements is a method of noble's `Fp`; the reduction of a
+ *   scalar mod `ℓ` and the scalar members that need `ℓ` are methods of its `Fn`, never
+ *   operations of our own on `bigint`. The selections of RFC 9496 use `Fp.cmov`
+ *   (docs/core/ristretto255.md, *Constant time*).
  * - `expand_message_xmd` runs on WebCrypto (`crypto.subtle.digest("SHA-512")`), so
  *   `hashToGroup` and `deriveGenerator` are asynchronous. `MAP` (RFC 9496, Section
  *   4.3.4) is written here, since noble does not export it.
@@ -15,7 +16,7 @@
  * The functions exported below the classes are for the tests, not for the entry point.
  */
 import { ed25519, ristretto255 } from "@noble/curves/ed25519.js";
-import { bytesToNumberLE, equalBytes } from "@noble/curves/utils.js";
+import { bytesToNumberLE } from "@noble/curves/utils.js";
 
 type Point = InstanceType<typeof ristretto255.Point>;
 
@@ -38,11 +39,6 @@ const P_MINUS_5_DIV_8 =
   7237005577332262213973186563042994240829374041602535252466099000494570602493n;
 /** `ℓ − 2`, the exponent of the inverse of a scalar (Fermat). */
 const L_MINUS_2 = 7237005577332262213973186563042994240857116359379907606001950938285454250987n;
-/** `2^251` and `−2^251`: `fromBigInt` accepts `|n| < 2^251`. */
-const FROM_BIGINT_BOUND =
-  3618502788666131106986593281521497120414687020801267626233049500247285301248n;
-const FROM_BIGINT_NEGATIVE_BOUND =
-  -3618502788666131106986593281521497120414687020801267626233049500247285301248n;
 
 /** `CT_ABS` of RFC 9496, Section 4.1: `−e` when `IS_NEGATIVE(e)`, else `e`. */
 const ctAbs = (e: bigint): bigint => Fp.cmov(e, Fp.neg(e), Fp.isOdd?.(e) ?? isOdd(e));
@@ -106,8 +102,15 @@ function checkBytes(value: unknown, length: number, where: string): asserts valu
   }
 }
 
-/** Set by `RistrettoScalar`: the value of an instance, after its brand check. */
-let scalarValue: (scalar: unknown, where: string) => bigint;
+/**
+ * Throws a `TypeError` unless `value` is a `bigint`. A check, not a cast: a `number`, a
+ * `BoundedInt` and every other value are refused (docs/core/ristretto255.md, *Scalars*).
+ */
+function checkBigInt(value: unknown, where: string): asserts value is bigint {
+  if (typeof value !== "bigint") {
+    throw new TypeError(`${where} must be a bigint`);
+  }
+}
 
 /**
  * An element of the group ristretto255 (RFC 9496). Immutable; instances come only from
@@ -125,13 +128,8 @@ export class RistrettoElement {
   /** The name of the suite, which begins the serialization of a blinding context. */
   static readonly SUITE_NAME = "Ristretto255";
 
-  /**
-   * The class `RistrettoScalar`, the scalars of the group. A getter: `RistrettoScalar`
-   * is declared below, so a static field would read it before its declaration.
-   */
-  static get Scalar(): typeof RistrettoScalar {
-    return RistrettoScalar;
-  }
+  /** `ℓ`, the order of the group. */
+  static readonly ORDER: bigint = Fn.ORDER;
 
   readonly #point: Point;
 
@@ -218,6 +216,51 @@ export class RistrettoElement {
     return deriveGeneratorWith(message, (uniform) => RistrettoElement.fromUniformBytes(uniform));
   }
 
+  /**
+   * A uniformly random scalar, from `0n` to `ℓ − 1`: 64 bytes of `crypto.getRandomValues`,
+   * read little-endian and reduced mod `ℓ`. It may be `0n`, with probability `1/ℓ`.
+   */
+  static randomScalar(): bigint {
+    return Fn.create(bytesToNumberLE(crypto.getRandomValues(new Uint8Array(64))));
+  }
+
+  /**
+   * The 32 little-endian bytes of `n mod ℓ`, in a new array.
+   * @throws TypeError when `n` is not a `bigint`.
+   */
+  static encodeScalar(n: bigint): Uint8Array {
+    checkBigInt(n, "RistrettoElement.encodeScalar: n");
+    return Fn.toBytes(Fn.create(n)).slice();
+  }
+
+  /**
+   * The scalar of 32 little-endian bytes, from `0n` to `ℓ − 1`. A non-canonical
+   * encoding, of an integer `≥ ℓ`, is refused, not reduced.
+   * @throws TypeError when `bytes` is not 32 bytes, or encodes an integer `≥ ℓ`.
+   */
+  static decodeScalar(bytes: Uint8Array): bigint {
+    checkBytes(bytes, 32, "RistrettoElement.decodeScalar: bytes");
+    try {
+      return Fn.fromBytes(bytes.slice());
+    } catch {
+      throw new TypeError("RistrettoElement.decodeScalar: bytes are not a canonical scalar");
+    }
+  }
+
+  /**
+   * The inverse of `n mod ℓ`, as `(n mod ℓ)^(ℓ − 2)`: the exponent is public, unlike the
+   * steps of an extended Euclid.
+   * @throws TypeError when `n` is not a `bigint`; RangeError when `n ≡ 0 (mod ℓ)`.
+   */
+  static invertScalar(n: bigint): bigint {
+    checkBigInt(n, "RistrettoElement.invertScalar: n");
+    const reduced = Fn.create(n);
+    if (Fn.is0(reduced)) {
+      throw new RangeError("RistrettoElement.invertScalar: 0 has no inverse");
+    }
+    return Fn.pow(reduced, L_MINUS_2);
+  }
+
   /** The canonical encoding (RFC 9496, Section 4.3.2), in a new 32-byte array. */
   encode(): Uint8Array {
     return this.#point.toBytes().slice();
@@ -251,129 +294,16 @@ export class RistrettoElement {
   }
 
   /**
-   * `scalar·this`, by noble's fixed-window multiplication. Noble refuses the scalar 0,
-   * so a zero scalar returns the identity before the call.
-   * @throws TypeError when `scalar` is not a `RistrettoScalar`.
+   * `n·this`, for any integer `n`: reduced mod `ℓ` first, then noble's fixed-window
+   * multiplication. Noble refuses 0, so a scalar that reduces to 0 returns the identity
+   * before the call.
+   * @throws TypeError when `n` is not a `bigint`.
    */
-  multiplyScalar(scalar: RistrettoScalar): RistrettoElement {
-    const value = scalarValue(scalar, "multiplyScalar: scalar");
+  multiplyScalar(n: bigint): RistrettoElement {
+    checkBigInt(n, "multiplyScalar: n");
+    const value = Fn.create(n);
     if (Fn.is0(value)) return RistrettoElement.identity();
     return new RistrettoElement(this.#point.multiply(value));
-  }
-}
-
-/**
- * An integer modulo `ℓ`, the order of ristretto255. Immutable; instances come only from
- * the static factories. See docs/core/ristretto255.md.
- */
-export class RistrettoScalar {
-  readonly #value: bigint;
-
-  private constructor(value: bigint) {
-    this.#value = value;
-  }
-
-  static {
-    scalarValue = (scalar, where) => RistrettoScalar.#check(scalar, where).#value;
-  }
-
-  /** The brand check: `value` itself when it is a scalar, else a `TypeError`. */
-  static #check(value: unknown, where: string): RistrettoScalar {
-    if (typeof value !== "object" || value === null || !(#value in value)) {
-      throw new TypeError(`${where} must be a RistrettoScalar`);
-    }
-    return value;
-  }
-
-  /**
-   * Decodes 32 little-endian bytes of an integer below `ℓ`.
-   * @throws TypeError when `bytes` is not 32 bytes, or encodes an integer `≥ ℓ`.
-   */
-  static decode(bytes: Uint8Array): RistrettoScalar {
-    checkBytes(bytes, 32, "RistrettoScalar.decode: bytes");
-    let value: bigint;
-    try {
-      value = Fn.fromBytes(bytes.slice());
-    } catch {
-      throw new TypeError("RistrettoScalar.decode: bytes are not a canonical scalar");
-    }
-    return new RistrettoScalar(value);
-  }
-
-  /**
-   * `n mod ℓ`, for `|n| < 2^251`.
-   * @throws TypeError when `n` is not a `bigint`; RangeError when `|n| ≥ 2^251`.
-   */
-  static fromBigInt(n: bigint): RistrettoScalar {
-    if (typeof n !== "bigint") {
-      throw new TypeError("RistrettoScalar.fromBigInt: n must be a bigint");
-    }
-    if (n >= FROM_BIGINT_BOUND || n <= FROM_BIGINT_NEGATIVE_BOUND) {
-      throw new RangeError("RistrettoScalar.fromBigInt: |n| must be below 2^251");
-    }
-    return new RistrettoScalar(Fn.create(n));
-  }
-
-  /**
-   * 64 bytes, read little-endian, reduced mod `ℓ`.
-   * @throws TypeError when `bytes` is not 64 bytes.
-   */
-  static fromUniformBytes(bytes: Uint8Array): RistrettoScalar {
-    checkBytes(bytes, 64, "RistrettoScalar.fromUniformBytes: bytes");
-    return new RistrettoScalar(Fn.create(bytesToNumberLE(bytes.slice())));
-  }
-
-  /** A uniformly random scalar: `fromUniformBytes` of 64 bytes from `crypto.getRandomValues`. */
-  static random(): RistrettoScalar {
-    return RistrettoScalar.fromUniformBytes(crypto.getRandomValues(new Uint8Array(64)));
-  }
-
-  /** The canonical encoding: 32 bytes, little-endian, in a new array. */
-  encode(): Uint8Array {
-    return Fn.toBytes(this.#value).slice();
-  }
-
-  /** Whether both are the same scalar, by a comparison of every byte. */
-  equals(other: RistrettoScalar): boolean {
-    const that = RistrettoScalar.#check(other, "equals: other");
-    return equalBytes(Fn.toBytes(this.#value), Fn.toBytes(that.#value));
-  }
-
-  /** Whether this is 0. */
-  isZero(): boolean {
-    return Fn.is0(this.#value);
-  }
-
-  /** `this + other mod ℓ`. */
-  add(other: RistrettoScalar): RistrettoScalar {
-    return new RistrettoScalar(Fn.add(this.#value, scalarValue(other, "add: other")));
-  }
-
-  /** `this − other mod ℓ`. */
-  subtract(other: RistrettoScalar): RistrettoScalar {
-    return new RistrettoScalar(Fn.sub(this.#value, scalarValue(other, "subtract: other")));
-  }
-
-  /** `this · other mod ℓ`. */
-  multiply(other: RistrettoScalar): RistrettoScalar {
-    return new RistrettoScalar(Fn.mul(this.#value, scalarValue(other, "multiply: other")));
-  }
-
-  /** `−this mod ℓ`. */
-  negate(): RistrettoScalar {
-    return new RistrettoScalar(Fn.neg(this.#value));
-  }
-
-  /**
-   * `this⁻¹ mod ℓ`, as `this^(ℓ − 2)`: the exponent is public, unlike the steps of an
-   * extended Euclid.
-   * @throws RangeError when this is 0.
-   */
-  invert(): RistrettoScalar {
-    if (Fn.is0(this.#value)) {
-      throw new RangeError("RistrettoScalar.invert: 0 has no inverse");
-    }
-    return new RistrettoScalar(Fn.pow(this.#value, L_MINUS_2));
   }
 }
 
@@ -545,4 +475,4 @@ function hex(bytes: Uint8Array): string {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #38    | new: the two classes; the derivation of generator.ts (#35)    |
-// | #40    | SUITE_NAME and Scalar: RistrettoElement is a group (#39)       |
+// | #40    | SUITE_NAME, randomScalar, ORDER, encodeScalar, decodeScalar, invertScalar; bigint scalars, RistrettoScalar removed (#39) |

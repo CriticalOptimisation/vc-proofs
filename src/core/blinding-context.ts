@@ -16,105 +16,95 @@
  * The functions exported below the class are for the tests, not for the entry point.
  */
 import { RistrettoElement } from "./ristretto.js";
-import type { RistrettoScalar } from "./ristretto.js";
 
 /** The length at which the queue of blindings stops filling. */
 const QUEUE_LENGTH = 10;
 
-/** What a context needs of the scalars of its group. */
-interface GroupScalar {
-  add(other: this): this;
-  equals(other: this): boolean;
-  isZero(): boolean;
-}
-
 /**
- * What a context needs of the elements of its group. Written with `this` and with
- * `GroupScalar`, rather than with parameters for the element and scalar types, so that
- * `RistrettoElement` and `RistrettoScalar` can be the defaults of the parameters it
- * constrains. `Group<E, S>` ties the two types together.
+ * What a context needs of the elements of its group. Written with `this`, so that
+ * `RistrettoElement` can be the default of the parameter it constrains. The scalars of
+ * every group are `bigint`s (docs/core/ristretto255.md, *Scalars*).
  */
 interface GroupElement {
   encode(): Uint8Array;
   equals(other: this): boolean;
   add(other: this): this;
   subtract(other: this): this;
-  multiplyScalar(scalar: GroupScalar): this;
+  multiplyScalar(n: bigint): this;
 }
 
 /**
- * A group for a blinding context, of elements `E` and scalars `S`: the members of the
- * table in docs/core/blinding-context.md, *The group*. The class `RistrettoElement` is
- * one. The context trusts its group: it checks neither its members nor its arithmetic.
+ * A group for a blinding context, of elements `E`: the members of the table in
+ * docs/core/blinding-context.md, *The group*. The class `RistrettoElement` is one. The
+ * context trusts its group: it checks neither its members nor its arithmetic.
  */
-export interface Group<E extends GroupElement, S extends GroupScalar> {
+export interface Group<E extends GroupElement> {
   /** The first bytes of `serialize()`, in ASCII. */
   readonly SUITE_NAME: string;
   /** The tag of the check of `h`. */
   readonly GENERATOR_DST: string;
-  /** The scalars: the random blinding factors, and the type check of a scalar. */
-  readonly Scalar: { random(): S; fromBigInt(n: bigint): S };
   /** Decodes `h`; throws for bytes that are not an encoding of an element. */
   decode(bytes: Uint8Array): E;
   /** The hash to the group of the check of `h`. */
   hashToGroup(message: Uint8Array, dst: Uint8Array): Promise<E>;
   /** The generator `g` of every commitment. */
   canonicalGenerator(): E;
-  /** The neutral element, for the type check of an element. */
-  identity(): E;
+  /** A uniformly random scalar, which may be `0n`: the blinding factors and the masks. */
+  randomScalar(): bigint;
 }
 
 /** The default group; the annotation checks that `RistrettoElement` is a group. */
-const RISTRETTO255: Group<RistrettoElement, RistrettoScalar> = RistrettoElement;
+const RISTRETTO255: Group<RistrettoElement> = RistrettoElement;
 
 /** A precomputed blinding: a random scalar `x ≠ 0` and `x·h`. */
-interface Pair<E, S> {
-  readonly x: S;
+interface Pair<E> {
+  readonly x: bigint;
   readonly xh: E;
 }
 
 /** A commitment and its blinding factor, as `blind` resolves them. */
-export interface Blinded<E = RistrettoElement, S = RistrettoScalar> {
+export interface Blinded<E = RistrettoElement> {
   readonly commitment: E;
-  readonly blinding: S;
+  readonly blinding: bigint;
 }
 
 /**
- * The name of what `kind` makes, for a diagnostic: `a <class name>` when `kind` is a
- * named class, such as `RistrettoScalar`, else `fallback`.
+ * `value` itself when it is a `bigint`, else a `TypeError`. A check, not a cast: a
+ * `number` and a `BoundedInt` are refused (docs/core/blinding-context.md, *Values and
+ * errors*).
  */
-function nameOf(kind: unknown, fallback: string): string {
-  return typeof kind === "function" && kind.name !== "" ? `a ${kind.name}` : fallback;
+function checkScalar(value: unknown, where: string): bigint {
+  if (typeof value !== "bigint") {
+    throw new TypeError(`${where} must be a bigint`);
+  }
+  return value;
 }
 
 /** Set by `BlindingContext`: the private state the seams need, after a brand check. */
-let internals: <E extends GroupElement, S extends GroupScalar>(
-  context: BlindingContext<E, S>,
+let internals: <E extends GroupElement>(
+  context: BlindingContext<E>,
   where: string,
 ) => {
   readonly ready: Promise<void>;
   readonly h: E;
   readonly queued: number;
-  readonly commit: (m: S, xh: E) => E;
-  readonly checkScalar: (value: unknown, where: string) => S;
+  readonly commit: (m: bigint, xh: E) => E;
+  readonly checkScalar: (value: unknown, where: string) => bigint;
 };
 
 /**
  * The constants of one application and the Pedersen commitments made with them.
- * Immutable; instances come only from the static factory. `E` and `S` are the elements
- * and scalars of its group, inferred from the group given to `fromEncoded`. See
- * docs/core/blinding-context.md.
+ * Immutable; instances come only from the static factory. `E` is the type of the
+ * elements of its group, inferred from the group given to `fromEncoded`; its scalars are
+ * `bigint`s. See docs/core/blinding-context.md.
  */
-export class BlindingContext<
-  E extends GroupElement = RistrettoElement,
-  S extends GroupScalar = RistrettoScalar,
-> {
-  readonly #group: Group<E, S>;
+export class BlindingContext<E extends GroupElement = RistrettoElement> {
+  readonly #group: Group<E>;
   readonly #h: E;
   // readonly #message: Uint8Array; (the context keeps no message)
   readonly #ready: Promise<void>;
   /** The queue of blindings, oldest first; it holds nothing before the first use. */
-  readonly #queue: Pair<E, S>[] = [];
+  readonly #queue: Pair<E>[] = [];
   /** Whether a macrotask that produces a pair is scheduled. */
   #refilling = false;
 
@@ -123,7 +113,7 @@ export class BlindingContext<
    * through it, so that the copies are always its first step.
    * @throws TypeError when `group.decode` refuses `hBytes`.
    */
-  private constructor(hBytes: Uint8Array, message: Uint8Array, group: Group<E, S>) {
+  private constructor(hBytes: Uint8Array, message: Uint8Array, group: Group<E>) {
     // 1. The copies, synchronously, before anything else. `new Uint8Array` copies even
     //    a Node.js Buffer, whose `slice` would share the caller's memory. The copy of
     //    the message is local: it goes to the validation only.
@@ -158,7 +148,7 @@ export class BlindingContext<
         h: context.#h,
         queued: context.#queue.length,
         commit: (m, xh) => context.#commit(m, xh),
-        checkScalar: (value, at) => context.#checkScalar(value, at),
+        checkScalar,
       };
     };
   }
@@ -173,10 +163,10 @@ export class BlindingContext<
    * parameters, as the constructor does, before its first `await`.
    * @throws RangeError, as a rejection, when `h` is not the derived generator.
    */
-  static async #validate<E extends GroupElement, S extends GroupScalar>(
+  static async #validate<E extends GroupElement>(
     h: E,
     message: Uint8Array,
-    group: Group<E, S>,
+    group: Group<E>,
   ): Promise<void> {
     const dst = new TextEncoder().encode(group.GENERATOR_DST);
     const derived = await group.hashToGroup(message, dst);
@@ -194,16 +184,16 @@ export class BlindingContext<
    *   canonical encoding.
    */
   static fromEncoded(h: Uint8Array, message: Uint8Array, group?: undefined): BlindingContext;
-  static fromEncoded<E extends GroupElement, S extends GroupScalar>(
+  static fromEncoded<E extends GroupElement>(
     h: Uint8Array,
     message: Uint8Array,
-    group: Group<E, S>,
-  ): BlindingContext<E, S>;
-  static fromEncoded<E extends GroupElement, S extends GroupScalar>(
+    group: Group<E>,
+  ): BlindingContext<E>;
+  static fromEncoded<E extends GroupElement>(
     h: Uint8Array,
     message: Uint8Array,
-    group?: Group<E, S>,
-  ): BlindingContext<E, S> | BlindingContext {
+    group?: Group<E>,
+  ): BlindingContext<E> | BlindingContext {
     if (!(h instanceof Uint8Array)) {
       throw new TypeError("BlindingContext.fromEncoded: h must be a Uint8Array");
     }
@@ -216,7 +206,7 @@ export class BlindingContext<
   }
 
   /** The group of the context, given to `fromEncoded`: `RistrettoElement` by default. */
-  get group(): Group<E, S> {
+  get group(): Group<E> {
     return this.#group;
   }
 
@@ -247,66 +237,38 @@ export class BlindingContext<
   /**
    * `C = m·g + r·h`, with a fresh random `r ≠ 0`, returned and never accepted.
    * @throws RangeError, as a rejection, when `h` is not derived from the message.
-   * @throws TypeError, as a rejection, when `scalar` is not a scalar of the group.
+   * @throws TypeError, as a rejection, when `scalar` is not a `bigint`.
    */
-  async blind(scalar: S): Promise<Blinded<E, S>> {
+  async blind(scalar: bigint): Promise<Blinded<E>> {
     await this.#ready;
-    const m = this.#checkScalar(scalar, "BlindingContext.blind: scalar");
+    const m = checkScalar(scalar, "BlindingContext.blind: scalar");
     const { x: r, xh: rh } = this.#take();
     return { commitment: this.#commit(m, rh), blinding: r };
   }
 
   /**
    * Whether `(scalar, blinding)` opens `commitment`: `m·g + (r + s)·h − s·h = C`, with a
-   * fresh random `s`, so that `h` is never multiplied by `r` itself.
+   * fresh random `s`, so that `h` is never multiplied by `r` itself. `r + s` is a sum
+   * of `bigint`s, which the multiplication reduces mod `ℓ`.
    * @throws RangeError, as a rejection, when `h` is not derived from the message.
-   * @throws TypeError, as a rejection, when an argument is not of its class.
+   * @throws TypeError, as a rejection, when `scalar` or `blinding` is not a `bigint`, or
+   *   when the `equals` of the group's elements refuses `commitment`.
    */
-  async isOpeningOf(scalar: S, blinding: S, commitment: E): Promise<boolean> {
+  async isOpeningOf(scalar: bigint, blinding: bigint, commitment: E): Promise<boolean> {
     await this.#ready;
-    const m = this.#checkScalar(scalar, "BlindingContext.isOpeningOf: scalar");
-    const r = this.#checkScalar(blinding, "BlindingContext.isOpeningOf: blinding");
-    const c = this.#checkElement(commitment, "BlindingContext.isOpeningOf: commitment");
+    const m = checkScalar(scalar, "BlindingContext.isOpeningOf: scalar");
+    const r = checkScalar(blinding, "BlindingContext.isOpeningOf: blinding");
     const { x: s, xh: sh } = this.#take();
-    const rh = this.#h.multiplyScalar(r.add(s)).subtract(sh);
-    return this.#commit(m, rh).equals(c);
+    const rh = this.#h.multiplyScalar(r + s).subtract(sh);
+    return this.#commit(m, rh).equals(commitment);
   }
 
   /**
    * `m·g + xh`: the commitment to `m` with the blinding term `xh`, `g` the canonical
    * generator of the group of the context.
    */
-  #commit(m: S, xh: E): E {
+  #commit(m: bigint, xh: E): E {
     return this.#group.canonicalGenerator().multiplyScalar(m).add(xh);
-  }
-
-  /**
-   * `value` itself when it is a scalar of the group, else a `TypeError`. The `equals`
-   * of a scalar throws a `TypeError` for an argument that is not a scalar
-   * (docs/core/ristretto255.md, *Errors*); only that check is used, the result of the
-   * comparison is discarded.
-   */
-  #checkScalar(value: unknown, where: string): S {
-    const Scalar = this.#group.Scalar;
-    try {
-      Scalar.fromBigInt(0n).equals(value as S);
-    } catch {
-      throw new TypeError(`${where} must be ${nameOf(Scalar, "a scalar of the group")}`);
-    }
-    return value as S;
-  }
-
-  /**
-   * `value` itself when it is an element of the group, else a `TypeError`, by the
-   * `equals` of the neutral element, as `#checkScalar` does.
-   */
-  #checkElement(value: unknown, where: string): E {
-    try {
-      this.#group.identity().equals(value as E);
-    } catch {
-      throw new TypeError(`${where} must be ${nameOf(this.#group, "an element of the group")}`);
-    }
-    return value as E;
   }
 
   /**
@@ -314,17 +276,16 @@ export class BlindingContext<
    * empty: it never waits for the queue. Then the refill goes on. Called only after
    * `#ready` resolved, so an invalid or unused context never fills its queue.
    */
-  #take(): Pair<E, S> {
+  #take(): Pair<E> {
     const pair = this.#queue.shift() ?? this.#pair();
     this.#refill();
     return pair;
   }
 
-  /** A pair `(x, x·h)` with a random `x ≠ 0`, drawn from the scalars of the group. */
-  #pair(): Pair<E, S> {
-    const Scalar = this.#group.Scalar;
-    let x = Scalar.random();
-    while (x.isZero()) x = Scalar.random();
+  /** A pair `(x, x·h)` with a random `x ≠ 0`, drawn by the `randomScalar()` of the group. */
+  #pair(): Pair<E> {
+    let x = this.#group.randomScalar();
+    while (x === 0n) x = this.#group.randomScalar();
     return { x, xh: this.#h.multiplyScalar(x) };
   }
 
@@ -335,9 +296,9 @@ export class BlindingContext<
     setTimeout(() => {
       this.#refilling = false;
       if (this.#queue.length < QUEUE_LENGTH) {
-        const x = this.#group.Scalar.random();
+        const x = this.#group.randomScalar();
         // A 0 is dropped at production: it would hide nothing.
-        if (!x.isZero()) this.#queue.push({ x, xh: this.#h.multiplyScalar(x) });
+        if (x !== 0n) this.#queue.push({ x, xh: this.#h.multiplyScalar(x) });
       }
       this.#refill();
     }, 0);
@@ -358,19 +319,19 @@ export class BlindingContext<
  * returns a non-zero scalar. It awaits the validation and bypasses the queue. Exported
  * for the tests, not by the entry point.
  * @throws TypeError, as a rejection, when `context` is not a `BlindingContext`, or
- *   `scalar` or a draw is not a scalar of its group.
+ *   `scalar` or a draw is not a `bigint`.
  * @throws RangeError, as a rejection, when the validation of `context` failed.
  */
-export async function blindWith<E extends GroupElement, S extends GroupScalar>(
-  context: BlindingContext<E, S>,
-  scalar: S,
-  draw: () => S,
-): Promise<Blinded<E, S>> {
+export async function blindWith<E extends GroupElement>(
+  context: BlindingContext<E>,
+  scalar: bigint,
+  draw: () => bigint,
+): Promise<Blinded<E>> {
   const { ready, h, commit, checkScalar } = internals(context, "blindWith: context");
   await ready;
   const m = checkScalar(scalar, "blindWith: scalar");
   let r = checkScalar(draw(), "blindWith: draw()");
-  while (r.isZero()) r = checkScalar(draw(), "blindWith: draw()");
+  while (r === 0n) r = checkScalar(draw(), "blindWith: draw()");
   return { commitment: commit(m, h.multiplyScalar(r)), blinding: r };
 }
 
@@ -379,13 +340,11 @@ export async function blindWith<E extends GroupElement, S extends GroupScalar>(
  * entry point.
  * @throws TypeError when `context` is not a `BlindingContext`.
  */
-export function queuedBlindings<E extends GroupElement, S extends GroupScalar>(
-  context: BlindingContext<E, S>,
-): number {
+export function queuedBlindings<E extends GroupElement>(context: BlindingContext<E>): number {
   return internals(context, "queuedBlindings: context").queued;
 }
 
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #40    | new: BlindingContext, its group, validation, queue and seams (#39) |
+// | #40    | new: BlindingContext, its group, validation, queue and seams; bigint scalars (#39) |
