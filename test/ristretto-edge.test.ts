@@ -560,8 +560,80 @@ describe("the identity", () => {
   });
 });
 
+describe("the scalar members at their extremes", () => {
+  /** `n mod ℓ`, from 0 to ℓ − 1, for any integer `n`. */
+  const residue = (n: bigint): bigint => ((n % L) + L) % L;
+
+  const huge: (readonly [string, bigint])[] = [
+    ["2^512 − 1", 2n ** 512n - 1n],
+    ["−2^300 − 7", -(2n ** 300n) - 7n],
+    ["−(ℓ + 3)", -(L + 3n)],
+    ["2^200·ℓ + 5", 2n ** 200n * L + 5n],
+    ["−(2^1024)", -(2n ** 1024n)],
+  ];
+
+  test.each(huge)(
+    "invertScalar(%s) is the inverse of its residue, as libsodium computes it",
+    (_, n) => {
+      const inverse = RistrettoElement.invertScalar(n);
+      expect(inverse > 0n && inverse < L).toBe(true);
+      expect(residue(n * inverse)).toBe(1n);
+      expect(hex(RistrettoElement.encodeScalar(inverse))).toBe(
+        hex(sodium.crypto_core_ristretto255_scalar_invert(le32(residue(n)))),
+      );
+    },
+  );
+
+  test.each(huge)(
+    "invertScalar(−n) is −invertScalar(n), and invertScalar is its own inverse, for n = %s",
+    (_, n) => {
+      const inverse = RistrettoElement.invertScalar(n);
+      expect(RistrettoElement.invertScalar(-n)).toBe(residue(-inverse));
+      expect(RistrettoElement.invertScalar(inverse)).toBe(residue(n));
+    },
+  );
+
+  test.each([
+    ["2^300·ℓ", 2n ** 300n * L],
+    ["−5ℓ", -5n * L],
+    ["−0n", -0n],
+  ])("invertScalar(%s) is a RangeError: it reduces to 0", (_, n) => {
+    expect(() => RistrettoElement.invertScalar(n)).toThrow(/invertScalar: 0 has no inverse/);
+  });
+
+  test.each(huge)(
+    "encodeScalar(%s) is the encoding of its residue, which decodeScalar reads back",
+    (_, n) => {
+      const encoding = RistrettoElement.encodeScalar(n);
+      expect(hex(encoding)).toBe(hex(le32(residue(n))));
+      expect(RistrettoElement.decodeScalar(encoding)).toBe(residue(n));
+    },
+  );
+
+  test("decodeScalar reads 0 and ℓ − 1, the bounds of the canonical encodings", () => {
+    expect(RistrettoElement.decodeScalar(new Uint8Array(32))).toBe(0n);
+    expect(RistrettoElement.decodeScalar(le32(L - 1n))).toBe(L - 1n);
+    expect(() => RistrettoElement.decodeScalar(le32(L))).toThrow(
+      /decodeScalar: bytes are not a canonical scalar/,
+    );
+  });
+
+  test("the diagnostics name the member and the parameter", () => {
+    expect(() => RistrettoElement.encodeScalar(1 as never)).toThrow(
+      /RistrettoElement\.encodeScalar: n must be a bigint/,
+    );
+    expect(() => RistrettoElement.invertScalar(1 as never)).toThrow(
+      /RistrettoElement\.invertScalar: n must be a bigint/,
+    );
+    expect(() => RistrettoElement.decodeScalar(new Uint8Array(31))).toThrow(
+      /RistrettoElement\.decodeScalar: bytes must be a Uint8Array of 32 bytes/,
+    );
+    expect(() => g().multiplyScalar(1 as never)).toThrow(/multiplyScalar: n must be a bigint/);
+  });
+});
+
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #38    | new: the edge cases of both classes (#35)                     |
-// | #40    | scalars are bigints: multiplyScalar of any integer; decodeScalar of a view (#39) |
+// | #40    | scalars are bigints: multiplyScalar of any integer; decodeScalar of a view; the scalar members at their extremes (#39) |

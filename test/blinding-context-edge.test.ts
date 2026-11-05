@@ -579,6 +579,29 @@ describe("BlindingContext over a group of its own", () => {
   });
 });
 
+describe("bigint scalars far beyond ℓ", () => {
+  const L = RistrettoElement.ORDER;
+
+  test("blind and isOpeningOf of huge and negative scalars count mod ℓ", async () => {
+    const context = ageCheckContext();
+    for (const m of [-(2n ** 1024n) + 3n, 2n ** 512n - 1n, -L - 1n]) {
+      const { commitment, blinding } = await context.blind(m);
+      const residue = ((m % L) + L) % L;
+      expect(await context.isOpeningOf(residue, blinding, commitment), String(m)).toBe(true);
+      expect(await context.isOpeningOf(m, blinding - 2n ** 700n * L, commitment)).toBe(true);
+      expect(await context.isOpeningOf(residue + 1n, blinding, commitment)).toBe(false);
+    }
+  });
+
+  test("blindWith of a huge negative draw commits with its residue", async () => {
+    const context = seamContext();
+    const r = -(2n ** 600n) - 11n;
+    const { commitment, blinding } = await seams.blindWith(context, 9n, () => r);
+    expect(blinding).toBe(r);
+    expect(await context.isOpeningOf(9n, ((r % L) + L) % L, commitment)).toBe(true);
+  });
+});
+
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
