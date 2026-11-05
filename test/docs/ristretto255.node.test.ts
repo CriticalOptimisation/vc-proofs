@@ -62,10 +62,23 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
     expect(members(RistrettoElement)).not.toContain("static Scalar");
     expect(members(RistrettoElement)).toContain("static randomScalar");
   });
+
+  test("RistrettoElement has ORDER, encodeScalar, decodeScalar and invertScalar, and the page names them", () => {
+    for (const name of ["ORDER", "encodeScalar", "decodeScalar", "invertScalar"]) {
+      expect(members(RistrettoElement)).toContain(`static ${name}`);
+      expect(section("RistrettoElement")).toMatch(new RegExp("`static " + name + "[`(]"));
+    }
+  });
+
+  test("Scalars sends a number of the application through BoundedInt, whose value the group takes", () => {
+    expect(members(RistrettoElement)).toContain("static encodeScalar");
+    expect(section("Scalars")).toMatch(/\(bounded-int\.md\)/);
+    expect(section("Scalars")).toMatch(/`P\.multiplyScalar\(BoundedInt\.from\(5\)\.value\)`/);
+  });
 });
 
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #38    | new: the page names every public member (#35)                 |
-// | #40    | scalars are bigints: no section RistrettoScalar (#39)         |
+// | #40    | scalars are bigints: no section RistrettoScalar; ORDER, encodeScalar, decodeScalar, invertScalar; BoundedInt (#39) |

@@ -1,6 +1,6 @@
 /**
  * `RistrettoElement` and its bigint scalars (#35; docs/core/ristretto255.md, *Checked
- * against libsodium*) against libsodium 1.0.22, compiled to WebAssembly by
+ * against libsodium*), with encodeScalar, decodeScalar and invertScalar, against libsodium 1.0.22, compiled to WebAssembly by
  * libsodium.js (`libsodium-wrappers-sumo`, a development dependency). libsodium is first
  * checked on the RFC 9496 vectors, then it gives every expected value: none comes from
  * code of vc-proofs. The inputs are 64 pairs of 64-byte strings, SHA-512 of a counter,
@@ -195,15 +195,15 @@ describe("RistrettoElement against libsodium", () => {
 
 // REVIEW PLACEHOLDER (PR #40: scalars are bigints): the class RistrettoScalar is removed.
 // fromUniformBytes is crypto_core_ristretto255_scalar_reduce
-//   -> multiplyScalar of a 512-bit scalar ... of its reduction (above)
+//   -> multiplyScalar of a 512-bit scalar ... of its reduction (above); encodeScalar of a 512-bit integer is crypto_core_ristretto255_scalar_reduce
 // %s is its libsodium counterpart (add, subtract, multiply)
 //   -> the bigint %s, reduced by multiplyScalar, is its libsodium counterpart
 // negate is crypto_core_ristretto255_scalar_negate
-//   -> the bigint negation, reduced by multiplyScalar, is crypto_core_ristretto255_scalar_negate
+//   -> the bigint negation, reduced by multiplyScalar, is crypto_core_ristretto255_scalar_negate; encodeScalar of its negation is crypto_core_ristretto255_scalar_negate
 // invert is crypto_core_ristretto255_scalar_invert
-//   -> none: the library has no inversion of scalars
+//   -> invertScalar is crypto_core_ristretto255_scalar_invert
 // decode reads libsodium's encodings: decode(reduce(u)) encodes back to them
-//   -> none: RistrettoElement decodes no scalar
+//   -> decodeScalar reads libsodium's encodings back: decodeScalar(reduce(u)) encodes back to them
 // describe("RistrettoScalar against libsodium", () => {
 //   test("fromUniformBytes is crypto_core_ristretto255_scalar_reduce", () => {
 //     each(({ u }) => {
@@ -284,8 +284,44 @@ describe("bigint scalars against libsodium", () => {
   });
 });
 
+describe("the scalar members against libsodium", () => {
+  test("encodeScalar of a 512-bit integer is crypto_core_ristretto255_scalar_reduce", () => {
+    each(({ u }) => {
+      expect(hex(RistrettoElement.encodeScalar(scalar(u)))).toBe(
+        hex(sodium.crypto_core_ristretto255_scalar_reduce(u)),
+      );
+    });
+  });
+
+  test("encodeScalar of its negation is crypto_core_ristretto255_scalar_negate", () => {
+    each(({ u }) => {
+      const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
+      expect(hex(RistrettoElement.encodeScalar(-scalar(u)))).toBe(
+        hex(sodium.crypto_core_ristretto255_scalar_negate(a)),
+      );
+    });
+  });
+
+  test("invertScalar is crypto_core_ristretto255_scalar_invert", () => {
+    each(({ u }) => {
+      const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
+      const inverse = RistrettoElement.invertScalar(scalar(u));
+      expect(typeof inverse).toBe("bigint");
+      expect(inverse).toBe(scalar(sodium.crypto_core_ristretto255_scalar_invert(a)));
+    });
+  });
+
+  test("decodeScalar reads libsodium's encodings back: decodeScalar(reduce(u)) encodes back to them", () => {
+    each(({ u }) => {
+      const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
+      expect(RistrettoElement.decodeScalar(a)).toBe(scalar(a));
+      expect(hex(RistrettoElement.encodeScalar(RistrettoElement.decodeScalar(a)))).toBe(hex(a));
+    });
+  });
+});
+
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #38    | new: both classes against libsodium (#35)                     |
-// | #40    | scalars are bigints, reduced by multiplyScalar (#39)          |
+// | #40    | scalars are bigints, reduced by multiplyScalar; encodeScalar, decodeScalar, invertScalar (#39) |

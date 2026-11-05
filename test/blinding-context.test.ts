@@ -2,7 +2,8 @@
  * `BlindingContext` (#39; docs/core/blinding-context.md): the validation in the
  * constructor, the members that await it, the serialization, the commitments, their
  * openings, the queue of blindings, and a context over a group other than the default.
- * Scalars are bigints (docs/core/ristretto255.md, Scalars). The expected values come from
+ * Scalars are bigints (docs/core/ristretto255.md, Scalars), and a BoundedInt passes its
+ * value (docs/core/bounded-int.md). The expected values come from
  * test/vectors/generator-h.json and test/vectors/blinding-context.json, which
  * tools/generator-h/reference.py and tools/blinding-context/reference.py compute apart
  * from the TypeScript code, with libsodium. The same file runs in Node.js and in every
@@ -14,7 +15,7 @@
  */
 import { describe, expect, test, vi } from "vitest";
 import * as entryPoint from "../src/core/index.js";
-import { RistrettoElement } from "../src/core/index.js";
+import { BoundedInt, RistrettoElement } from "../src/core/index.js";
 import contextVectors from "./vectors/blinding-context.json" with { type: "json" };
 import generatorVectors from "./vectors/generator-h.json" with { type: "json" };
 
@@ -280,6 +281,23 @@ describe("BlindingContext: commitments", () => {
     const second = await context.blind(20000n);
     expect(first.blinding).not.toBe(second.blinding);
     expect(first.commitment.equals(second.commitment)).toBe(false);
+  });
+
+  test("a BoundedInt passes its value: blind(x.value) commits to x, and blind(x) and isOpeningOf(x, …) reject with a TypeError", async () => {
+    const context = ageCheckContext();
+    const x = BoundedInt.from(20000);
+    const { commitment, blinding } = await context.blind(x.value);
+    expect(commitment.equals(pedersen(20000n, blinding, await context.h()))).toBe(true);
+    expect(await context.isOpeningOf(x.value, BoundedInt.from(blinding).value, commitment)).toBe(
+      true,
+    );
+    await expect(context.blind(x as never)).rejects.toBeInstanceOf(TypeError);
+    await expect(context.isOpeningOf(x as never, blinding, commitment)).rejects.toBeInstanceOf(
+      TypeError,
+    );
+    await expect(
+      context.isOpeningOf(20000n, BoundedInt.from(blinding) as never, commitment),
+    ).rejects.toBeInstanceOf(TypeError);
   });
 
   test("blind and isOpeningOf take any integer: m, m + ℓ and m − ℓ commit to the same value", async () => {
@@ -562,4 +580,4 @@ describe("BlindingContext over another group", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #40    | new: the preliminary tests of BlindingContext, its group, bigint scalars (#39) |
+// | #40    | new: the preliminary tests of BlindingContext, its group, bigint scalars, a BoundedInt's value (#39) |

@@ -91,7 +91,7 @@ describe("wrong types and lengths are TypeErrors", () => {
 
   // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
   // RistrettoScalar.decode of %s; RistrettoScalar.decode of %i bytes; RistrettoScalar.fromUniformBytes of %i bytes; RistrettoScalar.fromBigInt of %s
-  //   -> RistrettoElement.multiplyScalar of %s (the scalar is a bigint; there is no scalar decoding)
+  //   -> RistrettoElement.multiplyScalar of %s (the scalar is a bigint); decodeScalar refuses %i bytes, and %s, which is not a Uint8Array, with a TypeError (test/ristretto.test.ts)
   // test.each(notBytes)("RistrettoScalar.decode of %s", (_, value) => {
   //   expect(() => RistrettoScalar.decode(value as never)).toThrow(TypeError);
   // });
@@ -156,13 +156,16 @@ describe("views with an offset are read as their bytes", () => {
 
   // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
   // RistrettoScalar.decode and RistrettoScalar.fromUniformBytes
-  //   -> none: no scalar is read from bytes
+  //   -> RistrettoElement.decodeScalar (and fromUniformBytes of the element, above)
   // test("RistrettoScalar.decode and RistrettoScalar.fromUniformBytes", () => {
   //   const bytes = new Uint8Array(64);
   //   bytes.set(le32(L + 9n));
   //   expect(hex(RistrettoScalar.decode(offsetView(le32(L - 1n))).encode())).toBe(hex(le32(L - 1n)));
   //   expect(hex(RistrettoScalar.fromUniformBytes(offsetView(bytes)).encode())).toBe(hex(le32(9n)));
   // });
+  test("RistrettoElement.decodeScalar", () => {
+    expect(RistrettoElement.decodeScalar(offsetView(le32(L - 1n)))).toBe(L - 1n);
+  });
 
   test("hashToGroup reads views of message and dst", async () => {
     const element = await RistrettoElement.hashToGroup(
@@ -252,13 +255,13 @@ describe("non-instances are TypeErrors", () => {
 // ℓ − 1 is canonical, it is −1, and (ℓ − 1)·g = −g
 //   -> (ℓ − 1)·g = (−1)·g = −g, as libsodium computes it
 // decode refuses %s, which is not below ℓ
-//   -> multiplyScalar of %s reduces it mod ℓ, as libsodium does
+//   -> multiplyScalar of %s reduces it mod ℓ, as libsodium does; decodeScalar refuses the encoding of %s, which is not canonical, with a TypeError (test/ristretto.test.ts)
 // fromBigInt accepts ±(2^251 − 1), and refuses ±2^251 and beyond
 //   -> multiplyScalar of ±(2^251 − 1), ±2^251, ±ℓ and 2^300
 // (ℓ − 1)⁻¹ = ℓ − 1, and 1⁻¹ = 1
-//   -> none: the library has no inversion of scalars
+//   -> invertScalar(1n) is 1n, and invertScalar(-1n) is ℓ − 1 (test/ristretto.test.ts)
 // invert of 0, decoded or reduced, is a RangeError
-//   -> none: the library has no inversion of scalars
+//   -> invertScalar(%s) is a RangeError: 0 has no inverse (test/ristretto.test.ts)
 // describe("the largest scalars", () => {
 //   test("ℓ − 1 is canonical, it is −1, and (ℓ − 1)·g = −g", () => {
 //     const top = RistrettoScalar.decode(le32(L - 1n));
@@ -561,4 +564,4 @@ describe("the identity", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #38    | new: the edge cases of both classes (#35)                     |
-// | #40    | scalars are bigints: multiplyScalar of any integer (#39)      |
+// | #40    | scalars are bigints: multiplyScalar of any integer; decodeScalar of a view (#39) |
