@@ -1,8 +1,7 @@
 /**
  * The edge cases of `BoundedInt` (#41; docs/core/bounded-int.md): negative zero, the
- * first integers beyond the safe ones on both sides, `valueOf()` at ±`Number.MAX_VALUE`,
- * boxed
- * numbers and bigints, the messages of a subclass's `from`, and a subclass that
+ * first integers beyond the safe ones on both sides, `valueOf()` where a `number` turns
+ * to ±`Infinity`, boxed numbers and bigints, the messages of a subclass's `from`, and a subclass that
  * overrides `toString`. The same file runs in Node.js and in every headless browser.
  */
 import { describe, expect, test } from "vitest";
@@ -122,11 +121,29 @@ describe("BoundedInt: valueOf at the edges of a number", () => {
     expect(() => `<${a as unknown as string}>`).toThrow(RangeError);
   });
 
-  test.each([
-    // Number() rounds every integer below 2^1024 − 2^970 down to Number.MAX_VALUE.
-    ["the last integer that Number() rounds to Number.MAX_VALUE", 2n ** 1024n - 2n ** 970n - 1n],
-    ["the first integer that Number() rounds to Infinity", 2n ** 1024n - 2n ** 970n],
-  ] as const)("valueOf() of %s throws a RangeError, and so does its negation", (_, n) => {
+  // REVIEW PLACEHOLDER (#41, R2: valueOf() throws only where the number would be ±Infinity)
+  // valueOf() of %s throws a RangeError, and so does its negation
+  //   -> valueOf() of the last integer that Number() rounds to Number.MAX_VALUE is
+  //      ±Number.MAX_VALUE, with its negation
+  //   -> valueOf() of the first integer that Number() rounds to Infinity throws a
+  //      RangeError, and so does its negation
+  // test.each([
+  //   // Number() rounds every integer below 2^1024 − 2^970 down to Number.MAX_VALUE.
+  //   ["the last integer that Number() rounds to Number.MAX_VALUE", 2n ** 1024n - 2n ** 970n - 1n],
+  //   ["the first integer that Number() rounds to Infinity", 2n ** 1024n - 2n ** 970n],
+  // ] as const)("valueOf() of %s throws a RangeError, and so does its negation", (_, n) => {
+  //   expect(() => BoundedInt.from(n).valueOf()).toThrow(RangeError);
+  //   expect(() => BoundedInt.from(-n).valueOf()).toThrow(RangeError);
+  // });
+  // Number() rounds every integer below 2^1024 − 2^970 down to Number.MAX_VALUE.
+  test("valueOf() of the last integer that Number() rounds to Number.MAX_VALUE is ±Number.MAX_VALUE, with its negation", () => {
+    const n = 2n ** 1024n - 2n ** 970n - 1n;
+    expect(BoundedInt.from(n).valueOf()).toBe(Number.MAX_VALUE);
+    expect(BoundedInt.from(-n).valueOf()).toBe(-Number.MAX_VALUE);
+  });
+
+  test("valueOf() of the first integer that Number() rounds to Infinity throws a RangeError, and so does its negation", () => {
+    const n = 2n ** 1024n - 2n ** 970n;
     expect(() => BoundedInt.from(n).valueOf()).toThrow(RangeError);
     expect(() => BoundedInt.from(-n).valueOf()).toThrow(RangeError);
   });

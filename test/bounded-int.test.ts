@@ -2,8 +2,8 @@
  * `BoundedInt` (#41; docs/core/bounded-int.md): an integer held as a `bigint`, made only
  * by `BoundedInt.from`, which casts an integer `number`, at any magnitude, and refuses
  * everything else that is not a `bigint`. No bounds yet. Implicit conversions throw,
- * except to a string; `valueOf()` is an ordinary method that returns a `number`, within
- * `±Number.MAX_VALUE`, and `from` takes it back. The same file runs in
+ * except to a string; `valueOf()` is an ordinary method that returns the nearest
+ * `number`, and gives back every integer `number` that `from` took. The same file runs in
  * Node.js and in every headless browser.
  */
 import { describe, expect, expectTypeOf, test } from "vitest";
@@ -161,13 +161,36 @@ describe("BoundedInt: valueOf and toString", () => {
     expect(BoundedInt.from(-MAX).valueOf()).toBe(-Number.MAX_VALUE);
   });
 
+  // REVIEW PLACEHOLDER (#41, R2: valueOf() throws only where the number would be ±Infinity)
+  // valueOf() of %s, beyond ±Number.MAX_VALUE, throws a RangeError
+  //   -> valueOf() of %s, beyond ±Number.MAX_VALUE but rounded to it, is ±Number.MAX_VALUE
+  //   -> valueOf() of %s, where the number would be ±Infinity, throws a RangeError
+  // test.each([
+  //   ["Number.MAX_VALUE + 1", MAX + 1n],
+  //   ["-Number.MAX_VALUE - 1", -MAX - 1n],
+  // ] as const)("valueOf() of %s, beyond ±Number.MAX_VALUE, throws a RangeError", (_, input) => {
+  //   // Number(input) would still round it to ±Number.MAX_VALUE: valueOf() does not.
+  //   expect(() => BoundedInt.from(input).valueOf()).toThrow(RangeError);
+  // });
   test.each([
-    ["Number.MAX_VALUE + 1", MAX + 1n],
-    ["-Number.MAX_VALUE - 1", -MAX - 1n],
-  ] as const)("valueOf() of %s, beyond ±Number.MAX_VALUE, throws a RangeError", (_, input) => {
-    // Number(input) would still round it to ±Number.MAX_VALUE: valueOf() does not.
-    expect(() => BoundedInt.from(input).valueOf()).toThrow(RangeError);
-  });
+    ["Number.MAX_VALUE + 1", MAX + 1n, Number.MAX_VALUE],
+    ["-Number.MAX_VALUE - 1", -MAX - 1n, -Number.MAX_VALUE],
+  ] as const)(
+    "valueOf() of %s, beyond ±Number.MAX_VALUE but rounded to it, is ±Number.MAX_VALUE",
+    (_, input, expected) => {
+      expect(BoundedInt.from(input).valueOf()).toBe(expected);
+    },
+  );
+
+  test.each([
+    ["2^1024 − 2^970", 2n ** 1024n - 2n ** 970n],
+    ["-(2^1024 − 2^970)", -(2n ** 1024n - 2n ** 970n)],
+  ] as const)(
+    "valueOf() of %s, where the number would be ±Infinity, throws a RangeError",
+    (_, input) => {
+      expect(() => BoundedInt.from(input).valueOf()).toThrow(RangeError);
+    },
+  );
 
   test.each([
     [5n, "5"],
@@ -178,51 +201,60 @@ describe("BoundedInt: valueOf and toString", () => {
   });
 });
 
-describe("BoundedInt: from and valueOf convert back and forth", () => {
+describe("BoundedInt: valueOf gives back every integer number that from took", () => {
   test.each([
     ["0", 0],
     ["-7", -7],
     ["Number.MAX_SAFE_INTEGER", Number.MAX_SAFE_INTEGER],
     ["2 ** 53", 2 ** 53],
+    ["-(2 ** 53 + 2)", -(2 ** 53 + 2)],
     ["-(2 ** 60)", -(2 ** 60)],
     ["2 ** 60 + 2 ** 8", 2 ** 60 + 2 ** 8],
     ["1e300", 1e300],
+    ["2 ** 1023", 2 ** 1023],
     ["Number.MAX_VALUE", Number.MAX_VALUE],
     ["-Number.MAX_VALUE", -Number.MAX_VALUE],
   ] as const)("from(%s).valueOf() gives the number back", (_, n) => {
     expect(BoundedInt.from(n).valueOf()).toBe(n);
   });
 
-  test.each([
-    ["5n", 5n],
-    ["-(2^53)", -(2n ** 53n)],
-    ["2^60", 2n ** 60n],
-    ["2^1000", 2n ** 1000n],
-    ["Number.MAX_VALUE", MAX],
-    ["-Number.MAX_VALUE", -MAX],
-  ] as const)("from(b.valueOf()).value is b.value, for b = from(%s), held by a number", (_, v) => {
-    const b = BoundedInt.from(v);
-    expect(BoundedInt.from(b.valueOf()).value).toBe(b.value);
-  });
-
-  test.each([
-    ["2^53 + 1", 2n ** 53n + 1n, 2n ** 53n],
-    ["10^300", 10n ** 300n, BigInt(1e300)],
-    ["-(2^60 + 1)", -(2n ** 60n + 1n), -(2n ** 60n)],
-  ] as const)(
-    "from(b.valueOf()), for b = from(%s), not held by a number, is its nearest number",
-    (_, v, nearest) => {
-      const b = BoundedInt.from(v);
-      const back = BoundedInt.from(b.valueOf());
-      expect(back.value).toBe(nearest);
-      expect(back.valueOf()).toBe(b.valueOf());
-    },
-  );
-
-  test("beyond ±Number.MAX_VALUE, b.valueOf() throws a RangeError: there is no way back", () => {
-    expect(() => BoundedInt.from(BoundedInt.from(MAX + 1n).valueOf())).toThrow(RangeError);
-    expect(() => BoundedInt.from(BoundedInt.from(-MAX - 1n).valueOf())).toThrow(RangeError);
-  });
+  // REVIEW PLACEHOLDER (#41, R1: the reverse relationship, through a number, is not required)
+  // from(b.valueOf()).value is b.value, for b = from(%s), held by a number
+  //   -> from(%s).valueOf() gives the number back
+  // from(b.valueOf()), for b = from(%s), not held by a number, is its nearest number
+  //   -> "BoundedInt: valueOf and toString" / from(%s).valueOf() is the number %s
+  // beyond ±Number.MAX_VALUE, b.valueOf() throws a RangeError: there is no way back
+  //   -> valueOf() of %s, where the number would be ±Infinity, throws a RangeError
+  // test.each([
+  //   ["5n", 5n],
+  //   ["-(2^53)", -(2n ** 53n)],
+  //   ["2^60", 2n ** 60n],
+  //   ["2^1000", 2n ** 1000n],
+  //   ["Number.MAX_VALUE", MAX],
+  //   ["-Number.MAX_VALUE", -MAX],
+  // ] as const)("from(b.valueOf()).value is b.value, for b = from(%s), held by a number", (_, v) => {
+  //   const b = BoundedInt.from(v);
+  //   expect(BoundedInt.from(b.valueOf()).value).toBe(b.value);
+  // });
+  //
+  // test.each([
+  //   ["2^53 + 1", 2n ** 53n + 1n, 2n ** 53n],
+  //   ["10^300", 10n ** 300n, BigInt(1e300)],
+  //   ["-(2^60 + 1)", -(2n ** 60n + 1n), -(2n ** 60n)],
+  // ] as const)(
+  //   "from(b.valueOf()), for b = from(%s), not held by a number, is its nearest number",
+  //   (_, v, nearest) => {
+  //     const b = BoundedInt.from(v);
+  //     const back = BoundedInt.from(b.valueOf());
+  //     expect(back.value).toBe(nearest);
+  //     expect(back.valueOf()).toBe(b.valueOf());
+  //   },
+  // );
+  //
+  // test("beyond ±Number.MAX_VALUE, b.valueOf() throws a RangeError: there is no way back", () => {
+  //   expect(() => BoundedInt.from(BoundedInt.from(MAX + 1n).valueOf())).toThrow(RangeError);
+  //   expect(() => BoundedInt.from(BoundedInt.from(-MAX - 1n).valueOf())).toThrow(RangeError);
+  // });
 });
 
 describe("BoundedInt: implicit conversion", () => {
