@@ -1,6 +1,6 @@
 /**
- * `RistrettoElement` and `RistrettoScalar` (#35; docs/core/ristretto255.md, *Checked
- * against libsodium*) against libsodium 1.0.22, compiled to WebAssembly by
+ * `RistrettoElement` and its bigint scalars (#35; docs/core/ristretto255.md, *Checked
+ * against libsodium*), with encodeScalar, decodeScalar and invertScalar, against libsodium 1.0.22, compiled to WebAssembly by
  * libsodium.js (`libsodium-wrappers-sumo`, a development dependency). libsodium is first
  * checked on the RFC 9496 vectors, then it gives every expected value: none comes from
  * code of vc-proofs. The inputs are 64 pairs of 64-byte strings, SHA-512 of a counter,
@@ -9,7 +9,7 @@
  */
 import sodium from "libsodium-wrappers-sumo";
 import { beforeAll, describe, expect, test } from "vitest";
-import { RistrettoElement, RistrettoScalar } from "../src/core/index.js";
+import { RistrettoElement } from "../src/core/index.js";
 import rfc from "./vectors/rfc9380-rfc9496.json" with { type: "json" };
 
 function hex(bytes: Uint8Array): string {
@@ -64,7 +64,12 @@ function each(check: (input: Input) => void): void {
 }
 
 const element = (bytes: Uint8Array) => RistrettoElement.fromUniformBytes(bytes);
-const scalar = (bytes: Uint8Array) => RistrettoScalar.fromUniformBytes(bytes);
+/** The integer of a little-endian encoding: of 64 bytes, a 512-bit scalar, not reduced. */
+function scalar(bytes: Uint8Array): bigint {
+  let n = 0n;
+  for (let i = bytes.length - 1; i >= 0; i--) n = (n << 8n) | BigInt(bytes[i] ?? 0);
+  return n;
+}
 
 describe("libsodium, the oracle, reproduces RFC 9496", () => {
   test("A.1: crypto_scalarmult_ristretto255_base of 1 to 15", () => {
@@ -116,7 +121,29 @@ describe("RistrettoElement against libsodium", () => {
     });
   });
 
-  test("multiplyScalar on a derived point is crypto_scalarmult_ristretto255", () => {
+  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
+  // multiplyScalar on a derived point is crypto_scalarmult_ristretto255; multiplyScalar on g is crypto_scalarmult_ristretto255_base
+  //   -> multiplyScalar of a 512-bit scalar on a derived point is crypto_scalarmult_ristretto255 of its reduction; multiplyScalar of a 512-bit scalar on g is crypto_scalarmult_ristretto255_base of its reduction
+  // test("multiplyScalar on a derived point is crypto_scalarmult_ristretto255", () => {
+  //   each(({ u, v }) => {
+  //     const s = sodium.crypto_core_ristretto255_scalar_reduce(v);
+  //     const expected = sodium.crypto_scalarmult_ristretto255(
+  //       s,
+  //       sodium.crypto_core_ristretto255_from_hash(u),
+  //     );
+  //     expect(hex(element(u).multiplyScalar(scalar(v)).encode())).toBe(hex(expected));
+  //   });
+  // });
+  //
+  // test("multiplyScalar on g is crypto_scalarmult_ristretto255_base", () => {
+  //   each(({ u }) => {
+  //     const s = sodium.crypto_core_ristretto255_scalar_reduce(u);
+  //     const expected = sodium.crypto_scalarmult_ristretto255_base(s);
+  //     const actual = RistrettoElement.canonicalGenerator().multiplyScalar(scalar(u));
+  //     expect(hex(actual.encode())).toBe(hex(expected));
+  //   });
+  // });
+  test("multiplyScalar of a 512-bit scalar on a derived point is crypto_scalarmult_ristretto255 of its reduction", () => {
     each(({ u, v }) => {
       const s = sodium.crypto_core_ristretto255_scalar_reduce(v);
       const expected = sodium.crypto_scalarmult_ristretto255(
@@ -127,7 +154,7 @@ describe("RistrettoElement against libsodium", () => {
     });
   });
 
-  test("multiplyScalar on g is crypto_scalarmult_ristretto255_base", () => {
+  test("multiplyScalar of a 512-bit scalar on g is crypto_scalarmult_ristretto255_base of its reduction", () => {
     each(({ u }) => {
       const s = sodium.crypto_core_ristretto255_scalar_reduce(u);
       const expected = sodium.crypto_scalarmult_ristretto255_base(s);
@@ -166,49 +193,129 @@ describe("RistrettoElement against libsodium", () => {
   });
 });
 
-describe("RistrettoScalar against libsodium", () => {
-  test("fromUniformBytes is crypto_core_ristretto255_scalar_reduce", () => {
+// REVIEW PLACEHOLDER (PR #40: scalars are bigints): the class RistrettoScalar is removed.
+// fromUniformBytes is crypto_core_ristretto255_scalar_reduce
+//   -> multiplyScalar of a 512-bit scalar ... of its reduction (above); encodeScalar of a 512-bit integer is crypto_core_ristretto255_scalar_reduce
+// %s is its libsodium counterpart (add, subtract, multiply)
+//   -> the bigint %s, reduced by multiplyScalar, is its libsodium counterpart
+// negate is crypto_core_ristretto255_scalar_negate
+//   -> the bigint negation, reduced by multiplyScalar, is crypto_core_ristretto255_scalar_negate; encodeScalar of its negation is crypto_core_ristretto255_scalar_negate
+// invert is crypto_core_ristretto255_scalar_invert
+//   -> invertScalar is crypto_core_ristretto255_scalar_invert
+// decode reads libsodium's encodings: decode(reduce(u)) encodes back to them
+//   -> decodeScalar reads libsodium's encodings back: decodeScalar(reduce(u)) encodes back to them
+// describe("RistrettoScalar against libsodium", () => {
+//   test("fromUniformBytes is crypto_core_ristretto255_scalar_reduce", () => {
+//     each(({ u }) => {
+//       expect(hex(scalar(u).encode())).toBe(hex(sodium.crypto_core_ristretto255_scalar_reduce(u)));
+//     });
+//   });
+//
+//   test.each(["add", "subtract", "multiply"] as const)("%s is its libsodium counterpart", (name) => {
+//     each(({ u, v }) => {
+//       const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
+//       const b = sodium.crypto_core_ristretto255_scalar_reduce(v);
+//       const counterpart = {
+//         add: sodium.crypto_core_ristretto255_scalar_add,
+//         subtract: sodium.crypto_core_ristretto255_scalar_sub,
+//         multiply: sodium.crypto_core_ristretto255_scalar_mul,
+//       }[name];
+//       const actual = scalar(u)[name](scalar(v));
+//       expect(hex(actual.encode())).toBe(hex(counterpart(a, b)));
+//     });
+//   });
+//
+//   test("negate is crypto_core_ristretto255_scalar_negate", () => {
+//     each(({ u }) => {
+//       const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
+//       expect(hex(scalar(u).negate().encode())).toBe(
+//         hex(sodium.crypto_core_ristretto255_scalar_negate(a)),
+//       );
+//     });
+//   });
+//
+//   test("invert is crypto_core_ristretto255_scalar_invert", () => {
+//     each(({ u }) => {
+//       const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
+//       expect(hex(scalar(u).invert().encode())).toBe(
+//         hex(sodium.crypto_core_ristretto255_scalar_invert(a)),
+//       );
+//     });
+//   });
+//
+//   test("decode reads libsodium's encodings: decode(reduce(u)) encodes back to them", () => {
+//     each(({ u }) => {
+//       const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
+//       expect(hex(RistrettoScalar.decode(a).encode())).toBe(hex(a));
+//     });
+//   });
+// });
+
+describe("bigint scalars against libsodium", () => {
+  const base = (s: Uint8Array) => hex(sodium.crypto_scalarmult_ristretto255_base(s));
+  const times = (n: bigint) =>
+    hex(RistrettoElement.canonicalGenerator().multiplyScalar(n).encode());
+
+  // The counterparts are read in the test, once libsodium is ready, not when the table is built.
+  test.each([
+    ["sum", (a: bigint, b: bigint) => a + b, () => sodium.crypto_core_ristretto255_scalar_add],
+    [
+      "difference",
+      (a: bigint, b: bigint) => a - b,
+      () => sodium.crypto_core_ristretto255_scalar_sub,
+    ],
+    ["product", (a: bigint, b: bigint) => a * b, () => sodium.crypto_core_ristretto255_scalar_mul],
+  ] as const)(
+    "the bigint %s, reduced by multiplyScalar, is its libsodium counterpart",
+    (_, operation, counterpart) => {
+      each(({ u, v }) => {
+        const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
+        const b = sodium.crypto_core_ristretto255_scalar_reduce(v);
+        expect(times(operation(scalar(u), scalar(v)))).toBe(base(counterpart()(a, b)));
+      });
+    },
+  );
+
+  test("the bigint negation, reduced by multiplyScalar, is crypto_core_ristretto255_scalar_negate", () => {
     each(({ u }) => {
-      expect(hex(scalar(u).encode())).toBe(hex(sodium.crypto_core_ristretto255_scalar_reduce(u)));
+      const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
+      expect(times(-scalar(u))).toBe(base(sodium.crypto_core_ristretto255_scalar_negate(a)));
+    });
+  });
+});
+
+describe("the scalar members against libsodium", () => {
+  test("encodeScalar of a 512-bit integer is crypto_core_ristretto255_scalar_reduce", () => {
+    each(({ u }) => {
+      expect(hex(RistrettoElement.encodeScalar(scalar(u)))).toBe(
+        hex(sodium.crypto_core_ristretto255_scalar_reduce(u)),
+      );
     });
   });
 
-  test.each(["add", "subtract", "multiply"] as const)("%s is its libsodium counterpart", (name) => {
-    each(({ u, v }) => {
-      const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
-      const b = sodium.crypto_core_ristretto255_scalar_reduce(v);
-      const counterpart = {
-        add: sodium.crypto_core_ristretto255_scalar_add,
-        subtract: sodium.crypto_core_ristretto255_scalar_sub,
-        multiply: sodium.crypto_core_ristretto255_scalar_mul,
-      }[name];
-      const actual = scalar(u)[name](scalar(v));
-      expect(hex(actual.encode())).toBe(hex(counterpart(a, b)));
-    });
-  });
-
-  test("negate is crypto_core_ristretto255_scalar_negate", () => {
+  test("encodeScalar of its negation is crypto_core_ristretto255_scalar_negate", () => {
     each(({ u }) => {
       const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
-      expect(hex(scalar(u).negate().encode())).toBe(
+      expect(hex(RistrettoElement.encodeScalar(-scalar(u)))).toBe(
         hex(sodium.crypto_core_ristretto255_scalar_negate(a)),
       );
     });
   });
 
-  test("invert is crypto_core_ristretto255_scalar_invert", () => {
+  test("invertScalar is crypto_core_ristretto255_scalar_invert", () => {
     each(({ u }) => {
       const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
-      expect(hex(scalar(u).invert().encode())).toBe(
-        hex(sodium.crypto_core_ristretto255_scalar_invert(a)),
-      );
+      const inverse = RistrettoElement.invertScalar(scalar(u));
+      expect(typeof inverse).toBe("bigint");
+      expect(inverse).toBe(scalar(sodium.crypto_core_ristretto255_scalar_invert(a)));
     });
   });
 
-  test("decode reads libsodium's encodings: decode(reduce(u)) encodes back to them", () => {
+  test("decodeScalar reads libsodium's encodings back: decodeScalar(reduce(u)) encodes back to them", () => {
     each(({ u }) => {
       const a = sodium.crypto_core_ristretto255_scalar_reduce(u);
-      expect(hex(RistrettoScalar.decode(a).encode())).toBe(hex(a));
+      expect(RistrettoElement.decodeScalar(a)).toBe(scalar(a));
+      expect(hex(RistrettoElement.encodeScalar(RistrettoElement.decodeScalar(a)))).toBe(hex(a));
     });
   });
 });
@@ -217,3 +324,4 @@ describe("RistrettoScalar against libsodium", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #38    | new: both classes against libsodium (#35)                     |
+// | #40    | scalars are bigints, reduced by multiplyScalar; encodeScalar, decodeScalar, invertScalar (#39) |

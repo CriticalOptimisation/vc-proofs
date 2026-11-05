@@ -177,16 +177,19 @@ class RistrettoElement {
 An application may hold the published encoding of `h` rather than derive it on every
 commitment. Decoding that encoding checks only that it is a canonical encoding of a
 group element. It does not refuse the identity, which is a valid element encoded as 32
-zero bytes. **Decoding says nothing about where the element came from.** To check that
-the encoding is the `h` derived from its message, derive it once and compare, for
-example when the application starts or in its tests:
+zero bytes. **Decoding says nothing about where the element came from.** The
+[blinding context](core/blinding-context.md) checks it: built from the published
+encoding and its message, it compares `h` with the generator derived from the message,
+and each of its members that yields `h` or uses it rejects when they differ:
 
 ```ts
-const h = RistrettoElement.decode(published); // throws on bytes that encode no element
-if (!(await RistrettoElement.deriveGenerator(message)).equals(h)) {
-  throw new Error("h is not the generator derived from its message");
-}
+const context = BlindingContext.fromEncoded(published, message); // throws on bad bytes
+const h = await context.h(); // rejects if h is not the generator derived from message
 ```
+
+The context does not repeat the search for a small exponent of `deriveGenerator`: that
+refusal belongs to the choice of the message, made once (see
+[The validation](core/blinding-context.md#the-validation)).
 
 ## Reproducing h
 
@@ -259,4 +262,5 @@ Change History
 |-----|---------|
 | #37 | the derivation of h: construction, parameters, trust argument, vectors (#34) |
 | #38 | h as the factory RistrettoElement.deriveGenerator (#35) |
+| #40 | runtime use: the check of BlindingContext (#39) |
 -->

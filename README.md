@@ -25,13 +25,13 @@ npm install @criticaloptimisation/vc-proofs
 
 ## Entry points
 
-| Import                                 | Layer      | Exports                                                                     |
-| -------------------------------------- | ---------- | --------------------------------------------------------------------------- |
-| `@criticaloptimisation/vc-proofs`      | high level | the functions that return signed objects and check them, for every side     |
-| `@criticaloptimisation/vc-proofs/core` | low level  | the primitives, such as `requestHash`, on which the high-level API is built |
+| Import                                 | Layer      | Exports                                                                                           |
+| -------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------- |
+| `@criticaloptimisation/vc-proofs`      | high level | the functions that return signed objects and check them, for every side                           |
+| `@criticaloptimisation/vc-proofs/core` | low level  | the primitives, such as `requestHash` and `BlindingContext`, on which the high-level API is built |
 
 Both run in Node.js and in the browser: they use only WebCrypto, `TextEncoder`, typed
-arrays, `BigInt` and `@noble/curves`. The high-level entry point exports nothing yet. See
+arrays, `BigInt`, `setTimeout` and `@noble/curves`. The high-level entry point exports nothing yet. See
 [Integration](docs/integration.md#entry-points).
 
 The package has one runtime dependency, [`@noble/curves`](https://github.com/paulmillr/noble-curves),
@@ -63,12 +63,14 @@ gh attestation verify criticaloptimisation-vc-proofs-<version>.tgz -R CriticalOp
   defeat, and the residual risks it accepts.
 - [Integration](docs/integration.md): the functions an issuer, a wallet and a verifier
   call at each step.
-- [The group ristretto255](docs/core/ristretto255.md): `RistrettoElement` and
-  `RistrettoScalar`, the group values of the low-level entry point.
+- [The group ristretto255](docs/core/ristretto255.md): `RistrettoElement`, the group
+  elements of the low-level entry point, and its scalars, which are `bigint`s.
 - [Bounded integers](docs/core/bounded-int.md): `BoundedInt`, the integer of the low-level
   entry point, which will carry the bounds of a value.
 - [The generator h](docs/generator-h.md): how the Pedersen generator `h` is derived, and
   why nobody knows its discrete logarithm.
+- [The blinding context](docs/core/blinding-context.md): `BlindingContext`, the
+  constants of one application and the Pedersen commitments made with them.
 - [Development guide](docs/development.md).
 
 ## Development
@@ -89,5 +91,6 @@ Change History
 | #32 | entry points: the high-level API and ./core (#29) |
 | #37 | one runtime dependency, @noble/curves (#34) |
 | #38 | links The group ristretto255 and The generator h (#35) |
+| #40 | links The blinding context; setTimeout; scalars are bigints (#39) |
 | #42 | links Bounded integers (#41) |
 -->
