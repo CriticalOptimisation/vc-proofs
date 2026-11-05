@@ -31,10 +31,26 @@ describe("BoundedInt.from: the edges of the casts", () => {
     ["Number.MIN_SAFE_INTEGER - 1, which is -(2 ** 53)", Number.MIN_SAFE_INTEGER - 1, -(2n ** 53n)],
     // 2^53 + 1 is not a number: the addition already rounds it, ties to even, to 2^53.
     ["Number.MAX_SAFE_INTEGER + 2, which is 2 ** 53", Number.MAX_SAFE_INTEGER + 2, 2n ** 53n],
+    // REVIEW PLACEHOLDER (#41, Task 5: MAX_SAFE_INTEGER + 4 is 2^53 + 3, a tie that rounds to
+    // 2^53 + 4, not 2^53 + 2)
+    // "Number.MAX_SAFE_INTEGER + 4, which is 2 ** 53 + 2"
+    //   -> "Number.MAX_SAFE_INTEGER + 3, which is 2 ** 53 + 2"
+    //   -> "Number.MAX_SAFE_INTEGER + 4, which is 2 ** 53 + 4"
+    // [
+    //   "Number.MAX_SAFE_INTEGER + 4, which is 2 ** 53 + 2",
+    //   Number.MAX_SAFE_INTEGER + 4,
+    //   2n ** 53n + 2n,
+    // ],
     [
-      "Number.MAX_SAFE_INTEGER + 4, which is 2 ** 53 + 2",
-      Number.MAX_SAFE_INTEGER + 4,
+      "Number.MAX_SAFE_INTEGER + 3, which is 2 ** 53 + 2",
+      Number.MAX_SAFE_INTEGER + 3,
       2n ** 53n + 2n,
+    ],
+    // 2^53 + 3 is not a number either: it is a tie, and ties to even give 2^53 + 4.
+    [
+      "Number.MAX_SAFE_INTEGER + 4, which is 2 ** 53 + 4",
+      Number.MAX_SAFE_INTEGER + 4,
+      2n ** 53n + 4n,
     ],
     ["Number.MAX_VALUE", Number.MAX_VALUE, 2n ** 1024n - 2n ** 971n],
     ["-Number.MAX_VALUE", -Number.MAX_VALUE, -(2n ** 1024n - 2n ** 971n)],
