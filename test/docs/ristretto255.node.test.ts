@@ -19,6 +19,14 @@ function section(title: string): string {
   return page.slice(start, end === -1 ? undefined : end);
 }
 
+/** The text of the subsection `### <title>`, up to the next heading. */
+function subsection(title: string): string {
+  const start = page.indexOf(`\n### ${title}\n`);
+  expect(start).toBeGreaterThan(-1);
+  const end = page.slice(start + 1).search(/\n##+ /);
+  return page.slice(start, end === -1 ? undefined : start + 1 + end);
+}
+
 /** The public members of a class: its static members and those of its prototype. */
 function members(cls: { readonly prototype: unknown }): string[] {
   const statics = Object.getOwnPropertyNames(cls).filter(
@@ -70,6 +78,20 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
     }
   });
 
+  test("randomScalar is named among the scalar operations that need ℓ, as a member of the group of a context too", () => {
+    const text = subsection("ORDER, encodeScalar, decodeScalar and invertScalar");
+    expect(text).toMatch(/with `randomScalar`/);
+    expect(text).toMatch(/need\s+the order `ℓ`/);
+    expect(subsection("SUITE_NAME and randomScalar")).toMatch(/needs the order\s+`ℓ`/);
+  });
+
+  test("multiplyScalar documents that it multiplies for a scalar that reduces to 0 too", () => {
+    const text = subsection("multiplyScalar");
+    expect(text).toMatch(/still calls\s+it, with the scalar 1 in place of 0/);
+    expect(text).toMatch(/runs for every scalar/);
+    expect(text).not.toMatch(/returns the identity before/);
+  });
+
   test("Scalars sends a number of the application through BoundedInt, whose value the group takes", () => {
     expect(members(RistrettoElement)).toContain("static encodeScalar");
     expect(section("Scalars")).toMatch(/\(bounded-int\.md\)/);
@@ -81,4 +103,4 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #38    | new: the page names every public member (#35)                 |
-// | #40    | scalars are bigints: no section RistrettoScalar; ORDER, encodeScalar, decodeScalar, invertScalar; BoundedInt (#39) |
+// | #40    | scalars are bigints: no section RistrettoScalar; ORDER, encodeScalar, decodeScalar, invertScalar; BoundedInt; randomScalar needs ℓ; multiplyScalar of 0 (#39) |

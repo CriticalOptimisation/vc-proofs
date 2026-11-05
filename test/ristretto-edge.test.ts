@@ -7,9 +7,9 @@
  * RFC 9496, never from the code under test. The same file runs in Node.js and in every
  * headless browser.
  */
-import { ristretto255_hasher } from "@noble/curves/ed25519.js";
+import { ristretto255, ristretto255_hasher } from "@noble/curves/ed25519.js";
 import sodium from "libsodium-wrappers-sumo";
-import { beforeAll, describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test, vi } from "vitest";
 import { RistrettoElement } from "../src/core/index.js";
 import { deriveGeneratorWith } from "../src/core/ristretto.js";
 import vectors from "./vectors/generator-h.json" with { type: "json" };
@@ -558,6 +558,28 @@ describe("the identity", () => {
       expect(five().multiplyScalar(zero).isIdentity(), String(zero)).toBe(true);
     }
   });
+
+  test("a scalar that reduces to 0 still runs the multiplication, on a non-zero scalar", () => {
+    // noble's ristretto255 points inherit their multiplication from the prototype of
+    // their base class, which noble does not freeze; that multiplication refuses 0
+    const point = Object.getPrototypeOf(ristretto255.Point.prototype) as {
+      multiply(scalar: bigint): unknown;
+    };
+    const p = five();
+    const spy = vi.spyOn(point, "multiply");
+    try {
+      for (const n of [0n, L, -L, 2n * L, 3n, L + 3n, -1n]) {
+        spy.mockClear();
+        const product = p.multiplyScalar(n);
+        expect(spy, String(n)).toHaveBeenCalledOnce();
+        const used = spy.mock.calls[0]?.[0];
+        expect(typeof used === "bigint" && used > 0n && used < L, String(n)).toBe(true);
+        expect(product.isIdentity(), String(n)).toBe(n % L === 0n);
+      }
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });
 
 describe("the scalar members at their extremes", () => {
@@ -636,4 +658,4 @@ describe("the scalar members at their extremes", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #38    | new: the edge cases of both classes (#35)                     |
-// | #40    | scalars are bigints: multiplyScalar of any integer; decodeScalar of a view; the scalar members at their extremes (#39) |
+// | #40    | scalars are bigints: multiplyScalar of any integer; decodeScalar of a view; the scalar members at their extremes; multiplyScalar of a scalar that reduces to 0 still multiplies (#39) |

@@ -104,8 +104,10 @@ reduced value only: `multiplyScalar(n + ℓ)` and `multiplyScalar(n − ℓ)` eq
 
 It then uses the fixed-window multiplication of `@noble/curves`, whose sequence of
 point operations does not depend on the scalar (see [Constant time](#constant-time)).
-That multiplication refuses 0, so a scalar that reduces to 0 returns the identity before
-it is called. The only thing this branch can reveal is whether `n mod ℓ` is zero.
+That multiplication refuses 0. So when `n mod ℓ` is zero, `multiplyScalar` still calls
+it, with the scalar 1 in place of 0, does not use its product, and returns the identity.
+The multiplication thus runs for every scalar: its timing does not reveal whether
+`n mod ℓ` is zero, as a return before the call would.
 
 libsodium's `crypto_scalarmult_ristretto255` refuses a result equal to the identity;
 `multiplyScalar` returns it.
@@ -177,14 +179,18 @@ const valid = derived.equals(RistrettoElement.decode(published)); // decode thro
 With `SUITE_NAME` and `randomScalar`, the class `RistrettoElement` is a
 [group](blinding-context.md#the-group) for a blinding context, which uses no other group
 by default. `SUITE_NAME` is the string `Ristretto255`, which begins the serialization of
-a context. `randomScalar()` gives the random scalars a context draws.
+a context. `randomScalar()` gives the random scalars a context draws. It needs the order
+`ℓ` of the group, like the four members below: it reduces 64 random bytes mod `ℓ`, with
+the `Fn` of `@noble/curves` (see [Scalars](#scalars)). It belongs to `RistrettoElement`
+for the same reason as they do, `ℓ`; unlike them, it is also a member of the group of a
+blinding context.
 
 ### ORDER, encodeScalar, decodeScalar and invertScalar
 
-These four members are the scalar operations that need the order `ℓ` of the group. They
-are pure operations on `bigint`s; they belong to `RistrettoElement` because `ℓ` does, and
-they are not members of the [group of a blinding context](blinding-context.md#the-group),
-which does not use them.
+These four members, with `randomScalar` (see above), are the scalar operations that need
+the order `ℓ` of the group. They are pure operations on `bigint`s; they belong to
+`RistrettoElement` because `ℓ` does. Unlike `randomScalar`, they are not members of the
+[group of a blinding context](blinding-context.md#the-group), which does not use them.
 
 - **`ORDER`** is `ℓ = 2²⁵² + 27742317777372353535851937790883648493`, a `bigint`.
 - **`encodeScalar(n)`** returns the 32 little-endian bytes of `n mod ℓ`, in a new array.
@@ -245,12 +251,14 @@ the garbage collector all have timings that depend on data. The classes do what 
 done above that:
 
 - every operation on field elements is a method of the `Fp` (the field of edwards25519)
-  of `@noble/curves`; the reduction of a scalar mod `ℓ`, `encodeScalar`, `decodeScalar`
-  and `invertScalar` are methods of its `Fn`, never operations of our own on `bigint`;
+  of `@noble/curves`; the reduction of a scalar mod `ℓ`, `randomScalar`, `encodeScalar`,
+  `decodeScalar` and `invertScalar` are methods of its `Fn`, never operations of our own
+  on `bigint`;
 - the selections of RFC 9496 (`CT_SELECT`, `CT_ABS`) use `Fp.cmov`, not a JavaScript
   conditional;
 - `multiplyScalar` uses the fixed-window multiplication of `@noble/curves`, whose sequence
-  of point operations does not depend on the scalar;
+  of point operations does not depend on the scalar, and runs it for every scalar, a
+  scalar that reduces to 0 included (see [multiplyScalar](#multiplyscalar));
 - `equals` computes both comparisons of RFC 9496 before it combines them.
 
 `@noble/curves` states two limits, which therefore apply here:
@@ -307,5 +315,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #38 | new: RistrettoElement and RistrettoScalar (#35) |
-| #40 | links the blinding context; SUITE_NAME and randomScalar; scalars are bigints, RistrettoScalar removed; ORDER, encodeScalar, decodeScalar, invertScalar (#39) |
+| #40 | links the blinding context; SUITE_NAME and randomScalar; scalars are bigints, RistrettoScalar removed; ORDER, encodeScalar, decodeScalar, invertScalar; multiplyScalar runs its multiplication for a scalar that reduces to 0 (#39) |
 -->

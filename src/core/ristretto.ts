@@ -295,15 +295,18 @@ export class RistrettoElement {
 
   /**
    * `n·this`, for any integer `n`: reduced mod `ℓ` first, then noble's fixed-window
-   * multiplication. Noble refuses 0, so a scalar that reduces to 0 returns the identity
-   * before the call.
+   * multiplication. Noble refuses 0, so a scalar that reduces to 0 is replaced by 1 for
+   * the multiplication, whose product is not used, and the identity is returned: the
+   * multiplication runs for every scalar, so its timing does not tell whether `n mod ℓ`
+   * is 0 (docs/core/ristretto255.md, *multiplyScalar*).
    * @throws TypeError when `n` is not a `bigint`.
    */
   multiplyScalar(n: bigint): RistrettoElement {
     checkBigInt(n, "multiplyScalar: n");
     const value = Fn.create(n);
-    if (Fn.is0(value)) return RistrettoElement.identity();
-    return new RistrettoElement(this.#point.multiply(value));
+    const zero = Fn.is0(value);
+    const product = this.#point.multiply(Fn.cmov(value, Fn.ONE, zero));
+    return zero ? RistrettoElement.identity() : new RistrettoElement(product);
   }
 }
 
@@ -475,4 +478,4 @@ function hex(bytes: Uint8Array): string {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #38    | new: the two classes; the derivation of generator.ts (#35)    |
-// | #40    | SUITE_NAME, randomScalar, ORDER, encodeScalar, decodeScalar, invertScalar; bigint scalars, RistrettoScalar removed (#39) |
+// | #40    | SUITE_NAME, randomScalar, ORDER, encodeScalar, decodeScalar, invertScalar; bigint scalars, RistrettoScalar removed; multiplyScalar multiplies even for a scalar that reduces to 0 (#39) |
