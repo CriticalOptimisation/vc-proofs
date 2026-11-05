@@ -1,6 +1,7 @@
 /**
  * The edge cases of `BoundedInt` (#41; docs/core/bounded-int.md): negative zero, the
- * first unsafe integers on both sides, `valueOf()` at the edges of a `number`, boxed
+ * first integers beyond the safe ones on both sides, `valueOf()` at ±`Number.MAX_VALUE`,
+ * boxed
  * numbers and bigints, the messages of a subclass's `from`, and a subclass that
  * overrides `toString`. The same file runs in Node.js and in every headless browser.
  */
@@ -15,26 +16,63 @@ describe("BoundedInt.from: the edges of the casts", () => {
     expect(zero.toString()).toBe("0");
   });
 
+  // REVIEW PLACEHOLDER (#41, return to Task 4: every integer number is cast, at any magnitude)
+  // from(%s) throws a RangeError, not a TypeError
+  //   -> from(%s), just beyond the safe integers or at ±Number.MAX_VALUE, is exact
+  // test.each([
+  //   ["Number.MIN_SAFE_INTEGER - 1", Number.MIN_SAFE_INTEGER - 1],
+  //   ["Number.MAX_SAFE_INTEGER + 2", Number.MAX_SAFE_INTEGER + 2],
+  //   ["Number.MAX_VALUE", Number.MAX_VALUE],
+  //   ["-Number.MAX_VALUE", -Number.MAX_VALUE],
+  // ] as const)("from(%s) throws a RangeError, not a TypeError", (_, input) => {
+  //   expect(() => BoundedInt.from(input)).toThrow(RangeError);
+  //   expect(() => BoundedInt.from(input)).toThrow(/^BoundedInt\.from: /);
+  // });
   test.each([
-    ["Number.MIN_SAFE_INTEGER - 1", Number.MIN_SAFE_INTEGER - 1],
-    ["Number.MAX_SAFE_INTEGER + 2", Number.MAX_SAFE_INTEGER + 2],
-    ["Number.MAX_VALUE", Number.MAX_VALUE],
-    ["-Number.MAX_VALUE", -Number.MAX_VALUE],
-  ] as const)("from(%s) throws a RangeError, not a TypeError", (_, input) => {
-    expect(() => BoundedInt.from(input)).toThrow(RangeError);
-    expect(() => BoundedInt.from(input)).toThrow(/^BoundedInt\.from: /);
-  });
+    ["Number.MIN_SAFE_INTEGER - 1, which is -(2 ** 53)", Number.MIN_SAFE_INTEGER - 1, -(2n ** 53n)],
+    // 2^53 + 1 is not a number: the addition already rounds it, ties to even, to 2^53.
+    ["Number.MAX_SAFE_INTEGER + 2, which is 2 ** 53", Number.MAX_SAFE_INTEGER + 2, 2n ** 53n],
+    [
+      "Number.MAX_SAFE_INTEGER + 4, which is 2 ** 53 + 2",
+      Number.MAX_SAFE_INTEGER + 4,
+      2n ** 53n + 2n,
+    ],
+    ["Number.MAX_VALUE", Number.MAX_VALUE, 2n ** 1024n - 2n ** 971n],
+    ["-Number.MAX_VALUE", -Number.MAX_VALUE, -(2n ** 1024n - 2n ** 971n)],
+  ] as const)(
+    "from(%s), just beyond the safe integers or at ±Number.MAX_VALUE, is exact",
+    (_, input, expected) => {
+      expect(BoundedInt.from(input).value).toBe(expected);
+    },
+  );
 
   test("from(Number.MIN_SAFE_INTEGER) is exact", () => {
     expect(BoundedInt.from(Number.MIN_SAFE_INTEGER).value).toBe(-(2n ** 53n - 1n));
   });
 
+  // REVIEW PLACEHOLDER (#41, return to Task 4: 2 ** 53 + 0.5 is 2 ** 53, an integer)
+  // from(%s) is refused
+  //   -> from(%s), not an integer, throws a TypeError
+  //   -> from(2 ** 53 + 0.5), which is 2 ** 53, an integer, is 2n ** 53n
+  // test.each([
+  //   ["Number.EPSILON", Number.EPSILON],
+  //   ["-0.5", -0.5],
+  //   ["2 ** 53 + 0.5, which is 2 ** 53", 2 ** 53 + 0.5],
+  // ] as const)("from(%s) is refused", (_, input) => {
+  //   expect(() => BoundedInt.from(input)).toThrow(/^BoundedInt\.from: /);
+  // });
   test.each([
     ["Number.EPSILON", Number.EPSILON],
     ["-0.5", -0.5],
-    ["2 ** 53 + 0.5, which is 2 ** 53", 2 ** 53 + 0.5],
-  ] as const)("from(%s) is refused", (_, input) => {
+    ["2 ** 52 - 0.5", 2 ** 52 - 0.5],
+    ["Number.MIN_VALUE", Number.MIN_VALUE],
+  ] as const)("from(%s), not an integer, throws a TypeError", (_, input) => {
+    expect(() => BoundedInt.from(input)).toThrow(TypeError);
     expect(() => BoundedInt.from(input)).toThrow(/^BoundedInt\.from: /);
+  });
+
+  test("from(2 ** 53 + 0.5), which is 2 ** 53, an integer, is 2n ** 53n", () => {
+    expect(BoundedInt.from(2 ** 53 + 0.5).value).toBe(2n ** 53n);
   });
 
   test.each([
@@ -84,6 +122,15 @@ describe("BoundedInt: valueOf at the edges of a number", () => {
     expect(() => `<${a as unknown as string}>`).toThrow(RangeError);
   });
 
+  test.each([
+    // Number() rounds every integer below 2^1024 − 2^970 down to Number.MAX_VALUE.
+    ["the last integer that Number() rounds to Number.MAX_VALUE", 2n ** 1024n - 2n ** 970n - 1n],
+    ["the first integer that Number() rounds to Infinity", 2n ** 1024n - 2n ** 970n],
+  ] as const)("valueOf() of %s throws a RangeError, and so does its negation", (_, n) => {
+    expect(() => BoundedInt.from(n).valueOf()).toThrow(RangeError);
+    expect(() => BoundedInt.from(-n).valueOf()).toThrow(RangeError);
+  });
+
   test("value stays exact where valueOf() is not", () => {
     const a = BoundedInt.from(2n ** 53n + 1n);
     expect(a.value).toBe(2n ** 53n + 1n);
@@ -111,9 +158,18 @@ describe("BoundedInt: conversions not covered by the preliminary tests", () => {
 describe("BoundedInt: subclasses at the edges", () => {
   class Days extends BoundedInt {}
 
+  // REVIEW PLACEHOLDER (#41, return to Task 4: from(2 ** 60) is no longer refused)
+  // the messages of a subclass's inherited from name that subclass
+  //   -> the messages of a subclass's inherited from name that subclass (Infinity in place
+  //      of 2 ** 60)
+  // test("the messages of a subclass's inherited from name that subclass", () => {
+  //   expect(() => Days.from(1.5)).toThrow(/^Days\.from: /);
+  //   expect(() => Days.from(2 ** 60)).toThrow(/^Days\.from: /);
+  //   expect(() => Days.from("5" as never)).toThrow(/^Days\.from: /);
+  // });
   test("the messages of a subclass's inherited from name that subclass", () => {
     expect(() => Days.from(1.5)).toThrow(/^Days\.from: /);
-    expect(() => Days.from(2 ** 60)).toThrow(/^Days\.from: /);
+    expect(() => Days.from(Infinity)).toThrow(/^Days\.from: /);
     expect(() => Days.from("5" as never)).toThrow(/^Days\.from: /);
   });
 

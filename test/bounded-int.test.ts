@@ -1,14 +1,17 @@
 /**
  * `BoundedInt` (#41; docs/core/bounded-int.md): an integer held as a `bigint`, made only
- * by `BoundedInt.from`, which casts a safe integer `number` and refuses everything else
- * that is not a `bigint`. No bounds yet. Implicit conversions throw, except to a string;
- * `valueOf()` is an ordinary method that returns a `number`. The same file runs in
+ * by `BoundedInt.from`, which casts an integer `number`, at any magnitude, and refuses
+ * everything else that is not a `bigint`. No bounds yet. Implicit conversions throw,
+ * except to a string; `valueOf()` is an ordinary method that returns a `number`, within
+ * `±Number.MAX_VALUE`, and `from` takes it back. The same file runs in
  * Node.js and in every headless browser.
  */
 import { describe, expect, expectTypeOf, test } from "vitest";
 import { BoundedInt } from "../src/core/index.js";
 
 const L = 2n ** 252n + 27742317777372353535851937790883648493n;
+/** Number.MAX_VALUE, the largest finite number, as the integer it is: 2^1024 − 2^971. */
+const MAX = 2n ** 1024n - 2n ** 971n;
 const x = () => BoundedInt.from(5);
 
 describe("BoundedInt.from: the casts", () => {
@@ -34,6 +37,21 @@ describe("BoundedInt.from: the casts", () => {
   ] as const)("from(%s) keeps the integer as it is: no reduction mod ℓ", (_, input) => {
     expect(BoundedInt.from(input).value).toBe(input);
   });
+
+  test.each([
+    ["2 ** 60", 2 ** 60, 2n ** 60n],
+    ["-(2 ** 60)", -(2 ** 60), -(2n ** 60n)],
+    ["Number.MAX_SAFE_INTEGER + 1", Number.MAX_SAFE_INTEGER + 1, 2n ** 53n],
+    ["2 ** 60 + 2 ** 8", 2 ** 60 + 2 ** 8, 2n ** 60n + 2n ** 8n],
+    ["1e300", 1e300, BigInt(1e300)],
+    ["Number.MAX_VALUE", Number.MAX_VALUE, MAX],
+    ["-Number.MAX_VALUE", -Number.MAX_VALUE, -MAX],
+  ] as const)(
+    "from(%s), an integer number beyond 2^53 − 1, is the exact bigint of that number",
+    (_, input, expected) => {
+      expect(BoundedInt.from(input).value).toBe(expected);
+    },
+  );
 });
 
 describe("BoundedInt.from: the refusals", () => {
@@ -52,17 +70,21 @@ describe("BoundedInt.from: the refusals", () => {
     expect(() => BoundedInt.from(input as never)).toThrow(/from/);
   });
 
-  test.each([
-    ["2 ** 60", 2 ** 60],
-    ["-(2 ** 60)", -(2 ** 60)],
-    ["Number.MAX_SAFE_INTEGER + 1", Number.MAX_SAFE_INTEGER + 1],
-  ] as const)(
-    "from(%s), an integer number beyond 2^53 − 1, throws a RangeError that names from",
-    (_, input) => {
-      expect(() => BoundedInt.from(input)).toThrow(RangeError);
-      expect(() => BoundedInt.from(input)).toThrow(/from/);
-    },
-  );
+  // REVIEW PLACEHOLDER (#41, return to Task 4: every integer number is cast, at any magnitude)
+  // from(%s), an integer number beyond 2^53 − 1, throws a RangeError that names from
+  //   -> "BoundedInt.from: the casts" / from(%s), an integer number beyond 2^53 − 1, is
+  //      the exact bigint of that number
+  // test.each([
+  //   ["2 ** 60", 2 ** 60],
+  //   ["-(2 ** 60)", -(2 ** 60)],
+  //   ["Number.MAX_SAFE_INTEGER + 1", Number.MAX_SAFE_INTEGER + 1],
+  // ] as const)(
+  //   "from(%s), an integer number beyond 2^53 − 1, throws a RangeError that names from",
+  //   (_, input) => {
+  //     expect(() => BoundedInt.from(input)).toThrow(RangeError);
+  //     expect(() => BoundedInt.from(input)).toThrow(/from/);
+  //   },
+  // );
 });
 
 describe("BoundedInt: the instance", () => {
@@ -134,12 +156,72 @@ describe("BoundedInt: valueOf and toString", () => {
     expect(() => BoundedInt.from(input).valueOf()).toThrow(RangeError);
   });
 
+  test("valueOf() of ±Number.MAX_VALUE, as bigints, is ±Number.MAX_VALUE", () => {
+    expect(BoundedInt.from(MAX).valueOf()).toBe(Number.MAX_VALUE);
+    expect(BoundedInt.from(-MAX).valueOf()).toBe(-Number.MAX_VALUE);
+  });
+
+  test.each([
+    ["Number.MAX_VALUE + 1", MAX + 1n],
+    ["-Number.MAX_VALUE - 1", -MAX - 1n],
+  ] as const)("valueOf() of %s, beyond ±Number.MAX_VALUE, throws a RangeError", (_, input) => {
+    // Number(input) would still round it to ±Number.MAX_VALUE: valueOf() does not.
+    expect(() => BoundedInt.from(input).valueOf()).toThrow(RangeError);
+  });
+
   test.each([
     [5n, "5"],
     [-7n, "-7"],
     [10n ** 21n, "1e+21"],
   ] as const)("from(%s).toString() is the string of valueOf(): %s", (input, expected) => {
     expect(BoundedInt.from(input).toString()).toBe(expected);
+  });
+});
+
+describe("BoundedInt: from and valueOf convert back and forth", () => {
+  test.each([
+    ["0", 0],
+    ["-7", -7],
+    ["Number.MAX_SAFE_INTEGER", Number.MAX_SAFE_INTEGER],
+    ["2 ** 53", 2 ** 53],
+    ["-(2 ** 60)", -(2 ** 60)],
+    ["2 ** 60 + 2 ** 8", 2 ** 60 + 2 ** 8],
+    ["1e300", 1e300],
+    ["Number.MAX_VALUE", Number.MAX_VALUE],
+    ["-Number.MAX_VALUE", -Number.MAX_VALUE],
+  ] as const)("from(%s).valueOf() gives the number back", (_, n) => {
+    expect(BoundedInt.from(n).valueOf()).toBe(n);
+  });
+
+  test.each([
+    ["5n", 5n],
+    ["-(2^53)", -(2n ** 53n)],
+    ["2^60", 2n ** 60n],
+    ["2^1000", 2n ** 1000n],
+    ["Number.MAX_VALUE", MAX],
+    ["-Number.MAX_VALUE", -MAX],
+  ] as const)("from(b.valueOf()).value is b.value, for b = from(%s), held by a number", (_, v) => {
+    const b = BoundedInt.from(v);
+    expect(BoundedInt.from(b.valueOf()).value).toBe(b.value);
+  });
+
+  test.each([
+    ["2^53 + 1", 2n ** 53n + 1n, 2n ** 53n],
+    ["10^300", 10n ** 300n, BigInt(1e300)],
+    ["-(2^60 + 1)", -(2n ** 60n + 1n), -(2n ** 60n)],
+  ] as const)(
+    "from(b.valueOf()), for b = from(%s), not held by a number, is its nearest number",
+    (_, v, nearest) => {
+      const b = BoundedInt.from(v);
+      const back = BoundedInt.from(b.valueOf());
+      expect(back.value).toBe(nearest);
+      expect(back.valueOf()).toBe(b.valueOf());
+    },
+  );
+
+  test("beyond ±Number.MAX_VALUE, b.valueOf() throws a RangeError: there is no way back", () => {
+    expect(() => BoundedInt.from(BoundedInt.from(MAX + 1n).valueOf())).toThrow(RangeError);
+    expect(() => BoundedInt.from(BoundedInt.from(-MAX - 1n).valueOf())).toThrow(RangeError);
   });
 });
 
