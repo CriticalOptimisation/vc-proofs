@@ -15,7 +15,9 @@ import to say what its context is for.
 
 The library knows nothing about the values it commits to. The application maps its own
 numbers, such as a day count, to scalars, which are `bigint`s
-([Scalars](ristretto255.md#scalars)).
+([Scalars](ristretto255.md#scalars)), through [`BoundedInt`](bounded-int.md): it passes
+`BoundedInt.from(n).value`, or the `value` of a subclass that bounds, scales or salts
+`n`.
 
 ```ts
 import { BlindingContext } from "@criticaloptimisation/vc-proofs/core";
@@ -34,9 +36,10 @@ const opens = await context.isOpeningOf(20000n, blinding, commitment);
 - **Copied inputs.** The constructor copies its inputs before anything else, and works
   only on its copies (see [The validation](#the-validation)).
 - **No public constructor.** Contexts come only from the static factory below. A method
-  that receives anything other than a `bigint` where it expects a scalar, or than an
-  element of its group where it expects an element, throws a `TypeError`, as in
-  [ristretto255](ristretto255.md#values-and-errors).
+  that receives anything other than a `bigint` where it expects a scalar (a `number` and
+  a `BoundedInt` included), or than an element of its group where it expects an element,
+  throws a `TypeError`, as in [ristretto255](ristretto255.md#values-and-errors). Every
+  scalar it returns is a `bigint`.
 - **Errors**: `TypeError` for an input that is not a valid value (wrong type, wrong
   length, a non-canonical encoding), thrown at once by `fromEncoded`; `RangeError` when
   `h` is not the generator derived from the message, as the rejection of every member
@@ -146,7 +149,12 @@ and `blind(m + ℓ)` commit to the same value. `r` is drawn at random for each c
 with the `randomScalar()` of the group, is never `0n` (`C = m·g` would hide nothing),
 and is returned, since the holder needs it later for the proofs. No method accepts an
 `r` chosen by the caller for a new commitment. `blind(0n)` is allowed, and gives `r·h`.
-A `scalar` that is not a `bigint` is a `TypeError`, as a rejection.
+A `scalar` that is not a `bigint`, a `number` or a `BoundedInt` included, is a
+`TypeError`, as a rejection.
+
+A context commits to one value at a time. Whether a linear combination of commitments,
+such as `C₁ − C₂`, can wrap around `ℓ` depends on the range of each value, which belongs
+to [`BoundedInt`](bounded-int.md) and its subclasses, not to the context.
 
 ### isOpeningOf
 
@@ -253,5 +261,5 @@ Change History
 
 | PR  | Summary |
 |-----|---------|
-| #40 | new: BlindingContext, its group, validation, serialization and commitments, on bigint scalars (#39) |
+| #40 | new: BlindingContext, its group, validation, serialization and commitments, on bigint scalars; BoundedInt passes its value (#39) |
 -->
