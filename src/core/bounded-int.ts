@@ -10,7 +10,8 @@
  *   ties to even; `fromValue` takes the integer as it is. The integer is never reduced
  *   mod `ℓ`. Each instance carries three errors, in steps, which only decide the digits
  *   that `valueOf()` and `toString()` keep.
- * - `valueOf()` is an ordinary method that returns the nearest `number`.
+ * - `valueOf()` is an ordinary method that returns the nearest `number`, without the
+ *   digits that the term error makes meaningless.
  *   `[Symbol.toPrimitive]` converts to a string only, so JavaScript never calls
  *   `valueOf()` implicitly and `x + 1n` or `x < 5n` throws instead of giving a silent
  *   wrong answer.
@@ -352,7 +353,11 @@ export class BoundedInt {
       throw new TypeError(`${where}: spec must be an object`);
     }
     const name = checkName(spec.name, where);
-    const { scale, min, end } = spec;
+    const { scale, min, end } = spec as { scale: number; min: unknown; end: unknown };
+    // Left out, both bounds would make a class with no range: defineRaw requires them.
+    if (typeof min !== "bigint" || typeof end !== "bigint") {
+      throw new TypeError(`${where}: min and end must be bigints`);
+    }
     return makeClass(this, name, { scale, min, end, integerOnly: false }, where);
   }
 
@@ -390,7 +395,12 @@ export class BoundedInt {
     if (n === 0n) result = 0;
     else if (j === k) result = Number(n);
     else if (j > k) result = Number(n) * pow10(j - k);
-    else result = Number(n) / pow10(k - j);
+    else {
+      result = Number(n) / pow10(k - j);
+      // `n` beyond the numbers, its decimal maybe not: at that magnitude, the integer
+      // part of the decimal holds every digit a `number` can keep.
+      if (!Number.isFinite(result)) result = Number(roundHalfEven(n, pow10n(k - j)));
+    }
     if (!Number.isFinite(result)) {
       throw new RangeError(`${this.constructor.name}.valueOf: beyond the range of a number`);
     }
