@@ -10,9 +10,11 @@ point, `@criticaloptimisation/vc-proofs/core`, wraps the integer in a class,
 
 A class of bounded integers holds a quantity: its **scale**, a power of ten, turns a
 physical value into an integer, and its **range** bounds that integer. Both are
-class-level constants, the same for every instance. `BoundedInt` itself has a scale of 1
-and no range; its subclasses, made by [`define`](#define) and [`defineRaw`](#defineraw),
-have their own.
+class-level constants, the same for every instance, and **every class has both**.
+`BoundedInt` itself has a scale of 0, a factor of 1, and the widest range there is: the
+`ℓ` integers centered on 0, one for each scalar of the group (see
+[The range of BoundedInt](#the-range-of-boundedint)). Its subclasses, made by
+[`define`](#define) and [`defineRaw`](#defineraw), have their own, within it.
 
 ```ts
 import { BoundedInt } from "@criticaloptimisation/vc-proofs/core";
@@ -28,8 +30,10 @@ m.valueOf(); // 2.3: the physical value, a number
 Mass.from(100.06); // RangeError: 1001 is not below Mass.end
 m + 1n; // TypeError: no implicit conversion, except to a string
 
-const days = BoundedInt.from(19_000); // BoundedInt: scale 1, no range
+const days = BoundedInt.from(19_000); // BoundedInt: scale 0, the range of the scalars
 days.value; // 19000n
+BoundedInt.end - BoundedInt.min; // ℓ: one integer for each scalar
+BoundedInt.from(2n ** 252n); // RangeError: 2^252 is not below BoundedInt.end
 ```
 
 ## Values and errors
@@ -40,29 +44,29 @@ days.value; // 19000n
 - **No public constructor.** Instances come only from `from` and `fromValue`, on
   `BoundedInt` or on one of its subclasses.
 - **An integer, not a scalar.** The integer is kept as it is, with its sign: it is never
-  reduced mod `ℓ`. The group never takes a `BoundedInt`: wherever it takes an integer,
-  pass `x.value` (see [The group ristretto255](ristretto255.md)).
+  reduced mod `ℓ`. An integer outside the range of its class is refused, never wrapped.
+  The group never takes a `BoundedInt`: wherever it takes an integer, pass `x.value`
+  (see [The group ristretto255](ristretto255.md)).
 - **Errors**: `TypeError` for an input of the wrong kind, such as a `number` that is not
   an integer where only integers are accepted, or a constant of the wrong type;
-  `RangeError` for a value outside the range of its class, an invalid set of constants,
-  or a `number` too large for `valueOf()` to return as a finite `number`. The messages
-  name the method and the class it was called on.
+  `RangeError` for a value outside the range of its class, or an invalid set of
+  constants. The messages name the method and the class it was called on.
 
 ## BoundedInt
 
-| Member                         | Returns                                                        | Errors                               |
-| ------------------------------ | -------------------------------------------------------------- | ------------------------------------ |
-| `static from(x, error?)`       | a new instance holding the physical value `x`, scaled          | see [from](#from)                    |
-| `static fromValue(q, errors?)` | a new instance holding the integer `q`, as it is               | see [fromValue](#fromvalue)          |
-| `static define(spec)`          | a new subclass, from physical bounds and a step                | see [define](#define)                |
-| `static defineRaw(spec)`       | a new subclass, from a scale and integer bounds                | see [defineRaw](#defineraw)          |
-| `value`                        | the integer, a `bigint`                                        | none                                 |
-| `errorBound`                   | the bound of the error, in steps                               | none                                 |
-| `quadraticError`               | the quadratic error, in steps                                  | none                                 |
-| `termError`                    | the error of the least accurate term, in steps                 | none                                 |
-| `valueOf()`                    | the physical value, a `number`, without its meaningless digits | `RangeError` where it is `±Infinity` |
-| `toString()`                   | the string of `valueOf()`, with the digits that carry meaning  | as `valueOf()`                       |
-| `[Symbol.toPrimitive](hint)`   | `toString()` for the hint `"string"`                           | `TypeError` for any other hint       |
+| Member                         | Returns                                                        | Errors                         |
+| ------------------------------ | -------------------------------------------------------------- | ------------------------------ |
+| `static from(x, error?)`       | a new instance holding the physical value `x`, scaled          | see [from](#from)              |
+| `static fromValue(q, errors?)` | a new instance holding the integer `q`, as it is               | see [fromValue](#fromvalue)    |
+| `static define(spec)`          | a new subclass, from physical bounds and a step                | see [define](#define)          |
+| `static defineRaw(spec)`       | a new subclass, from a scale and integer bounds                | see [defineRaw](#defineraw)    |
+| `value`                        | the integer, a `bigint`                                        | none                           |
+| `errorBound`                   | the bound of the error, in steps                               | none                           |
+| `quadraticError`               | the quadratic error, in steps                                  | none                           |
+| `termError`                    | the error of the least accurate term, in steps                 | none                           |
+| `valueOf()`                    | the physical value, a `number`, without its meaningless digits | none                           |
+| `toString()`                   | the string of `valueOf()`, with the digits that carry meaning  | none                           |
+| `[Symbol.toPrimitive](hint)`   | `toString()` for the hint `"string"`                           | `TypeError` for any other hint |
 
 Every static member works on the class it is called on: `Mass.from(2.3)` is a `Mass`,
 checked against the range of `Mass`, and a subclass that does not override `from` gets
@@ -73,29 +77,53 @@ instances of its own.
 A class is described by four constants, which every member reads from the class of the
 call (`this` in a static member, `this.constructor` in an instance member):
 
-| Constant      | Meaning                                                                   | On `BoundedInt` |
-| ------------- | ------------------------------------------------------------------------- | --------------- |
-| `scale`       | the integer `k` of the factor `10^k`: the step of the class is `10^-k`    | `0`             |
-| `min`         | the lowest integer of the range, a `bigint`                               | none            |
-| `end`         | the integer just above the range, a `bigint`: the range is `[min, end)`   | none            |
-| `integerOnly` | whether `from` accepts only integers, as `BoundedInt` does, or rounds `x` | `true`          |
+| Constant      | Meaning                                                                   | On `BoundedInt`  |
+| ------------- | ------------------------------------------------------------------------- | ---------------- |
+| `scale`       | the integer `k` of the factor `10^k`: the step of the class is `10^-k`    | `0`              |
+| `min`         | the lowest integer of the range, a `bigint`                               | `-(ℓ - 1n) / 2n` |
+| `end`         | the integer just above the range, a `bigint`: the range is `[min, end)`   | `(ℓ + 1n) / 2n`  |
+| `integerOnly` | whether `from` accepts only integers, as `BoundedInt` does, or rounds `x` | `true`           |
 
 - **The scale is a power of ten.** `k` is an integer from `−22` to `22`: a step of
   `0.01` is `k = 2`, a step of 1000 is `k = −3`. The integer of a value `x` counts steps:
   `q = x · 10^k`, rounded. The decimal that `q` stands for, `D(q) = q · 10^-k`, is
   exact: see [Rounding](#rounding) for why the factor is a power of ten and not of two.
 - **The range is semi-open**, like the integers of a fixed width: `[−8, 8)` holds the
-  integers from −8 to 7. `end − min` is the number of integers in the range. A class
-  with no `min` and no `end` has no range: every integer is accepted. Only the features
-  that need a range, such as linear combinations, require one.
+  integers from −8 to 7. `end − min` is the number of integers in the range. Every
+  class has one, within the range of `BoundedInt`, so every class can be asked for its
+  bounds.
 - **No offset.** Zero is the integer 0, and a negative value is a negative `bigint`. A
   public constant `c` therefore commits as `c·g`, and a linear combination of values
   needs no correction for an offset.
 - **`integerOnly`** is `true` on `BoundedInt`, and, for a class that does not declare
   it, `true` when its scale is 0 and `false` otherwise.
 
-A class that declares none of the constants inherits those of `BoundedInt`: a scale of 1,
-no range, integers only. A class that declares one bound must declare both.
+A class that declares none of the constants inherits those of `BoundedInt`: a scale of 0,
+the range of `BoundedInt`, integers only. A class that declares one bound must declare
+both.
+
+#### The range of BoundedInt
+
+The integers of `BoundedInt` are the scalars of the group, `Z_ℓ`, each written once.
+Any `ℓ` consecutive integers hold exactly one integer of each residue mod `ℓ`; two such
+intervals are natural:
+
+- `[0, ℓ)`, the scalars as the group writes them, with positive integers only;
+- the interval centered on 0, `[−(ℓ − 1)/2, (ℓ + 1)/2)`: `ℓ` is odd, so it holds the
+  integers from `−(ℓ − 1)/2` to `(ℓ − 1)/2`, about `±2^251`.
+
+`BoundedInt` takes the centered one. A value keeps its sign: `cutoff − DoB` is negative
+when the holder is too young, and is a negative `bigint`, not a large positive one. Zero
+is 0, with no offset, and the rounding is symmetric (see [Rounding](#rounding)). So
+`BoundedInt.min` is `-(ℓ - 1n) / 2n` and `BoundedInt.end` is `(ℓ + 1n) / 2n`, and
+`BoundedInt.end - BoundedInt.min` is `ℓ`, the `ORDER` of
+[the group ristretto255](ristretto255.md#order-encodescalar-decodescalar-and-invertscalar).
+
+The range of every other class lies within it: `BoundedInt.min ≤ min` and
+`end ≤ BoundedInt.end`. A `BoundedInt` of any class is therefore the one integer of its
+range that stands for its scalar, and two classes never give the same scalar two
+different integers. Within this range, `valueOf()` is always a finite `number`: the
+integer is below `2^252` in absolute value, and the factor at most `10^22`.
 
 The constants of a class made by `define` or `defineRaw` are checked when it is made. A
 class written by hand, `class Days extends BoundedInt { static override min = 0n; static
@@ -108,6 +136,7 @@ under `noImplicitOverride`:
 | `min` without `end`, or `end` without `min`                                        | `TypeError`  |
 | `min` or `end` not a `bigint`, `scale` not a `number`, `integerOnly` not a boolean | `TypeError`  |
 | `min ≥ end`                                                                        | `RangeError` |
+| `min` below `BoundedInt.min`, or `end` above `BoundedInt.end`                      | `RangeError` |
 | `scale` not an integer, or beyond `±22`                                            | `RangeError` |
 
 Constants changed after the first use of a class are not checked again: declare them once.
@@ -123,8 +152,8 @@ an instance of the class it is called on:
 2. **Rounding.** The product is rounded to the nearest integer, ties to even (see
    [Rounding](#rounding)). This is the only rounding of `from`. On a class with
    `integerOnly`, a `number` that is not an integer is refused instead.
-3. **Range.** On a class with a range, the integer `q` must satisfy `min ≤ q < end`. The
-   check is made on `q`, after rounding: `Mass.from(100.04)` is accepted as `1000n`,
+3. **Range.** The integer `q` must satisfy `min ≤ q < end`. The check is made on `q`,
+   after rounding: `Mass.from(100.04)` is accepted as `1000n`,
    100.0 kg, and `Mass.from(100.06)`, which rounds to 1001, is refused.
 4. **Errors.** `error` is the accuracy of `x`, in the unit of `x`: a finite `number`,
    `0` or more. It is scaled like `x`, and the three errors of the instance are set to
@@ -143,11 +172,12 @@ an instance of the class it is called on:
 | `error` not a `number`                                                  | `TypeError`                      |
 | `error` negative, `NaN` or infinite                                     | `RangeError`                     |
 
-On `BoundedInt`, with a scale of 1 and no range, `from` keeps its integer exactly: a
-`bigint` as it is, `from(-1n).value` is `-1n`, and every finite `number` without a
-fractional part at any magnitude, so `from(2 ** 60).value` is `2n ** 60n` and
-`from(Number.MAX_VALUE).value` is `2n ** 1024n - 2n ** 971n`. `-0` gives `0n`. Only a
-class with a range throws a `RangeError`.
+On `BoundedInt`, with a scale of 0, `from` keeps its integer exactly within the range of
+`BoundedInt`: a `bigint` as it is, `from(-1n).value` is `-1n`, and every `number`
+without a fractional part, so `from(2 ** 60).value` is `2n ** 60n` and
+`from(2 ** 251).value` is `2n ** 251n`. `-0` gives `0n`. Beyond the range, it throws a
+`RangeError`, as every class does: `from(2n ** 252n)`, `from(ℓ)` and
+`from(Number.MAX_VALUE)` are refused.
 
 A `BoundedInt` is refused: a caller that has one already has its `value`.
 
@@ -207,11 +237,11 @@ the digits that the error makes meaningless.
    division or multiplication is then correctly rounded.
 
 With the default error of `½`, `j` is 0 and `valueOf()` is the `number` nearest to
-`D(q)`. Where that `number` would be `±Infinity`, `valueOf()` throws a `RangeError`:
-the precision may be lost, never the order of magnitude. On `BoundedInt`, `valueOf()` is
-the nearest `number` to the integer, ties to even, so `2n ** 53n + 1n` gives `2 ** 53`;
-the largest finite `number`, `Number.MAX_VALUE`, is the integer `2¹⁰²⁴ − 2⁹⁷¹`, and
-integers from `2¹⁰²⁴ − 2⁹⁷⁰` up, or from `−(2¹⁰²⁴ − 2⁹⁷⁰)` down, throw.
+`D(q)`. It is always finite, since the range of every class lies within that of
+`BoundedInt` (see [The range of BoundedInt](#the-range-of-boundedint)), so `valueOf()`
+never throws. On `BoundedInt`, `valueOf()` is the nearest `number` to the integer, ties
+to even, so `2n ** 53n + 1n` gives `2 ** 53`, and `BoundedInt.fromValue(BoundedInt.end -
+1n).valueOf()` is `Number((ℓ - 1n) / 2n)`, about `3.6e75`.
 
 `toString()` writes the digits that `valueOf()` kept, and no other: with `d = k − j`
 decimals, it returns `this.valueOf().toFixed(d)` when `d > 0`, and
@@ -275,7 +305,8 @@ The last limit keeps every value of the class within the 15 significant digits t
 
 `BoundedInt.defineRaw({ name, scale, min, end })` makes a frozen subclass from its
 constants directly: `scale` an integer from `−22` to `22`, and `min < end`, two
-`bigint`s. It has no limit of `10^15`, and `integerOnly` is `false`. A linear
+`bigint`s within the range of `BoundedInt`. It has no limit of `10^15`, and
+`integerOnly` is `false`. A linear
 combination makes the class of its results with it. Its errors are those of
 [the class constants](#the-class-constants), and a `TypeError` for a `name` that is not a
 non-empty string.
