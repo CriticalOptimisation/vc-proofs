@@ -98,8 +98,10 @@ A class that declares none of the constants inherits those of `BoundedInt`: a sc
 no range, integers only. A class that declares one bound must declare both.
 
 The constants of a class made by `define` or `defineRaw` are checked when it is made. A
-class written by hand, `class Days extends BoundedInt { static min = 0n; static end =
-365251n }`, is checked at its first `from` or `fromValue`, once:
+class written by hand, `class Days extends BoundedInt { static override min = 0n; static
+override end = 365251n }`, is checked at its first `from` or `fromValue`, once. Each
+constant it declares overrides that of `BoundedInt`, so TypeScript requires `override`
+under `noImplicitOverride`:
 
 | Constants                                                                          | Error        |
 | ---------------------------------------------------------------------------------- | ------------ |
