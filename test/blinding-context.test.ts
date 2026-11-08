@@ -166,21 +166,6 @@ describe("BlindingContext: construction and validation", () => {
     expect(hex(serialized.subarray(12))).toBe(contextVectors.context.h);
   });
 
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // %s: fromEncoded returns, and h, serialize, blind and isOpeningOf reject with a RangeError
-  //   -> %s: fromEncoded returns, and h, serialize, blind and isOpeningOf reject with a RangeError
-  // test.each(invalid)(
-  //   "%s: fromEncoded returns, and h, serialize, blind and isOpeningOf reject with a RangeError",
-  //   async (_name, build) => {
-  //     const context = build();
-  //     expect(context).toBeDefined();
-  //     const one = scalar(1n);
-  //     await expect(context.h()).rejects.toThrow(RangeError);
-  //     await expect(context.serialize()).rejects.toThrow(RangeError);
-  //     await expect(context.blind(one)).rejects.toThrow(RangeError);
-  //     await expect(context.isOpeningOf(one, one, g())).rejects.toThrow(RangeError);
-  //   },
-  // );
   test.each(invalid)(
     "%s: fromEncoded returns, and h, serialize, blind and isOpeningOf reject with a RangeError",
     async (_name, build) => {
@@ -225,14 +210,6 @@ describe("BlindingContext: construction and validation", () => {
     expect(ageCheckContext().group).toBe(RistrettoElement);
   });
 
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // RistrettoElement is a group: its SUITE_NAME is Ristretto255, its Scalar RistrettoScalar
-  //   -> RistrettoElement is a group: its SUITE_NAME is Ristretto255, its randomScalar() a bigint, and it has no Scalar
-  // test("RistrettoElement is a group: its SUITE_NAME is Ristretto255, its Scalar RistrettoScalar", () => {
-  //   const group = RistrettoElement as unknown as Record<string, unknown>;
-  //   expect(group.SUITE_NAME).toBe("Ristretto255");
-  //   expect(group.Scalar).toBe(RistrettoScalar);
-  // });
   test("RistrettoElement is a group: its SUITE_NAME is Ristretto255, its randomScalar() a bigint, and it has no Scalar", () => {
     const group = RistrettoElement as unknown as Record<string, unknown>;
     expect(group.SUITE_NAME).toBe("Ristretto255");
@@ -245,16 +222,6 @@ describe("BlindingContext: construction and validation", () => {
 });
 
 describe("BlindingContext: commitments", () => {
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // blind gives C = m·g + r·h with the returned r, and r ≠ 0
-  //   -> blind gives C = m·g + r·h with the returned r, a bigint from 1 to ℓ − 1
-  // test("blind gives C = m·g + r·h with the returned r, and r ≠ 0", async () => {
-  //   const context = ageCheckContext();
-  //   const m = scalar(20000n);
-  //   const { commitment, blinding } = await context.blind(m);
-  //   expect(blinding.isZero()).toBe(false);
-  //   expect(commitment.equals(pedersen(m, blinding, await context.h()))).toBe(true);
-  // });
   test("blind gives C = m·g + r·h with the returned r, a bigint from 1 to ℓ − 1", async () => {
     const context = ageCheckContext();
     const m = 20000n;
@@ -264,17 +231,6 @@ describe("BlindingContext: commitments", () => {
     expect(commitment.equals(pedersen(m, blinding, await context.h()))).toBe(true);
   });
 
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // two commitments to the same scalar have different r and C
-  //   -> two commitments to the same scalar have different r and C
-  // test("two commitments to the same scalar have different r and C", async () => {
-  //   const context = ageCheckContext();
-  //   const m = scalar(20000n);
-  //   const first = await context.blind(m);
-  //   const second = await context.blind(m);
-  //   expect(first.blinding.equals(second.blinding)).toBe(false);
-  //   expect(first.commitment.equals(second.commitment)).toBe(false);
-  // });
   test("two commitments to the same scalar have different r and C", async () => {
     const context = ageCheckContext();
     const first = await context.blind(20000n);
@@ -288,15 +244,16 @@ describe("BlindingContext: commitments", () => {
     const x = BoundedInt.from(20000);
     const { commitment, blinding } = await context.blind(x.value);
     expect(commitment.equals(pedersen(20000n, blinding, await context.h()))).toBe(true);
-    expect(await context.isOpeningOf(x.value, BoundedInt.from(blinding).value, commitment)).toBe(
-      true,
-    );
+    // The range of BoundedInt is centered on 0 (#44): a blinding above (ℓ − 1)/2 is the
+    // integer blinding − ℓ there, the same scalar.
+    const r = blinding > (L - 1n) / 2n ? blinding - L : blinding;
+    expect(await context.isOpeningOf(x.value, BoundedInt.from(r).value, commitment)).toBe(true);
     await expect(context.blind(x as never)).rejects.toBeInstanceOf(TypeError);
     await expect(context.isOpeningOf(x as never, blinding, commitment)).rejects.toBeInstanceOf(
       TypeError,
     );
     await expect(
-      context.isOpeningOf(20000n, BoundedInt.from(blinding) as never, commitment),
+      context.isOpeningOf(20000n, BoundedInt.from(r) as never, commitment),
     ).rejects.toBeInstanceOf(TypeError);
   });
 
@@ -317,20 +274,6 @@ describe("BlindingContext: commitments", () => {
     expect(await context.isOpeningOf(m + 1n, r, commitment)).toBe(false);
   });
 
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // blindWith a fixed r gives the commitment of vector $name
-  //   -> blindWith a fixed r gives the commitment of vector $name
-  // test.each(contextVectors.commitments)(
-  //   "blindWith a fixed r gives the commitment of vector $name",
-  //   async (vector) => {
-  //     expect(typeof seams.blindWith).toBe("function");
-  //     const r = RistrettoScalar.decode(fromHex(vector.r));
-  //     const m = RistrettoScalar.decode(fromHex(vector.mHex));
-  //     const blinded = await seams.blindWith?.(seamContext(), m, () => r);
-  //     expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(vector.commitment);
-  //     expect(blinded?.blinding.equals(r)).toBe(true);
-  //   },
-  // );
   test.each(contextVectors.commitments)(
     "blindWith a fixed r gives the commitment of vector $name",
     async (vector) => {
@@ -344,24 +287,6 @@ describe("BlindingContext: commitments", () => {
     },
   );
 
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // blindWith draws again when the draw is 0
-  //   -> blindWith draws again when the draw is 0n
-  // test("blindWith draws again when the draw is 0", async () => {
-  //   expect(typeof seams.blindWith).toBe("function");
-  //   const vector = contextVectors.commitments[0];
-  //   if (vector === undefined) throw new Error("no commitment vector");
-  //   const r = RistrettoScalar.decode(fromHex(vector.r));
-  //   const draws = [scalar(0n), r];
-  //   const draw = vi.fn(() => draws.shift() ?? scalar(0n));
-  //   const blinded = await seams.blindWith?.(
-  //     seamContext(),
-  //     RistrettoScalar.decode(fromHex(vector.mHex)),
-  //     draw,
-  //   );
-  //   expect(draw).toHaveBeenCalledTimes(2);
-  //   expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(vector.commitment);
-  // });
   test("blindWith draws again when the draw is 0n", async () => {
     expect(typeof seams.blindWith).toBe("function");
     const vector = contextVectors.commitments[0];
@@ -380,15 +305,6 @@ describe("BlindingContext: commitments", () => {
 });
 
 describe("BlindingContext: openings", () => {
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // isOpeningOf accepts the opening that blind returned
-  //   -> isOpeningOf accepts the opening that blind returned
-  // test("isOpeningOf accepts the opening that blind returned", async () => {
-  //   const context = ageCheckContext();
-  //   const m = scalar(20000n);
-  //   const { commitment, blinding } = await context.blind(m);
-  //   expect(await context.isOpeningOf(m, blinding, commitment)).toBe(true);
-  // });
   test("isOpeningOf accepts the opening that blind returned", async () => {
     const context = ageCheckContext();
     const m = 20000n;
@@ -396,16 +312,6 @@ describe("BlindingContext: openings", () => {
     expect(await context.isOpeningOf(m, blinding, commitment)).toBe(true);
   });
 
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // isOpeningOf refuses a wrong scalar and a wrong blinding factor
-  //   -> isOpeningOf refuses a wrong scalar and a wrong blinding factor
-  // test("isOpeningOf refuses a wrong scalar and a wrong blinding factor", async () => {
-  //   const context = ageCheckContext();
-  //   const m = scalar(20000n);
-  //   const { commitment, blinding } = await context.blind(m);
-  //   expect(await context.isOpeningOf(scalar(20001n), blinding, commitment)).toBe(false);
-  //   expect(await context.isOpeningOf(m, blinding.add(scalar(1n)), commitment)).toBe(false);
-  // });
   test("isOpeningOf refuses a wrong scalar and a wrong blinding factor", async () => {
     const context = ageCheckContext();
     const m = 20000n;
@@ -414,17 +320,6 @@ describe("BlindingContext: openings", () => {
     expect(await context.isOpeningOf(m, blinding + 1n, commitment)).toBe(false);
   });
 
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // isOpeningOf refuses a commitment of another context: contexts are independent
-  //   -> isOpeningOf refuses a commitment of another context: contexts are independent
-  // test("isOpeningOf refuses a commitment of another context: contexts are independent", async () => {
-  //   const ours = ageCheckContext();
-  //   const theirs = BlindingContext.fromEncoded(abc().h, abc().message);
-  //   const m = scalar(20000n);
-  //   const { commitment, blinding } = await theirs.blind(m);
-  //   expect(await theirs.isOpeningOf(m, blinding, commitment)).toBe(true);
-  //   expect(await ours.isOpeningOf(m, blinding, commitment)).toBe(false);
-  // });
   test("isOpeningOf refuses a commitment of another context: contexts are independent", async () => {
     const ours = ageCheckContext();
     const theirs = BlindingContext.fromEncoded(abc().h, abc().message);
@@ -436,20 +331,6 @@ describe("BlindingContext: openings", () => {
 });
 
 describe("BlindingContext: the queue of blindings", () => {
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // after a first blind, the queue fills up to 10 pairs, and no more
-  //   -> after a first blind, the queue fills up to 10 pairs, and no more
-  // test("after a first blind, the queue fills up to 10 pairs, and no more", async () => {
-  //   expect(typeof seams.queuedBlindings).toBe("function");
-  //   const context = seamContext();
-  //   const queued = () => seams.queuedBlindings?.(context);
-  //   await context.blind(scalar(1n));
-  //   await vi.waitFor(() => {
-  //     expect(queued()).toBe(10);
-  //   }, 5000);
-  //   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 10));
-  //   expect(queued()).toBe(10);
-  // });
   test("after a first blind, the queue fills up to 10 pairs, and no more", async () => {
     expect(typeof seams.queuedBlindings).toBe("function");
     const context = seamContext();
@@ -462,21 +343,6 @@ describe("BlindingContext: the queue of blindings", () => {
     expect(queued()).toBe(10);
   });
 
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // 20 concurrent commitments are correct and distinct
-  //   -> 20 concurrent commitments are correct and distinct
-  // test("20 concurrent commitments are correct and distinct", async () => {
-  //   const context = ageCheckContext();
-  //   const h = await context.h();
-  //   const values = Array.from({ length: 20 }, (_, i) => scalar(BigInt(i)));
-  //   const blinded = await Promise.all(values.map((m) => context.blind(m)));
-  //   blinded.forEach(({ commitment, blinding }, i) => {
-  //     const m = values[i] ?? scalar(0n);
-  //     expect(commitment.equals(pedersen(m, blinding, h))).toBe(true);
-  //   });
-  //   const commitments = new Set(blinded.map(({ commitment }) => hex(commitment.encode())));
-  //   expect(commitments.size).toBe(20);
-  // });
   test("20 concurrent commitments are correct and distinct", async () => {
     const context = ageCheckContext();
     const h = await context.h();
@@ -548,21 +414,6 @@ describe("BlindingContext over another group", () => {
     expect(hex(serialized.subarray(10))).toBe(hex(h.encode()));
   });
 
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // blind commits with the generator of the group, and draws r from its Scalar
-  //   -> blind commits with the generator of the group, and draws r from its randomScalar
-  // test("blind commits with the generator of the group, and draws r from its Scalar", async () => {
-  //   const group = otherGroup();
-  //   const h = await hOf(group);
-  //   const context = BlindingContext.fromEncoded(h.encode(), message(), group);
-  //   const m = scalar(20000n);
-  //   const { commitment, blinding } = await context.blind(m);
-  //   const expected = group.canonicalGenerator().multiplyScalar(m).add(h.multiplyScalar(blinding));
-  //   expect(commitment.equals(expected)).toBe(true);
-  //   expect(commitment.equals(pedersen(m, blinding, h))).toBe(false);
-  //   expect(group.drawn()).toBeGreaterThan(0);
-  //   expect(await context.isOpeningOf(m, blinding, commitment)).toBe(true);
-  // });
   test("blind commits with the generator of the group, and draws r from its randomScalar", async () => {
     const group = otherGroup();
     const h = await hOf(group);

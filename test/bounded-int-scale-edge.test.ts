@@ -2,7 +2,7 @@
  * The edge cases of the classes of `BoundedInt` (#44; docs/core/bounded-int.md): the
  * scales `±22` and `±23`, the limit of `10^15` of `define`, negative zero, `NaN`,
  * infinities and subnormal inputs, negative ties at every scale, `defineRaw` beyond
- * `10^15` and `valueOf()` near `±Infinity`, a class written by hand checked once,
+ * `10^15` and up to the range of `BoundedInt`, a class written by hand checked once,
  * `toString()` with no decimals and a rounding position above 0 on negative values, and
  * the error of `from` at a negative scale. The same file runs in Node.js and in every
  * headless browser.
@@ -11,13 +11,13 @@ import { describe, expect, test } from "vitest";
 import { BoundedInt } from "../src/core/index.js";
 import { classes } from "./helpers/bounded-int-examples.js";
 
-/** A class with the scale `k`, a range wide enough for every test, and no `integerOnly`. */
+/** A class with the scale `k`, the range of `BoundedInt`, the widest, and no `integerOnly`. */
 const wide = (k: number) =>
   BoundedInt.defineRaw({
     name: `Wide${String(k)}`,
     scale: k,
-    min: -(10n ** 400n),
-    end: 10n ** 400n,
+    min: BoundedInt.min,
+    end: BoundedInt.end,
   });
 
 describe("BoundedInt.define and defineRaw: the scales ±22 and ±23", () => {
@@ -132,7 +132,7 @@ describe("BoundedInt classes: negative ties go to the even integer, at every sca
   });
 });
 
-describe("BoundedInt.defineRaw: beyond 10^15, and valueOf() near ±Infinity", () => {
+describe("BoundedInt.defineRaw: beyond 10^15, and up to the range of BoundedInt", () => {
   test("defineRaw without its bounds is refused with a TypeError, not made without a range", () => {
     const where = /^BoundedInt\.defineRaw: /;
     expect(() => BoundedInt.defineRaw({ name: "X", scale: 0 } as never)).toThrow(TypeError);
@@ -154,45 +154,64 @@ describe("BoundedInt.defineRaw: beyond 10^15, and valueOf() near ±Infinity", ()
     expect(Big.from(-1e17).value).toBe(-(10n ** 19n));
   });
 
-  test("valueOf() throws a RangeError where the number is ±Infinity, on both sides", () => {
-    for (const q of [2n ** 1024n, -(2n ** 1024n)]) {
-      expect(() => wide(0).fromValue(q).valueOf()).toThrow(RangeError);
-      expect(() => wide(0).fromValue(q).valueOf()).toThrow(/^Wide0\.valueOf: /);
-      expect(() => `<${wide(0).fromValue(q) as unknown as string}>`).toThrow(RangeError);
+  // REVIEW PLACEHOLDER (#44, return to Task 4: BoundedInt has the range of Z_ℓ, centered on 0)
+  // valueOf() throws a RangeError where the number is ±Infinity, on both sides
+  //   -> no integer beyond the range of BoundedInt: defineRaw refuses the class, and
+  //      valueOf() at the ends of the range is finite at every scale
+  // an integer beyond the numbers whose decimal is a finite number gives that number
+  //   -> no integer beyond the range of BoundedInt: defineRaw refuses the class, and
+  //      valueOf() at the ends of the range is finite at every scale
+  // test("valueOf() throws a RangeError where the number is ±Infinity, on both sides", () => {
+  //   for (const q of [2n ** 1024n, -(2n ** 1024n)]) {
+  //     expect(() => wide(0).fromValue(q).valueOf()).toThrow(RangeError);
+  //     expect(() => wide(0).fromValue(q).valueOf()).toThrow(/^Wide0\.valueOf: /);
+  //     expect(() => `<${wide(0).fromValue(q) as unknown as string}>`).toThrow(RangeError);
+  //   }
+  //   expect(() =>
+  //     wide(-22)
+  //       .fromValue(10n ** 300n)
+  //       .valueOf(),
+  //   ).toThrow(RangeError);
+  //   expect(() =>
+  //     wide(-22)
+  //       .fromValue(-(10n ** 300n))
+  //       .valueOf(),
+  //   ).toThrow(RangeError);
+  //   expect(
+  //     wide(-22)
+  //       .fromValue(10n ** 200n)
+  //       .valueOf(),
+  //   ).toBe(1e222);
+  // });
+  //
+  // test("an integer beyond the numbers whose decimal is a finite number gives that number", () => {
+  //   expect(
+  //     wide(22)
+  //       .fromValue(10n ** 330n)
+  //       .valueOf(),
+  //   ).toBe(1e308);
+  //   expect(
+  //     wide(22)
+  //       .fromValue(-(10n ** 330n))
+  //       .valueOf(),
+  //   ).toBe(-1e308);
+  //   expect(() =>
+  //     wide(22)
+  //       .fromValue(10n ** 331n)
+  //       .valueOf(),
+  //   ).toThrow(RangeError);
+  // });
+  test("no integer beyond the range of BoundedInt: defineRaw refuses the class, and valueOf() at the ends of the range is finite at every scale", () => {
+    const beyond = { name: "Beyond", scale: 0, min: -(10n ** 400n), end: 10n ** 400n };
+    expect(() => BoundedInt.defineRaw(beyond)).toThrow(RangeError);
+    expect(() => BoundedInt.defineRaw(beyond)).toThrow(/^BoundedInt\.defineRaw: /);
+    for (let k = -22; k <= 22; k++) {
+      for (const q of [BoundedInt.end - 1n, BoundedInt.min]) {
+        const x = wide(k).fromValue(q);
+        expect(Number.isFinite(x.valueOf())).toBe(true);
+        expect(() => `<${x as unknown as string}>`).not.toThrow();
+      }
     }
-    expect(() =>
-      wide(-22)
-        .fromValue(10n ** 300n)
-        .valueOf(),
-    ).toThrow(RangeError);
-    expect(() =>
-      wide(-22)
-        .fromValue(-(10n ** 300n))
-        .valueOf(),
-    ).toThrow(RangeError);
-    expect(
-      wide(-22)
-        .fromValue(10n ** 200n)
-        .valueOf(),
-    ).toBe(1e222);
-  });
-
-  test("an integer beyond the numbers whose decimal is a finite number gives that number", () => {
-    expect(
-      wide(22)
-        .fromValue(10n ** 330n)
-        .valueOf(),
-    ).toBe(1e308);
-    expect(
-      wide(22)
-        .fromValue(-(10n ** 330n))
-        .valueOf(),
-    ).toBe(-1e308);
-    expect(() =>
-      wide(22)
-        .fromValue(10n ** 331n)
-        .valueOf(),
-    ).toThrow(RangeError);
   });
 });
 
@@ -212,8 +231,9 @@ describe("BoundedInt classes: a class written by hand is checked once", () => {
 
   test("a class that fails its check is checked again at its next use", () => {
     class Later extends BoundedInt {
-      static override min?: bigint = 0n;
-      static override end?: bigint;
+      static override min = 0n;
+      // Declared, but undefined: only one bound has a value.
+      static override end = undefined as unknown as bigint;
     }
     expect(() => Later.from(1)).toThrow(TypeError);
     expect(() => Later.fromValue(1n)).toThrow(/^Later\.fromValue: /);
