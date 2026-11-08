@@ -316,4 +316,5 @@ Change History
 |-----|---------|
 | #38 | new: RistrettoElement and RistrettoScalar (#35) |
 | #40 | links the blinding context; SUITE_NAME and randomScalar; scalars are bigints, RistrettoScalar removed; ORDER, encodeScalar, decodeScalar, invertScalar; multiplyScalar runs its multiplication for a scalar that reduces to 0 (#39) |
+| #47 | values are bounded and scaled, never salted; ranges belong to the classes (#44) |
 -->

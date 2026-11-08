@@ -261,4 +261,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #40 | new: BlindingContext, its group, validation, serialization and commitments, on bigint scalars; BoundedInt passes its value (#39) |
+| #47 | a subclass bounds and scales its value, with no salt (#44) |
 -->

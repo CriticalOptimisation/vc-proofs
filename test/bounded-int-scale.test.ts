@@ -284,3 +284,4 @@ describe("BoundedInt.define and defineRaw: the refusals", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
+// | #47    | new: the preliminary tests of the decimal classes (#44)       |

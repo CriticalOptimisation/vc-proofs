@@ -236,3 +236,4 @@ export const examples: readonly Example[] = [
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
+// | #47    | new: the classes and the examples of the page (#44)           |

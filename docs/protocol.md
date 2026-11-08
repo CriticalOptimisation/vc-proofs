@@ -621,4 +621,5 @@ Change History
 |-----|---------|
 | #28 | the public contract of vc-proofs (#27) |
 | #32 | the request hash: SHA-256 of the compact JWS, untagged (#29) |
+| #47 | the day count needs no random padding bits (#44) |
 -->

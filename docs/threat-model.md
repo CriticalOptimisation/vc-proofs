@@ -187,4 +187,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #28 | trust model, threats T1-T11, residual risks A1-A10 (#27) |
+| #47 | Search of a committed value: perfect hiding, no salt (#44) |
 -->
