@@ -36,15 +36,6 @@ function members(): string[] {
 }
 
 describe("docs/core/bounded-int.md, section BoundedInt", () => {
-  // REVIEW PLACEHOLDER (#44: the classes add fromValue, define, defineRaw and the errors)
-  // the class has its public members: from, value, valueOf, toString, toPrimitive
-  //   -> the class has its public members: from, fromValue, define, defineRaw, value, the
-  //      three errors, valueOf, toString, toPrimitive
-  // test("the class has its public members: from, value, valueOf, toString, toPrimitive", () => {
-  //   expect(members().sort()).toEqual(
-  //     ["static from", "value", "valueOf", "toString", "[Symbol.toPrimitive]"].sort(),
-  //   );
-  // });
   test("the class has its public members: from, fromValue, define, defineRaw, value, the three errors, valueOf, toString, toPrimitive", () => {
     expect(members().sort()).toEqual(
       [

@@ -20,10 +20,6 @@ const tsc = require.resolve("typescript/bin/tsc");
  */
 const surface: Record<string, string[]> = {
   "": [],
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // @criticaloptimisation/vc-proofs/core exports exactly ["BlindingContext","BoundedInt","RistrettoElement","RistrettoScalar","requestHash"]
-  //   -> @criticaloptimisation/vc-proofs/core exports exactly ["BlindingContext","BoundedInt","RistrettoElement","requestHash"]
-  // "/core": ["BlindingContext", "BoundedInt", "RistrettoElement", "RistrettoScalar", "requestHash"],
   "/core": ["BlindingContext", "BoundedInt", "RistrettoElement", "requestHash"],
 };
 const entries = Object.keys(surface);
@@ -68,14 +64,39 @@ describe("after the build", { timeout: 120_000 }, () => {
     });
   }
 
-  test("the declarations of ./core declare BoundedInt, its from, value, valueOf and toString", () => {
+  // REVIEW PLACEHOLDER (#44, return to Task 4: from takes an error, and the class has new members)
+  // the declarations of ./core declare BoundedInt, its from, value, valueOf and toString
+  //   -> the declarations of ./core declare BoundedInt, its constants, from, fromValue, define,
+  //      defineRaw, value, the errors, valueOf and toString
+  // test("the declarations of ./core declare BoundedInt, its from, value, valueOf and toString", () => {
+  //   const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
+  //   expect(index).toMatch(/export \{ BoundedInt \} from "\.\/bounded-int\.js";/);
+  //   const declarations = readFileSync(`${root}dist/core/bounded-int.d.ts`, "utf8");
+  //   expect(declarations).toContain("export declare class BoundedInt {");
+  //   expect(declarations).toContain("protected constructor(");
+  //   expect(declarations).toContain("static from(n: bigint | number): BoundedInt;");
+  //   expect(declarations).toContain("get value(): bigint;");
+  //   expect(declarations).toContain("valueOf(): number;");
+  //   expect(declarations).toContain("toString(): string;");
+  // });
+  test("the declarations of ./core declare BoundedInt, its constants, from, fromValue, define, defineRaw, value, the errors, valueOf and toString", () => {
     const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
     expect(index).toMatch(/export \{ BoundedInt \} from "\.\/bounded-int\.js";/);
     const declarations = readFileSync(`${root}dist/core/bounded-int.d.ts`, "utf8");
     expect(declarations).toContain("export declare class BoundedInt {");
     expect(declarations).toContain("protected constructor(");
-    expect(declarations).toContain("static from(n: bigint | number): BoundedInt;");
+    expect(declarations).toContain("static readonly scale: number;");
+    expect(declarations).toContain("static readonly min?: bigint;");
+    expect(declarations).toContain("static readonly end?: bigint;");
+    expect(declarations).toContain("static readonly integerOnly: boolean;");
+    expect(declarations).toContain("static from(x: bigint | number, error?: number): BoundedInt;");
+    expect(declarations).toContain("static fromValue(q: bigint, errors?: ");
+    expect(declarations).toContain("static define(spec: ");
+    expect(declarations).toContain("static defineRaw(spec: ");
     expect(declarations).toContain("get value(): bigint;");
+    for (const error of ["errorBound", "quadraticError", "termError"]) {
+      expect(declarations).toContain(`get ${error}(): number;`);
+    }
     expect(declarations).toContain("valueOf(): number;");
     expect(declarations).toContain("toString(): string;");
   });

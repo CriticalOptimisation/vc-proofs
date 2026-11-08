@@ -204,7 +204,7 @@ describe("BoundedInt classes: the round trip (R2, R3)", () => {
 describe("BoundedInt classes: the checks of a class written by hand", () => {
   test("a class with one bound only is refused with a TypeError that names it", () => {
     class OneBound extends BoundedInt {
-      static min = 0n;
+      static override min = 0n;
     }
     expect(() => OneBound.from(1)).toThrow(TypeError);
     expect(() => OneBound.from(1)).toThrow(/OneBound/);
@@ -212,22 +212,22 @@ describe("BoundedInt classes: the checks of a class written by hand", () => {
 
   test("a bound that is not a bigint is refused with a TypeError", () => {
     class NumberBounds extends BoundedInt {
-      static min = 0 as unknown as bigint;
-      static end = 10 as unknown as bigint;
+      static override min = 0 as unknown as bigint;
+      static override end = 10 as unknown as bigint;
     }
     expect(() => NumberBounds.from(1)).toThrow(TypeError);
   });
 
   test("min ≥ end, a fractional scale and a scale beyond ±22 are refused with a RangeError", () => {
     class Empty extends BoundedInt {
-      static min = 5n;
-      static end = 5n;
+      static override min = 5n;
+      static override end = 5n;
     }
     class Fractional extends BoundedInt {
-      static scale = 1.5;
+      static override scale = 1.5;
     }
     class Huge extends BoundedInt {
-      static scale = 23;
+      static override scale = 23;
     }
     expect(() => Empty.from(5)).toThrow(RangeError);
     expect(() => Fractional.from(5)).toThrow(RangeError);
@@ -236,8 +236,8 @@ describe("BoundedInt classes: the checks of a class written by hand", () => {
 
   test("a class with its own valid constants works as one made by define", () => {
     class Days extends BoundedInt {
-      static min = 0n;
-      static end = 365251n;
+      static override min = 0n;
+      static override end = 365251n;
     }
     expect(Days.from(20000).value).toBe(20000n);
     expect(() => Days.from(365251)).toThrow(RangeError);
