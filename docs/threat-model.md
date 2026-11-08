@@ -147,6 +147,29 @@ it keeps of the presentations (thresholds, answers, times).
 threshold, and should not keep proofs once verified. The age filter keeps the answers
 coarse.
 
+## Search of a committed value
+
+**What a commitment hides.** A Pedersen commitment `C = m·g + r·h`, with a blinding
+factor `r` drawn uniformly and never reused, is **perfectly hiding**: for every candidate
+value `m'` there is exactly one `r'` with `C = m'·g + r'·h`. So `C` is as consistent with
+one value as with another, and no amount of computation, a quantum computer included,
+lets an attacker test a candidate against it. The proofs are zero-knowledge, and add
+nothing to test against either. A small set of plausible values, such as the 40 000
+realistic dates of birth, is therefore no weakness of the commitment.
+
+**When a search becomes possible.** Only once the blinding factor is known, through a
+failure of **T8**, does `m·g = C − r·h` give an attacker something to test. The value is
+then a discrete logarithm in a known interval, which the kangaroo method finds in about
+`2·√W` group operations for an interval of width `W`. Random low bits in the value, a
+salt of `s` bits, would raise that work by only `2^(s/2)`: to resist `2⁸⁸` operations (an
+assumed `10¹⁶` additions per second for 1000 years), a salt would need about 176 bits,
+which every range proof on the value would pay for. A salt drawn by an issuer with weak
+randomness (**A7**) is as weak as its blinding factors.
+
+**So values carry no salt.** The defence against a search is **T8** itself: a blinding
+factor is never disclosed to a verifier. A holder who extracts their own witnesses
+(**A4**) learns only their own values.
+
 ## Defence in depth
 
 A strict content security policy and origin isolation make script injection harder in an

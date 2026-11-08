@@ -16,8 +16,7 @@ import to say what its context is for.
 The library knows nothing about the values it commits to. The application maps its own
 numbers, such as a day count, to scalars, which are `bigint`s
 ([Scalars](ristretto255.md#scalars)), through [`BoundedInt`](bounded-int.md): it passes
-`BoundedInt.from(n).value`, or the `value` of a subclass that bounds, scales or salts
-`n`.
+`BoundedInt.from(n).value`, or the `value` of a subclass that bounds and scales `n`.
 
 ```ts
 import { BlindingContext } from "@criticaloptimisation/vc-proofs/core";

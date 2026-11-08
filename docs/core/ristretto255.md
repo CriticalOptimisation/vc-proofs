@@ -234,15 +234,15 @@ defined for every integer `n`, in any group.
   `bigint` is a `TypeError`, an integer `number` included. Every scalar returned is a
   `bigint`, never a `number`.
 - **From the numbers of an application.** The group converts nothing: only the
-  application knows how a value of its own, such as a day count, is bounded, scaled or
-  salted. That conversion belongs to [`BoundedInt`](bounded-int.md) and to its
+  application knows how a value of its own, such as a day count, is bounded and scaled.
+  That conversion belongs to [`BoundedInt`](bounded-int.md) and to its
   subclasses. The group takes its `value`: `P.multiplyScalar(BoundedInt.from(5).value)`
   is `P.multiplyScalar(5n)`, and `P.multiplyScalar(BoundedInt.from(5))` is a
   `TypeError`.
 - **Ranges.** Whether a linear combination of committed values can wrap around `ℓ`
   depends on the range of each value, not on the value itself. The group knows no range:
-  ranges belong to `BoundedInt`, which later issues extend with bounds checked against
-  `ORDER`.
+  ranges belong to the classes of [`BoundedInt`](bounded-int.md#the-class-constants),
+  and the linear combinations check them against `ORDER` (#31).
 
 ## Constant time
 

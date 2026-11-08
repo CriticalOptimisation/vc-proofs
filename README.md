@@ -66,7 +66,7 @@ gh attestation verify criticaloptimisation-vc-proofs-<version>.tgz -R CriticalOp
 - [The group ristretto255](docs/core/ristretto255.md): `RistrettoElement`, the group
   elements of the low-level entry point, and its scalars, which are `bigint`s.
 - [Bounded integers](docs/core/bounded-int.md): `BoundedInt`, the integer of the low-level
-  entry point, which will carry the bounds of a value.
+  entry point, and its classes, each with a decimal scale and a range.
 - [The generator h](docs/generator-h.md): how the Pedersen generator `h` is derived, and
   why nobody knows its discrete logarithm.
 - [The blinding context](docs/core/blinding-context.md): `BlindingContext`, the
