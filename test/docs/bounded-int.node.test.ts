@@ -5,6 +5,7 @@
  */
 import { describe, expect, test } from "vitest";
 import { BoundedInt } from "../../src/core/index.js";
+import { classes, examples } from "../helpers/bounded-int-examples.js";
 import { read } from "./markdown.js";
 
 const page = read("docs/core/bounded-int.md");
@@ -32,9 +33,30 @@ function members(): string[] {
 }
 
 describe("docs/core/bounded-int.md, section BoundedInt", () => {
-  test("the class has its public members: from, value, valueOf, toString, toPrimitive", () => {
+  // REVIEW PLACEHOLDER (#44: the classes add fromValue, define, defineRaw and the errors)
+  // the class has its public members: from, value, valueOf, toString, toPrimitive
+  //   -> the class has its public members: from, fromValue, define, defineRaw, value, the
+  //      three errors, valueOf, toString, toPrimitive
+  // test("the class has its public members: from, value, valueOf, toString, toPrimitive", () => {
+  //   expect(members().sort()).toEqual(
+  //     ["static from", "value", "valueOf", "toString", "[Symbol.toPrimitive]"].sort(),
+  //   );
+  // });
+  test("the class has its public members: from, fromValue, define, defineRaw, value, the three errors, valueOf, toString, toPrimitive", () => {
     expect(members().sort()).toEqual(
-      ["static from", "value", "valueOf", "toString", "[Symbol.toPrimitive]"].sort(),
+      [
+        "static from",
+        "static fromValue",
+        "static define",
+        "static defineRaw",
+        "value",
+        "errorBound",
+        "quadraticError",
+        "termError",
+        "valueOf",
+        "toString",
+        "[Symbol.toPrimitive]",
+      ].sort(),
     );
   });
 
@@ -42,6 +64,52 @@ describe("docs/core/bounded-int.md, section BoundedInt", () => {
     // A member is named in backquotes, as `name(…)` or as `name` for a property.
     const escaped = member.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     expect(section("BoundedInt")).toMatch(new RegExp("`" + escaped + "[`(]"));
+  });
+});
+
+describe("docs/core/bounded-int.md, section Examples", () => {
+  /** The cells of the row of the Examples table whose first cell is the call. */
+  function row(call: string): string[] {
+    const line = section("Examples")
+      .split("\n")
+      .find((text) => text.startsWith(`| \`${call}\``));
+    expect(line, `a row for ${call}`).toBeDefined();
+    return (line ?? "")
+      .split("|")
+      .slice(1, -1)
+      .map((cell) => cell.trim());
+  }
+
+  /** An error as the page writes it: ½ for 0.5. */
+  const error = (e: number): string => (e === 0.5 ? "½" : String(e));
+
+  test.each(examples.map((example) => [example.call, example] as const))(
+    "the row of %s shows what the code gives",
+    (call, example) => {
+      const [, value, errors, valueOf, string] = row(call);
+      const c = classes();
+      if (example.throws !== undefined) {
+        expect(value).toBe(`\`${example.throws.name}\``);
+        expect(() => example.run(c)).toThrow(example.throws);
+        return;
+      }
+      expect(value).toBe(`\`${String(example.value)}n\``);
+      expect(errors).toBe((example.errors ?? []).map(error).join(", "));
+      expect(valueOf).toBe(String(example.number));
+      expect(string).toBe(`\`"${example.string ?? ""}"\``);
+      const x = example.run(c);
+      expect(x.value).toBe(example.value);
+      expect(x.valueOf()).toBe(example.number);
+      expect(x.toString()).toBe(example.string);
+    },
+  );
+
+  test("the page has no other row than these, on the five classes of its examples", () => {
+    expect(Object.keys(classes())).toHaveLength(5);
+    const rows = section("Examples")
+      .split("\n")
+      .filter((text) => text.startsWith("| `"));
+    expect(rows).toHaveLength(examples.length);
   });
 });
 
