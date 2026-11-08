@@ -18,10 +18,13 @@ function section(title: string): string {
   return page.slice(start, end === -1 ? undefined : end);
 }
 
+/** The class constants, which have a table of their own (#44). */
+const CONSTANTS = ["scale", "min", "end", "integerOnly"];
+
 /** The public members of the class: static, prototype, and well-known symbols. */
 function members(): string[] {
   const statics = Object.getOwnPropertyNames(BoundedInt).filter(
-    (name) => !["length", "name", "prototype"].includes(name),
+    (name) => !["length", "name", "prototype", ...CONSTANTS].includes(name),
   );
   const instance = Object.getOwnPropertyNames(BoundedInt.prototype).filter(
     (name) => name !== "constructor",
@@ -64,6 +67,22 @@ describe("docs/core/bounded-int.md, section BoundedInt", () => {
     // A member is named in backquotes, as `name(…)` or as `name` for a property.
     const escaped = member.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     expect(section("BoundedInt")).toMatch(new RegExp("`" + escaped + "[`(]"));
+  });
+});
+
+describe("docs/core/bounded-int.md, section The class constants", () => {
+  test("the table names scale, min, end and integerOnly, and BoundedInt has the defaults it shows", () => {
+    const table = page.slice(
+      page.indexOf("\n### The class constants\n"),
+      page.indexOf("\n### from\n"),
+    );
+    for (const name of CONSTANTS) expect(table).toMatch(new RegExp(`\\| \`${name}\` +\\|`));
+    expect(table).toMatch(/\| `scale` .*\| `0` +\|/);
+    expect(table).toMatch(/\| `integerOnly` .*\| `true` +\|/);
+    expect(BoundedInt.scale).toBe(0);
+    expect(BoundedInt.integerOnly).toBe(true);
+    expect("min" in BoundedInt).toBe(false);
+    expect("end" in BoundedInt).toBe(false);
   });
 });
 
