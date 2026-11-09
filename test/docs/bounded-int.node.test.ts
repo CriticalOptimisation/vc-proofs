@@ -19,7 +19,7 @@ function section(title: string): string {
 }
 
 /** The class constants, which have a table of their own (#44). */
-const CONSTANTS = ["scale", "min", "end", "integerOnly"];
+const CONSTANTS = ["scale", "min", "end", "integerOnly", "order"];
 
 /** The public members of the class: static, prototype, and well-known symbols. */
 function members(): string[] {
