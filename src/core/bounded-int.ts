@@ -4,8 +4,9 @@
  * is a primitive with no own property.
  *
  * - A class is described by `scale` (`k`: the step is `10^-k`), the semi-open range
- *   `[min, end)` of its integers, and `integerOnly`. `BoundedInt` has a scale of 0, no
- *   range, and takes integers only; `define` and `defineRaw` make subclasses.
+ *   `[min, end)` of its integers, of at most `ℓ` integers, and `integerOnly`.
+ *   `BoundedInt` has a scale of 0, the range `[0, ℓ)`, and takes integers only;
+ *   `define` and `defineRaw` make subclasses, with a range anywhere.
  * - `from` takes a physical value, scales it exactly with `bigint`s and rounds it once,
  *   ties to even; `fromValue` takes the integer as it is. The integer is never reduced
  *   mod `ℓ`. Each instance carries three errors, in steps, which only decide the digits
@@ -19,11 +20,15 @@
  * This file imports nothing: the group may import it, never the other way round.
  */
 
-/** The largest scale, in absolute value: `10^22` is the largest exact power of ten. */
-const MAX_SCALE = 22;
+/**
+ * `ℓ`, the order of the group ristretto255, written here so that this file imports
+ * nothing: the range of `BoundedInt` is `[0, ℓ)`, and no class has more than `ℓ` integers.
+ */
+const ORDER = 2n ** 252n + 27742317777372353535851937790883648493n;
 
-/** The bound of the integers of a class made by `define`: 15 significant digits. */
-const DEFINE_LIMIT = 10n ** 15n;
+/** The lowest and the highest scales: their steps `1e308` and `1e-323` are `number`s. */
+const LOWEST_SCALE = -308;
+const HIGHEST_SCALE = 323;
 
 /** The errors of `fromValue`, in steps of the class. */
 export interface BoundedIntErrors {
@@ -48,7 +53,7 @@ export interface BoundedIntRawSpec {
   readonly end: bigint;
 }
 
-/** `10^t` as a `number`, written as a literal: exact for `|t| ≤ 22`. */
+/** `10^t` as a `number`, read from a literal: correctly rounded, `0` or `Infinity` beyond. */
 function pow10(t: number): number {
   return Number(`1e${String(t)}`);
 }
@@ -95,6 +100,15 @@ function scaleExact(x: bigint | number, k: number): bigint {
   if (k >= 0) n *= pow10n(k);
   else d *= pow10n(-k);
   return roundHalfEven(n, d);
+}
+
+/**
+ * `e · 10^k` for a finite `number` `e`, read from its shortest decimal with `Number`:
+ * correctly rounded at every scale, where `10^k` alone would be `0` or `Infinity`.
+ */
+function scaleNumber(e: number, k: number): number {
+  const [digits = "0", exponent = "0"] = e.toExponential().split("e");
+  return Number(`${digits}e${String(Number(exponent) + k)}`);
 }
 
 /**
@@ -154,8 +168,14 @@ function checkClass(C: BoundedIntClass, where: string): void {
   if (typeof min === "bigint" && typeof end === "bigint" && min >= end) {
     throw new RangeError(`${where}: ${C.name}.min must be below ${C.name}.end`);
   }
-  if (!Number.isInteger(scale) || Math.abs(scale) > MAX_SCALE) {
-    throw new RangeError(`${where}: ${C.name}.scale must be an integer from -22 to 22`);
+  if (typeof min === "bigint" && typeof end === "bigint" && end - min > ORDER) {
+    throw new RangeError(`${where}: ${C.name} must not hold more than ℓ integers`);
+  }
+  const step = Number.isInteger(scale) ? pow10(-scale) : NaN;
+  if (!(step > 0) || !Number.isFinite(step)) {
+    throw new RangeError(
+      `${where}: ${C.name}.scale must be an integer whose step 10^-scale is a number above 0`,
+    );
   }
   checked.add(C);
 }
@@ -163,7 +183,6 @@ function checkClass(C: BoundedIntClass, where: string): void {
 /** Checks that `q` is in the range of `C`. */
 function checkRange(C: BoundedIntClass, q: bigint, where: string): void {
   const { min, end } = C;
-  if (min === undefined || end === undefined) return;
   if (q < min) throw new RangeError(`${where}: ${String(q)} is below ${C.name}.min`);
   if (q >= end) throw new RangeError(`${where}: ${String(q)} is not below ${C.name}.end`);
 }
@@ -196,10 +215,10 @@ function makeClass(
 export class BoundedInt {
   /** The scale `k`: the step of the class is `10^-k`. */
   static readonly scale: number = 0;
-  /** The lowest integer of the range; absent on a class with no range. */
-  declare static readonly min?: bigint;
-  /** The integer just above the range; absent on a class with no range. */
-  declare static readonly end?: bigint;
+  /** The lowest integer of the range: `0n` on `BoundedInt`. */
+  static readonly min: bigint = 0n;
+  /** The integer just above the range: `ℓ` on `BoundedInt`, one integer per scalar. */
+  static readonly end: bigint = ORDER;
   /**
    * Whether `from` takes only integers. A class that does not declare it takes integers
    * only when its scale is 0.
@@ -245,7 +264,7 @@ export class BoundedInt {
     checkRange(this, q, where);
     if (error === undefined) return new this(q);
     const e = checkError(error, where, "error");
-    const scaled = checkError(k >= 0 ? e * pow10(k) : e / pow10(-k), where, "the scaled error");
+    const scaled = checkError(scaleNumber(e, k), where, "the scaled error");
     return new this(q, scaled);
   }
 
@@ -286,8 +305,8 @@ export class BoundedInt {
    *   Without `step`, the class takes integers only, with a scale of 0.
    * @throws TypeError for a bad name, a bound that is not finite, or not an integer
    *   without `step`, or a member of the wrong type.
-   * @throws RangeError for `min > max`, a `step` that is not above 0 and finite, a scale
-   *   beyond ±22, or an integer of the range at `10^15` or more in absolute value.
+   * @throws RangeError for `min > max`, a `step` that is not above 0 and finite, a `step`
+   *   below `1e-323`, or a range of more than `ℓ` integers.
    */
   static define(spec: BoundedIntSpec): BoundedIntClass {
     const where = `${this.name}.define`;
@@ -317,19 +336,12 @@ export class BoundedInt {
       if (!Number.isFinite(step) || !(step > 0)) {
         throw new RangeError(`${where}: step must be finite and above 0`);
       }
-      k = -(MAX_SCALE + 1);
-      while (k <= MAX_SCALE && pow10(-k) > step) k++;
-      if (Math.abs(k) > MAX_SCALE) {
-        throw new RangeError(`${where}: the scale of the step must be from -22 to 22`);
-      }
+      k = LOWEST_SCALE;
+      while (k <= HIGHEST_SCALE && pow10(-k) > step) k++;
+      if (k > HIGHEST_SCALE) throw new RangeError(`${where}: step must be 1e-323 or more`);
     }
     const qmin = scaleExact(lowest, k);
     const qmax = scaleExact(highest, k);
-    for (const q of [qmin, qmax]) {
-      if (q >= DEFINE_LIMIT || -q >= DEFINE_LIMIT) {
-        throw new RangeError(`${where}: the integer ${String(q)} is not below 10^15`);
-      }
-    }
     return makeClass(
       this,
       name,
@@ -340,12 +352,13 @@ export class BoundedInt {
 
   /**
    * Makes a frozen subclass of the class it is called on, from its constants: the scale
-   * and the integer bounds `[min, end)`. It has no limit of `10^15`, and is not
+   * and the integer bounds `[min, end)`, anywhere, of at most `ℓ` integers. It is not
    * `integerOnly`.
    *
    * @throws TypeError for a bad name, bounds that are not `bigint`s, or a scale that is
    *   not a `number`.
-   * @throws RangeError for `min ≥ end`, or a scale that is not an integer from -22 to 22.
+   * @throws RangeError for `min ≥ end`, more than `ℓ` integers, or a scale that is not an
+   *   integer from -308 to 323.
    */
   static defineRaw(spec: BoundedIntRawSpec): BoundedIntClass {
     const where = `${this.name}.defineRaw`;
@@ -354,7 +367,7 @@ export class BoundedInt {
     }
     const name = checkName(spec.name, where);
     const { scale, min, end } = spec as { scale: number; min: unknown; end: unknown };
-    // Left out, both bounds would make a class with no range: defineRaw requires them.
+    // Left out, both bounds would give the class the range of its base: defineRaw requires them.
     if (typeof min !== "bigint" || typeof end !== "bigint") {
       throw new TypeError(`${where}: min and end must be bigints`);
     }
@@ -391,28 +404,23 @@ export class BoundedInt {
     const k = (this.constructor as BoundedIntClass).scale;
     const j = position(this.#termError);
     const n = j === 0 ? this.#value : roundHalfEven(this.#value, pow10n(j));
-    let result: number;
-    if (n === 0n) result = 0;
-    else if (j === k) result = Number(n);
-    else if (j > k) result = Number(n) * pow10(j - k);
-    else {
-      result = Number(n) / pow10(k - j);
-      // `n` beyond the numbers, its decimal maybe not: at that magnitude, the integer
-      // part of the decimal holds every digit a `number` can keep.
-      if (!Number.isFinite(result)) result = Number(roundHalfEven(n, pow10n(k - j)));
-    }
+    // `Number` reads a decimal correctly rounded, at any size of `n` and any exponent.
+    const result = Number(`${String(n)}e${String(j - k)}`);
     if (!Number.isFinite(result)) {
       throw new RangeError(`${this.constructor.name}.valueOf: beyond the range of a number`);
     }
     return result;
   }
 
-  /** The digits of `valueOf()` that carry meaning: `k − j` decimals when above 0. */
+  /**
+   * The digits of `valueOf()` that carry meaning: `k − j` decimals, up to the 100 that
+   * `toFixed` writes; otherwise `String(valueOf())`.
+   */
   toString(): string {
     const k = (this.constructor as BoundedIntClass).scale;
     const decimals = k - position(this.#termError);
     const x = this.valueOf();
-    return decimals > 0 ? x.toFixed(decimals) : String(x);
+    return decimals > 0 && decimals <= 100 ? x.toFixed(decimals) : String(x);
   }
 
   /** `toString()` for the hint `"string"`; any other implicit conversion throws. */
