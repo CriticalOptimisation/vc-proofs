@@ -1,76 +1,147 @@
 /**
  * The edge cases of the classes of `BoundedInt` (#44; docs/core/bounded-int.md): the
- * scales `±22` and `±23`, the limit of `10^15` of `define`, negative zero, `NaN`,
- * infinities and subnormal inputs, negative ties at every scale, `defineRaw` beyond
- * `10^15` and up to the range of `BoundedInt`, a class written by hand checked once,
+ * scales `±22`, `±23` and the ends of those a `number` can write, `define` beyond
+ * `10^15`, negative zero, `NaN`, infinities and subnormal inputs, negative ties at every
+ * scale, `defineRaw` beyond `10^15` and `valueOf()` near `±Infinity`, a class written by
+ * hand checked once,
  * `toString()` with no decimals and a rounding position above 0 on negative values, and
  * the error of `from` at a negative scale. The same file runs in Node.js and in every
  * headless browser.
  */
 import { describe, expect, test } from "vitest";
-import { BoundedInt } from "../src/core/index.js";
+import { BoundedInt, RistrettoElement } from "../src/core/index.js";
 import { classes } from "./helpers/bounded-int-examples.js";
 
-/** A class with the scale `k`, the range of `BoundedInt`, the widest, and no `integerOnly`. */
+const L = RistrettoElement.ORDER;
+
+/** A class with the scale `k`, the `ℓ` integers centered on 0, and no `integerOnly`. */
 const wide = (k: number) =>
   BoundedInt.defineRaw({
     name: `Wide${String(k)}`,
     scale: k,
-    min: BoundedInt.min,
-    end: BoundedInt.end,
+    min: -(L - 1n) / 2n,
+    end: (L + 1n) / 2n,
   });
 
-describe("BoundedInt.define and defineRaw: the scales ±22 and ±23", () => {
-  test("a step of 10^-22, or a little coarser, gives the scale 22; a finer one is refused", () => {
+describe("BoundedInt.define and defineRaw: the scales ±22, ±23 and the ends of a number", () => {
+  // REVIEW PLACEHOLDER (#44: no limit of ±22 on the scale)
+  // a step of 10^-22, or a little coarser, gives the scale 22; a finer one is refused
+  //   -> a step of 10^-22, or a little coarser, gives the scale 22; a finer one the scale 23
+  // a step of 10^22, or a little finer, gives the scale -22; a coarser one is refused
+  //   -> a step of 10^22, or a little finer, gives the scale -22; a coarser one the scale -23
+  // test("a step of 10^-22, or a little coarser, gives the scale 22; a finer one is refused", () => {
+  //   const Tiny = BoundedInt.define({ name: "Tiny", min: 0, max: 1e-8, step: 1e-22 });
+  //   expect(Tiny.scale).toBe(22);
+  //   expect(Tiny.end).toBe(10n ** 14n + 1n);
+  //   expect(Tiny.from(1e-22).value).toBe(1n);
+  //   expect(Tiny.fromValue(1n).valueOf()).toBe(1e-22);
+  //   expect(BoundedInt.define({ name: "X", min: 0, max: 1e-8, step: 1.5e-22 }).scale).toBe(22);
+  //   expect(() => BoundedInt.define({ name: "X", min: 0, max: 1e-8, step: 9e-23 })).toThrow(
+  //     RangeError,
+  //   );
+  // });
+  //
+  // test("a step of 10^22, or a little finer, gives the scale -22; a coarser one is refused", () => {
+  //   const Huge = BoundedInt.define({ name: "Huge", min: 0, max: 1e23, step: 1e22 });
+  //   expect(Huge.scale).toBe(-22);
+  //   expect(Huge.end).toBe(11n);
+  //   expect(Huge.from(1e22).value).toBe(1n);
+  //   expect(Huge.fromValue(10n).valueOf()).toBe(1e23);
+  //   expect(BoundedInt.define({ name: "X", min: 0, max: 1e23, step: 5e22 }).scale).toBe(-22);
+  //   expect(() => BoundedInt.define({ name: "X", min: 0, max: 1e24, step: 1e23 })).toThrow(
+  //     RangeError,
+  //   );
+  // });
+  test("a step of 10^-22, or a little coarser, gives the scale 22; a finer one the scale 23", () => {
     const Tiny = BoundedInt.define({ name: "Tiny", min: 0, max: 1e-8, step: 1e-22 });
     expect(Tiny.scale).toBe(22);
     expect(Tiny.end).toBe(10n ** 14n + 1n);
     expect(Tiny.from(1e-22).value).toBe(1n);
     expect(Tiny.fromValue(1n).valueOf()).toBe(1e-22);
     expect(BoundedInt.define({ name: "X", min: 0, max: 1e-8, step: 1.5e-22 }).scale).toBe(22);
-    expect(() => BoundedInt.define({ name: "X", min: 0, max: 1e-8, step: 9e-23 })).toThrow(
-      RangeError,
-    );
+    expect(BoundedInt.define({ name: "X", min: 0, max: 1e-8, step: 9e-23 }).scale).toBe(23);
   });
 
-  test("a step of 10^22, or a little finer, gives the scale -22; a coarser one is refused", () => {
+  test("a step of 10^22, or a little finer, gives the scale -22; a coarser one the scale -23", () => {
     const Huge = BoundedInt.define({ name: "Huge", min: 0, max: 1e23, step: 1e22 });
     expect(Huge.scale).toBe(-22);
     expect(Huge.end).toBe(11n);
     expect(Huge.from(1e22).value).toBe(1n);
     expect(Huge.fromValue(10n).valueOf()).toBe(1e23);
     expect(BoundedInt.define({ name: "X", min: 0, max: 1e23, step: 5e22 }).scale).toBe(-22);
-    expect(() => BoundedInt.define({ name: "X", min: 0, max: 1e24, step: 1e23 })).toThrow(
-      RangeError,
-    );
+    expect(BoundedInt.define({ name: "X", min: 0, max: 1e24, step: 1e23 }).scale).toBe(-23);
+  });
+
+  test("the steps at the ends of a number give the scales 323 and -308", () => {
+    const Finest = BoundedInt.define({ name: "Finest", min: 0, max: 1e-300, step: 1e-323 });
+    expect(Finest.scale).toBe(323);
+    expect(Finest.fromValue(1n).valueOf()).toBe(1e-323);
+    const Coarsest = BoundedInt.define({ name: "Coarsest", min: 0, max: 1e308, step: 1e308 });
+    expect(Coarsest.scale).toBe(-308);
+    expect(Coarsest.from(1e308).value).toBe(1n);
   });
 
   test.each([22, -22])("defineRaw accepts the scale %s", (k) => {
     expect(BoundedInt.defineRaw({ name: "X", scale: k, min: 0n, end: 1n }).scale).toBe(k);
   });
 
-  test.each([23, -23])("defineRaw refuses the scale %s with a RangeError", (k) => {
-    expect(() => BoundedInt.defineRaw({ name: "X", scale: k, min: 0n, end: 1n })).toThrow(
-      RangeError,
-    );
-  });
+  // REVIEW PLACEHOLDER (#44: no limit of ±22 on the scale)
+  // defineRaw refuses the scale %s with a RangeError
+  //   -> defineRaw accepts the scale %s, as every scale whose step is a number above 0
+  //   -> defineRaw refuses the scale %s with a RangeError: 10^-k is 0 or Infinity
+  // test.each([23, -23])("defineRaw refuses the scale %s with a RangeError", (k) => {
+  //   expect(() => BoundedInt.defineRaw({ name: "X", scale: k, min: 0n, end: 1n })).toThrow(
+  //     RangeError,
+  //   );
+  // });
+  test.each([23, -23, 323, -308])(
+    "defineRaw accepts the scale %s, as every scale whose step is a number above 0",
+    (k) => {
+      expect(BoundedInt.defineRaw({ name: "X", scale: k, min: 0n, end: 1n }).scale).toBe(k);
+    },
+  );
+
+  test.each([324, -309])(
+    "defineRaw refuses the scale %s with a RangeError: 10^-k is 0 or Infinity",
+    (k) => {
+      expect(() => BoundedInt.defineRaw({ name: "X", scale: k, min: 0n, end: 1n })).toThrow(
+        RangeError,
+      );
+    },
+  );
 });
 
-describe("BoundedInt.define: the limit of 10^15", () => {
-  test("the integers 10^15 − 1 and −(10^15 − 1) are accepted, ±10^15 are refused", () => {
-    expect(BoundedInt.define({ name: "X", min: 0, max: 999_999_999_999_999 }).end).toBe(10n ** 15n);
-    expect(BoundedInt.define({ name: "X", min: -999_999_999_999_999, max: 0 }).min).toBe(
-      -(10n ** 15n) + 1n,
+describe("BoundedInt.define: no limit of 10^15", () => {
+  // REVIEW PLACEHOLDER (#44: no limit of 10^15 in define)
+  // the integers 10^15 − 1 and −(10^15 − 1) are accepted, ±10^15 are refused
+  //   -> the integers ±10^15 and beyond are accepted, up to ℓ integers
+  // the limit is on the integer, after scaling: max 1e14 with a step of 0.1 is refused
+  //   -> the integers ±10^15 and beyond are accepted, up to ℓ integers
+  // test("the integers 10^15 − 1 and −(10^15 − 1) are accepted, ±10^15 are refused", () => {
+  //   expect(BoundedInt.define({ name: "X", min: 0, max: 999_999_999_999_999 }).end).toBe(10n ** 15n);
+  //   expect(BoundedInt.define({ name: "X", min: -999_999_999_999_999, max: 0 }).min).toBe(
+  //     -(10n ** 15n) + 1n,
+  //   );
+  //   expect(() => BoundedInt.define({ name: "X", min: -1e15, max: 0 })).toThrow(RangeError);
+  //   expect(() => BoundedInt.define({ name: "X", min: 0, max: 10n ** 15n })).toThrow(RangeError);
+  // });
+  //
+  // test("the limit is on the integer, after scaling: max 1e14 with a step of 0.1 is refused", () => {
+  //   expect(BoundedInt.define({ name: "X", min: 0, max: 99_999_999_999_999, step: 1 }).end).toBe(
+  //     10n ** 14n,
+  //   );
+  //   expect(() => BoundedInt.define({ name: "X", min: 0, max: 1e14, step: 0.1 })).toThrow(/10\^15/);
+  // });
+  test("the integers ±10^15 and beyond are accepted, up to ℓ integers", () => {
+    expect(BoundedInt.define({ name: "X", min: 0, max: 10n ** 15n }).end).toBe(10n ** 15n + 1n);
+    expect(BoundedInt.define({ name: "X", min: -1e15, max: 0 }).min).toBe(-(10n ** 15n));
+    expect(BoundedInt.define({ name: "X", min: 0, max: 1e14, step: 0.1 }).end).toBe(
+      10n ** 15n + 1n,
     );
-    expect(() => BoundedInt.define({ name: "X", min: -1e15, max: 0 })).toThrow(RangeError);
-    expect(() => BoundedInt.define({ name: "X", min: 0, max: 10n ** 15n })).toThrow(RangeError);
-  });
-
-  test("the limit is on the integer, after scaling: max 1e14 with a step of 0.1 is refused", () => {
-    expect(BoundedInt.define({ name: "X", min: 0, max: 99_999_999_999_999, step: 1 }).end).toBe(
-      10n ** 14n,
+    expect(BoundedInt.define({ name: "X", min: 1e300, max: 1e300 }).min).toBe(BigInt(1e300));
+    expect(() => BoundedInt.define({ name: "X", min: -(L / 2n), max: L / 2n + 1n })).toThrow(
+      RangeError,
     );
-    expect(() => BoundedInt.define({ name: "X", min: 0, max: 1e14, step: 0.1 })).toThrow(/10\^15/);
   });
 });
 
@@ -132,7 +203,7 @@ describe("BoundedInt classes: negative ties go to the even integer, at every sca
   });
 });
 
-describe("BoundedInt.defineRaw: beyond 10^15, and up to the range of BoundedInt", () => {
+describe("BoundedInt.defineRaw: beyond 10^15, and valueOf() near ±Infinity", () => {
   test("defineRaw without its bounds is refused with a TypeError, not made without a range", () => {
     const where = /^BoundedInt\.defineRaw: /;
     expect(() => BoundedInt.defineRaw({ name: "X", scale: 0 } as never)).toThrow(TypeError);
@@ -154,13 +225,12 @@ describe("BoundedInt.defineRaw: beyond 10^15, and up to the range of BoundedInt"
     expect(Big.from(-1e17).value).toBe(-(10n ** 19n));
   });
 
-  // REVIEW PLACEHOLDER (#44, return to Task 4: BoundedInt has the range of Z_ℓ, centered on 0)
+  // REVIEW PLACEHOLDER (#44: every class spans at most ℓ integers, below 2^253)
   // valueOf() throws a RangeError where the number is ±Infinity, on both sides
-  //   -> no integer beyond the range of BoundedInt: defineRaw refuses the class, and
-  //      valueOf() at the ends of the range is finite at every scale
+  //   -> valueOf() and toString() throw a RangeError that names valueOf where the number is
+  //      ±Infinity, at the scale −300
   // an integer beyond the numbers whose decimal is a finite number gives that number
-  //   -> no integer beyond the range of BoundedInt: defineRaw refuses the class, and
-  //      valueOf() at the ends of the range is finite at every scale
+  //   -> at the scale 300, valueOf() is the number nearest to the decimal, beyond 10^22
   // test("valueOf() throws a RangeError where the number is ±Infinity, on both sides", () => {
   //   for (const q of [2n ** 1024n, -(2n ** 1024n)]) {
   //     expect(() => wide(0).fromValue(q).valueOf()).toThrow(RangeError);
@@ -201,17 +271,34 @@ describe("BoundedInt.defineRaw: beyond 10^15, and up to the range of BoundedInt"
   //       .valueOf(),
   //   ).toThrow(RangeError);
   // });
-  test("no integer beyond the range of BoundedInt: defineRaw refuses the class, and valueOf() at the ends of the range is finite at every scale", () => {
-    const beyond = { name: "Beyond", scale: 0, min: -(10n ** 400n), end: 10n ** 400n };
-    expect(() => BoundedInt.defineRaw(beyond)).toThrow(RangeError);
-    expect(() => BoundedInt.defineRaw(beyond)).toThrow(/^BoundedInt\.defineRaw: /);
-    for (let k = -22; k <= 22; k++) {
-      for (const q of [BoundedInt.end - 1n, BoundedInt.min]) {
-        const x = wide(k).fromValue(q);
-        expect(Number.isFinite(x.valueOf())).toBe(true);
-        expect(() => `<${x as unknown as string}>`).not.toThrow();
-      }
+  test("valueOf() and toString() throw a RangeError that names valueOf where the number is ±Infinity, at the scale −300", () => {
+    const C = BoundedInt.defineRaw({
+      name: "Coarse",
+      scale: -300,
+      min: -(10n ** 70n),
+      end: 10n ** 70n,
+    });
+    expect(C.fromValue(10n ** 8n).valueOf()).toBe(1e308);
+    expect(C.fromValue(-(10n ** 8n)).valueOf()).toBe(-1e308);
+    for (const q of [10n ** 9n, -(10n ** 9n)]) {
+      expect(() => C.fromValue(q).valueOf()).toThrow(RangeError);
+      expect(() => C.fromValue(q).valueOf()).toThrow(/^Coarse\.valueOf: /);
+      expect(() => C.fromValue(q).toString()).toThrow(RangeError);
+      expect(() => `<${C.fromValue(q) as unknown as string}>`).toThrow(RangeError);
     }
+  });
+
+  test("at the scale 300, valueOf() is the number nearest to the decimal, beyond 10^22", () => {
+    const C = BoundedInt.defineRaw({
+      name: "Fine",
+      scale: 300,
+      min: -(10n ** 75n),
+      end: 10n ** 75n,
+    });
+    expect(C.fromValue(10n ** 70n).valueOf()).toBe(1e-230);
+    expect(C.fromValue(-(10n ** 70n)).valueOf()).toBe(-1e-230);
+    expect(C.fromValue(123456789n).valueOf()).toBe(1.23456789e-292);
+    expect(C.fromValue(123456789n, { bound: 0 }).toString()).toBe("1.23456789e-292");
   });
 });
 

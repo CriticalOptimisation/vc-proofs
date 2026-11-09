@@ -1,7 +1,7 @@
 /**
  * The classes of `BoundedInt` (#44; docs/core/bounded-int.md): a decimal scale, a
- * semi-open range `[min, end)` within that of `BoundedInt`, the `ℓ` integers centered on
- * 0, one exact rounding with ties to even, the three errors of
+ * semi-open range `[min, end)` of at most `ℓ` integers (`[0, ℓ)` on `BoundedInt`), no
+ * limit on the scale but those of a `number`, one exact rounding with ties to even, the three errors of
  * an instance, `valueOf()` rounded at the term error, and the factories `define` and
  * `defineRaw`. The classes and the table of examples are those of the page
  * (test/helpers/bounded-int-examples.ts). The same file runs in Node.js and in every
@@ -11,8 +11,7 @@ import { describe, expect, test } from "vitest";
 import { BoundedInt, RistrettoElement } from "../src/core/index.js";
 import { classes, constants, examples } from "./helpers/bounded-int-examples.js";
 
-/** `(ℓ − 1) / 2`: the range of `BoundedInt` is `[−HALF, HALF + 1)`. */
-const HALF = (RistrettoElement.ORDER - 1n) / 2n;
+const L = RistrettoElement.ORDER;
 
 describe("BoundedInt.define and defineRaw: the class constants", () => {
   test.each(constants)(
@@ -38,35 +37,29 @@ describe("BoundedInt.define and defineRaw: the class constants", () => {
     expect(BoundedInt.define({ name: "Fine", min: 0, max: 1, step: 0.025 }).scale).toBe(2);
   });
 
-  // REVIEW PLACEHOLDER (#44, return to Task 4: BoundedInt has the range of Z_ℓ, centered on 0)
+  // REVIEW PLACEHOLDER (#44: every class has a range; that of BoundedInt is [0, ℓ))
   // BoundedInt itself keeps its defaults: scale 0, integers only, no range
-  //   -> BoundedInt itself has scale 0, integers only, and the range [−(ℓ − 1)/2, (ℓ + 1)/2):
-  //      one integer for each scalar
+  //   -> BoundedInt itself has scale 0, integers only, and the range [0, ℓ): one integer for
+  //      each scalar
   // test("BoundedInt itself keeps its defaults: scale 0, integers only, no range", () => {
   //   expect(BoundedInt.scale).toBe(0);
   //   expect(BoundedInt.integerOnly).toBe(true);
   //   expect(BoundedInt.min).toBeUndefined();
   //   expect(BoundedInt.end).toBeUndefined();
   // });
-  test("BoundedInt itself has scale 0, integers only, and the range [−(ℓ − 1)/2, (ℓ + 1)/2): one integer for each scalar", () => {
+  test("BoundedInt itself has scale 0, integers only, and the range [0, ℓ): one integer for each scalar", () => {
     expect(BoundedInt.scale).toBe(0);
     expect(BoundedInt.integerOnly).toBe(true);
-    expect(BoundedInt.min).toBe(-HALF);
-    expect(BoundedInt.end).toBe(HALF + 1n);
-    expect(BoundedInt.end - BoundedInt.min).toBe(RistrettoElement.ORDER);
+    expect(BoundedInt.min).toBe(0n);
+    expect(BoundedInt.end).toBe(L);
   });
 
   test("a class that declares no constant has those of BoundedInt, its range included", () => {
     class Plain extends BoundedInt {}
-    expect([Plain.scale, Plain.min, Plain.end, Plain.integerOnly]).toEqual([
-      0,
-      -HALF,
-      HALF + 1n,
-      true,
-    ]);
-    expect(Plain.from(HALF).value).toBe(HALF);
-    expect(() => Plain.from(HALF + 1n)).toThrow(RangeError);
-    expect(() => Plain.from(HALF + 1n)).toThrow(/^Plain\.from: /);
+    expect([Plain.scale, Plain.min, Plain.end, Plain.integerOnly]).toEqual([0, 0n, L, true]);
+    expect(Plain.from(L - 1n).value).toBe(L - 1n);
+    expect(() => Plain.from(-1)).toThrow(RangeError);
+    expect(() => Plain.from(-1)).toThrow(/^Plain\.from: /);
   });
 });
 
@@ -146,39 +139,35 @@ describe("BoundedInt classes: the range is checked on the integer", () => {
     expect(() => Mass.from(-0.06)).toThrow(RangeError);
   });
 
-  // REVIEW PLACEHOLDER (#44, return to Task 4: BoundedInt has the range of Z_ℓ, centered on 0)
+  // REVIEW PLACEHOLDER (#44: every class has a range; that of BoundedInt is [0, ℓ))
   // BoundedInt has no range: from and fromValue accept any integer
-  //   -> BoundedInt has a range: from and fromValue accept its ends, and refuse one beyond
-  //      them, and 2^300
+  //   -> BoundedInt has the range [0, ℓ): from and fromValue accept 0 and ℓ − 1, and refuse
+  //      −1, ℓ and 2^300
   // test("BoundedInt has no range: from and fromValue accept any integer", () => {
   //   expect(BoundedInt.from(2n ** 300n).value).toBe(2n ** 300n);
   //   expect(BoundedInt.fromValue(-(2n ** 300n)).value).toBe(-(2n ** 300n));
   // });
-  test("BoundedInt has a range: from and fromValue accept its ends, and refuse one beyond them, and 2^300", () => {
-    expect(BoundedInt.from(HALF).value).toBe(HALF);
-    expect(BoundedInt.fromValue(-HALF).value).toBe(-HALF);
-    expect(() => BoundedInt.from(HALF + 1n)).toThrow(RangeError);
-    expect(() => BoundedInt.fromValue(-HALF - 1n)).toThrow(RangeError);
-    expect(() => BoundedInt.fromValue(-HALF - 1n)).toThrow(/^BoundedInt\.fromValue: /);
+  test("BoundedInt has the range [0, ℓ): from and fromValue accept 0 and ℓ − 1, and refuse −1, ℓ and 2^300", () => {
+    expect(BoundedInt.from(0n).value).toBe(0n);
+    expect(BoundedInt.fromValue(L - 1n).value).toBe(L - 1n);
+    expect(() => BoundedInt.from(-1n)).toThrow(RangeError);
+    expect(() => BoundedInt.fromValue(L)).toThrow(RangeError);
+    expect(() => BoundedInt.fromValue(L)).toThrow(/^BoundedInt\.fromValue: /);
     expect(() => BoundedInt.from(2n ** 300n)).toThrow(RangeError);
     expect(() => BoundedInt.fromValue(-(2n ** 300n))).toThrow(RangeError);
   });
 
-  test("valueOf() is finite at the ends of the widest class, at the scales -22, 0 and 22", () => {
-    for (const scale of [-22, 0, 22]) {
-      const Widest = BoundedInt.defineRaw({
-        name: "Widest",
-        scale,
-        min: BoundedInt.min,
-        end: BoundedInt.end,
-      });
-      for (const q of [HALF, -HALF]) {
-        const x = Widest.fromValue(q).valueOf();
-        expect(Number.isFinite(x)).toBe(true);
-        // Beyond 2^53, the conversion may round twice: within a few units of the last place.
-        expect(Math.abs(x / Number(`${String(q)}e${String(-scale)}`) - 1)).toBeLessThan(1e-15);
-      }
-    }
+  test("a range may lie anywhere, of at most ℓ integers: centered on 0, or from ℓ to ℓ + 10", () => {
+    const Centered = BoundedInt.defineRaw({
+      name: "Centered",
+      scale: 0,
+      min: -(L - 1n) / 2n,
+      end: (L + 1n) / 2n,
+    });
+    expect(Centered.fromValue(-(L - 1n) / 2n).value).toBe(-(L - 1n) / 2n);
+    const Beyond = BoundedInt.defineRaw({ name: "Beyond", scale: 0, min: L, end: L + 10n });
+    expect(Beyond.fromValue(L + 9n).value).toBe(L + 9n);
+    expect(() => Beyond.fromValue(L - 1n)).toThrow(RangeError);
   });
 });
 
@@ -275,40 +264,53 @@ describe("BoundedInt classes: the checks of a class written by hand", () => {
     expect(() => NumberBounds.from(1)).toThrow(TypeError);
   });
 
-  test("min ≥ end, a fractional scale and a scale beyond ±22 are refused with a RangeError", () => {
+  // REVIEW PLACEHOLDER (#44: no limit of ±22 on the scale)
+  // min ≥ end, a fractional scale and a scale beyond ±22 are refused with a RangeError
+  //   -> min ≥ end, more than ℓ integers, a fractional scale, and a scale whose step is not
+  //      a number above 0 and finite are refused with a RangeError; the scale 23 is valid
+  // test("min ≥ end, a fractional scale and a scale beyond ±22 are refused with a RangeError", () => {
+  //   class Empty extends BoundedInt {
+  //     static override min = 5n;
+  //     static override end = 5n;
+  //   }
+  //   class Fractional extends BoundedInt {
+  //     static override scale = 1.5;
+  //   }
+  //   class Huge extends BoundedInt {
+  //     static override scale = 23;
+  //   }
+  //   expect(() => Empty.from(5)).toThrow(RangeError);
+  //   expect(() => Fractional.from(5)).toThrow(RangeError);
+  //   expect(() => Huge.from(5)).toThrow(RangeError);
+  // });
+  test("min ≥ end, more than ℓ integers, a fractional scale, and a scale whose step is not a number above 0 and finite are refused with a RangeError; the scale 23 is valid", () => {
     class Empty extends BoundedInt {
       static override min = 5n;
       static override end = 5n;
     }
+    class Wide extends BoundedInt {
+      static override min = -1n;
+      static override end = L;
+    }
     class Fractional extends BoundedInt {
       static override scale = 1.5;
     }
-    class Huge extends BoundedInt {
+    class TooFine extends BoundedInt {
+      static override scale = 324;
+    }
+    class TooCoarse extends BoundedInt {
+      static override scale = -309;
+    }
+    class Fine extends BoundedInt {
       static override scale = 23;
     }
     expect(() => Empty.from(5)).toThrow(RangeError);
+    expect(() => Wide.from(5)).toThrow(RangeError);
+    expect(() => Wide.from(5)).toThrow(/Wide/);
     expect(() => Fractional.from(5)).toThrow(RangeError);
-    expect(() => Huge.from(5)).toThrow(RangeError);
-  });
-
-  test("a range beyond that of BoundedInt is refused with a RangeError that names the class", () => {
-    class Below extends BoundedInt {
-      static override min = -HALF - 1n;
-      static override end = 0n;
-    }
-    class Above extends BoundedInt {
-      static override min = 0n;
-      static override end = HALF + 2n;
-    }
-    class Exact extends BoundedInt {
-      static override min = -HALF;
-      static override end = HALF + 1n;
-    }
-    expect(() => Below.from(0)).toThrow(RangeError);
-    expect(() => Below.from(0)).toThrow(/Below/);
-    expect(() => Above.fromValue(0n)).toThrow(RangeError);
-    expect(() => Above.fromValue(0n)).toThrow(/Above/);
-    expect(Exact.from(HALF).value).toBe(HALF);
+    expect(() => TooFine.fromValue(5n)).toThrow(RangeError);
+    expect(() => TooCoarse.fromValue(5n)).toThrow(RangeError);
+    expect(Fine.fromValue(5n).valueOf()).toBe(5e-23);
   });
 
   test("a class with its own valid constants works as one made by define", () => {
@@ -323,6 +325,26 @@ describe("BoundedInt classes: the checks of a class written by hand", () => {
 });
 
 describe("BoundedInt.define and defineRaw: the refusals", () => {
+  // REVIEW PLACEHOLDER (#44: no limits of ±22 and 10^15)
+  // define with %s throws, where a valid spec makes a class
+  //   -> define with %s throws, where a valid spec makes a class (no row for a step of 1e-23
+  //      or an integer of 10^15: both are valid; new rows: a step below 1e-323, more than ℓ
+  //      integers)
+  //   -> define has no limit at ±22 or at 10^15: a step of 1e-23, and the integers ±10^15
+  // test.each([
+  //   ["no name", { min: 0, max: 1 }, TypeError],
+  //   ["an empty name", { name: "", min: 0, max: 1 }, TypeError],
+  //   ["min > max", { name: "X", min: 2, max: 1 }, RangeError],
+  //   ["a fractional min without a step", { name: "X", min: 0.5, max: 1 }, TypeError],
+  //   ["an infinite max", { name: "X", min: 0, max: Infinity, step: 1 }, TypeError],
+  //   ["a step of 0", { name: "X", min: 0, max: 1, step: 0 }, RangeError],
+  //   ["a negative step", { name: "X", min: 0, max: 1, step: -0.1 }, RangeError],
+  //   ["a step finer than 10^-22", { name: "X", min: 0, max: 1, step: 1e-23 }, RangeError],
+  //   ["an integer of 10^15 or more", { name: "X", min: 0, max: 1e15 }, RangeError],
+  // ] as const)("define with %s throws, where a valid spec makes a class", (_, spec, error) => {
+  //   expect(BoundedInt.define({ name: "Valid", min: 0, max: 1 }).end).toBe(2n);
+  //   expect(() => BoundedInt.define(spec as never)).toThrow(error);
+  // });
   test.each([
     ["no name", { min: 0, max: 1 }, TypeError],
     ["an empty name", { name: "", min: 0, max: 1 }, TypeError],
@@ -331,20 +353,27 @@ describe("BoundedInt.define and defineRaw: the refusals", () => {
     ["an infinite max", { name: "X", min: 0, max: Infinity, step: 1 }, TypeError],
     ["a step of 0", { name: "X", min: 0, max: 1, step: 0 }, RangeError],
     ["a negative step", { name: "X", min: 0, max: 1, step: -0.1 }, RangeError],
-    ["a step finer than 10^-22", { name: "X", min: 0, max: 1, step: 1e-23 }, RangeError],
-    ["an integer of 10^15 or more", { name: "X", min: 0, max: 1e15 }, RangeError],
+    ["a step below 1e-323", { name: "X", min: 0, max: 0, step: 5e-324 }, RangeError],
+    ["more than ℓ integers", { name: "X", min: 0n, max: L }, RangeError],
   ] as const)("define with %s throws, where a valid spec makes a class", (_, spec, error) => {
     expect(BoundedInt.define({ name: "Valid", min: 0, max: 1 }).end).toBe(2n);
     expect(() => BoundedInt.define(spec as never)).toThrow(error);
+  });
+
+  test("define has no limit at ±22 or at 10^15: a step of 1e-23, and the integers ±10^15", () => {
+    expect(BoundedInt.define({ name: "Fine", min: 0, max: 1, step: 1e-23 }).scale).toBe(23);
+    const Large = BoundedInt.define({ name: "Large", min: -1e15, max: 1e15 });
+    expect([Large.min, Large.end]).toEqual([-(10n ** 15n), 10n ** 15n + 1n]);
+    expect(BoundedInt.define({ name: "Full", min: 0n, max: L - 1n }).end).toBe(L);
   });
 
   test.each([
     ["min ≥ end", { name: "X", scale: 0, min: 1n, end: 1n }, RangeError],
     ["a fractional scale", { name: "X", scale: 0.5, min: 0n, end: 1n }, RangeError],
     ["number bounds", { name: "X", scale: 0, min: 0, end: 1 }, TypeError],
-    ["a min below BoundedInt.min", { name: "X", scale: 0, min: -HALF - 1n, end: 1n }, RangeError],
-    ["an end above BoundedInt.end", { name: "X", scale: 0, min: 0n, end: HALF + 2n }, RangeError],
-    ["the range [0, ℓ)", { name: "X", scale: 0, min: 0n, end: 2n * HALF + 1n }, RangeError],
+    ["more than ℓ integers", { name: "X", scale: 0, min: 0n, end: L + 1n }, RangeError],
+    ["the scale 324", { name: "X", scale: 324, min: 0n, end: 1n }, RangeError],
+    ["the scale −309", { name: "X", scale: -309, min: 0n, end: 1n }, RangeError],
   ] as const)("defineRaw with %s throws, where a valid spec makes a class", (_, spec, error) => {
     expect(BoundedInt.defineRaw({ name: "Valid", scale: 0, min: 0n, end: 1n }).end).toBe(1n);
     expect(() => BoundedInt.defineRaw(spec as never)).toThrow(error);

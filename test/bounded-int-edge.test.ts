@@ -1,12 +1,20 @@
 /**
  * The edge cases of `BoundedInt` (#41; docs/core/bounded-int.md): negative zero, the
- * first integers beyond the safe ones on both sides, the integers beyond the range of
- * `BoundedInt` (#44), boxed numbers and bigints, the messages of a subclass's `from`, and
- * a subclass that overrides `toString`. The same file runs in Node.js and in every
- * headless browser.
+ * first integers beyond the safe ones on both sides (the negative ones on `Signed`, since
+ * the range of `BoundedInt` is `[0, ℓ)`, #44), the integers outside that range, boxed
+ * numbers and bigints, the messages of a subclass's `from`, and a subclass that overrides
+ * `toString`. The same file runs in Node.js and in every headless browser.
  */
 import { describe, expect, test } from "vitest";
 import { BoundedInt } from "../src/core/index.js";
+
+const L = 2n ** 252n + 27742317777372353535851937790883648493n;
+
+/** A class of `ℓ` integers centered on 0, for negative integers (#44). */
+class Signed extends BoundedInt {
+  static override min = -(L - 1n) / 2n;
+  static override end = (L + 1n) / 2n;
+}
 
 describe("BoundedInt.from: the edges of the casts", () => {
   test("from(-0) holds 0n, and its valueOf() is 0", () => {
@@ -16,11 +24,12 @@ describe("BoundedInt.from: the edges of the casts", () => {
     expect(zero.toString()).toBe("0");
   });
 
-  // REVIEW PLACEHOLDER (#44, return to Task 4: BoundedInt has the range of Z_ℓ, centered on 0)
+  // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ))
   // from(%s), just beyond the safe integers or at ±Number.MAX_VALUE, is exact
   //   -> from(%s), just beyond the safe integers, is exact
-  //   -> from(%s), beyond the range of BoundedInt, throws a RangeError that names from,
-  //      before any valueOf()
+  //   -> on a class with negative integers, from(Number.MIN_SAFE_INTEGER - 1), which is
+  //      -(2 ** 53), is exact
+  //   -> from(%s), outside [0, ℓ), throws a RangeError that names from, before any valueOf()
   // test.each([
   //   ["Number.MIN_SAFE_INTEGER - 1, which is -(2 ** 53)", Number.MIN_SAFE_INTEGER - 1, -(2n ** 53n)],
   //   // 2^53 + 1 is not a number: the addition already rounds it, ties to even, to 2^53.
@@ -45,7 +54,6 @@ describe("BoundedInt.from: the edges of the casts", () => {
   //   },
   // );
   test.each([
-    ["Number.MIN_SAFE_INTEGER - 1, which is -(2 ** 53)", Number.MIN_SAFE_INTEGER - 1, -(2n ** 53n)],
     // 2^53 + 1 is not a number: the addition already rounds it, ties to even, to 2^53.
     ["Number.MAX_SAFE_INTEGER + 2, which is 2 ** 53", Number.MAX_SAFE_INTEGER + 2, 2n ** 53n],
     [
@@ -63,8 +71,18 @@ describe("BoundedInt.from: the edges of the casts", () => {
     expect(BoundedInt.from(input).value).toBe(expected);
   });
 
-  test("from(Number.MIN_SAFE_INTEGER) is exact", () => {
-    expect(BoundedInt.from(Number.MIN_SAFE_INTEGER).value).toBe(-(2n ** 53n - 1n));
+  test("on a class with negative integers, from(Number.MIN_SAFE_INTEGER - 1), which is -(2 ** 53), is exact", () => {
+    expect(Signed.from(Number.MIN_SAFE_INTEGER - 1).value).toBe(-(2n ** 53n));
+  });
+
+  // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ))
+  // from(Number.MIN_SAFE_INTEGER) is exact
+  //   -> on a class with negative integers, from(Number.MIN_SAFE_INTEGER) is exact
+  // test("from(Number.MIN_SAFE_INTEGER) is exact", () => {
+  //   expect(BoundedInt.from(Number.MIN_SAFE_INTEGER).value).toBe(-(2n ** 53n - 1n));
+  // });
+  test("on a class with negative integers, from(Number.MIN_SAFE_INTEGER) is exact", () => {
+    expect(Signed.from(Number.MIN_SAFE_INTEGER).value).toBe(-(2n ** 53n - 1n));
   });
 
   test.each([
@@ -111,21 +129,19 @@ describe("BoundedInt: valueOf at the edges of a number", () => {
     expect(BoundedInt.from(2n ** 60n).valueOf()).toBe(2 ** 60);
   });
 
-  // REVIEW PLACEHOLDER (#44, return to Task 4: BoundedInt has the range of Z_ℓ, centered on 0)
+  // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ); valueOf() is finite on it)
   // valueOf() of the largest finite number, as a bigint, is Number.MAX_VALUE
-  //   -> from(%s), beyond the range of BoundedInt, throws a RangeError that names from,
-  //      before any valueOf()
+  //   -> from(%s), outside [0, ℓ), throws a RangeError that names from, before any valueOf()
   // valueOf() and toString() of %s throw a RangeError that names valueOf
-  //   -> from(%s), beyond the range of BoundedInt, throws a RangeError that names from,
-  //      before any valueOf()
+  //   -> test/bounded-int-scale-edge.test.ts / valueOf() and toString() throw a RangeError
+  //      that names valueOf where the number is ±Infinity, at the scale −300
   // valueOf() of the last integer that Number() rounds to Number.MAX_VALUE is
   // ±Number.MAX_VALUE, with its negation
-  //   -> from(%s), beyond the range of BoundedInt, throws a RangeError that names from,
-  //      before any valueOf()
+  //   -> from(%s), outside [0, ℓ), throws a RangeError that names from, before any valueOf()
   // valueOf() of the first integer that Number() rounds to Infinity throws a RangeError, and
   // so does its negation
-  //   -> from(%s), beyond the range of BoundedInt, throws a RangeError that names from,
-  //      before any valueOf()
+  //   -> test/bounded-int-scale-edge.test.ts / valueOf() and toString() throw a RangeError
+  //      that names valueOf where the number is ±Infinity, at the scale −300
   // test("valueOf() of the largest finite number, as a bigint, is Number.MAX_VALUE", () => {
   //   const max = BigInt(Number.MAX_VALUE);
   //   expect(BoundedInt.from(max).valueOf()).toBe(Number.MAX_VALUE);
@@ -162,9 +178,10 @@ describe("BoundedInt: valueOf at the edges of a number", () => {
     ["-(2^1024)", -(2n ** 1024n)],
     ["2^1024 − 2^970 − 1", 2n ** 1024n - 2n ** 970n - 1n],
     ["2^1024 − 2^970", 2n ** 1024n - 2n ** 970n],
-    ["2^252", 2n ** 252n],
+    ["ℓ", L],
+    ["-1n", -1n],
   ] as const)(
-    "from(%s), beyond the range of BoundedInt, throws a RangeError that names from, before any valueOf()",
+    "from(%s), outside [0, ℓ), throws a RangeError that names from, before any valueOf()",
     (_, n) => {
       expect(() => BoundedInt.from(n)).toThrow(RangeError);
       expect(() => BoundedInt.from(n)).toThrow(/^BoundedInt\.from: /);
@@ -204,7 +221,7 @@ describe("BoundedInt: subclasses at the edges", () => {
     expect(() => Days.from("5" as never)).toThrow(/^Days\.from: /);
   });
 
-  // REVIEW PLACEHOLDER (#44, return to Task 4: BoundedInt has the range of Z_ℓ, centered on 0)
+  // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ))
   // the messages of valueOf and of an implicit conversion name the subclass
   //   -> the messages of a RangeError of from and of an implicit conversion name the subclass
   // test("the messages of valueOf and of an implicit conversion name the subclass", () => {

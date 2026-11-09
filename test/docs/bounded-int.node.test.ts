@@ -62,14 +62,10 @@ describe("docs/core/bounded-int.md, section BoundedInt", () => {
 });
 
 describe("docs/core/bounded-int.md, section The class constants", () => {
-  /** The text from `### The class constants` to `### from`. */
-  const constants = (): string =>
-    page.slice(page.indexOf("\n### The class constants\n"), page.indexOf("\n### from\n"));
-
-  // REVIEW PLACEHOLDER (#44, return to Task 4: BoundedInt has the range of Z_ℓ, centered on 0)
+  // REVIEW PLACEHOLDER (#44: every class has a range; that of BoundedInt is [0, ℓ))
   // the table names scale, min, end and integerOnly, and BoundedInt has the defaults it shows
   //   -> the table names scale, min, end and integerOnly, and BoundedInt has the constants it
-  //      shows, its range included
+  //      shows, its range [0n, ℓ) included
   // test("the table names scale, min, end and integerOnly, and BoundedInt has the defaults it shows", () => {
   //   const table = page.slice(
   //     page.indexOf("\n### The class constants\n"),
@@ -83,32 +79,34 @@ describe("docs/core/bounded-int.md, section The class constants", () => {
   //   expect("min" in BoundedInt).toBe(false);
   //   expect("end" in BoundedInt).toBe(false);
   // });
-  test("the table names scale, min, end and integerOnly, and BoundedInt has the constants it shows, its range included", () => {
-    const table = constants();
+  test("the table names scale, min, end and integerOnly, and BoundedInt has the constants it shows, its range [0n, ℓ) included", () => {
+    const table = page.slice(
+      page.indexOf("\n### The class constants\n"),
+      page.indexOf("\n### from\n"),
+    );
     for (const name of CONSTANTS) expect(table).toMatch(new RegExp(`\\| \`${name}\` +\\|`));
     expect(table).toMatch(/\| `scale` .*\| `0` +\|/);
-    expect(table).toMatch(/\| `min` .*\| `-\(ℓ - 1n\) \/ 2n` +\|/);
-    expect(table).toMatch(/\| `end` .*\| `\(ℓ \+ 1n\) \/ 2n` +\|/);
+    expect(table).toMatch(/\| `min` .*\| `0n` +\|/);
+    expect(table).toMatch(/\| `end` .*\| `ℓ` +\|/);
     expect(table).toMatch(/\| `integerOnly` .*\| `true` +\|/);
-    const L = RistrettoElement.ORDER;
     expect(BoundedInt.scale).toBe(0);
-    expect(BoundedInt.min).toBe(-(L - 1n) / 2n);
-    expect(BoundedInt.end).toBe((L + 1n) / 2n);
+    expect(BoundedInt.min).toBe(0n);
+    expect(BoundedInt.end).toBe(RistrettoElement.ORDER);
     expect(BoundedInt.integerOnly).toBe(true);
   });
 
-  test("the subsection The range of BoundedInt says why the range is centered, and that every class lies within it", () => {
-    const text = constants();
-    const start = text.indexOf("\n#### The range of BoundedInt\n");
+  test("the subsection The range of a class gives [0, ℓ) to BoundedInt and at most ℓ integers to every class, and the table of checks refuses more", () => {
+    const text = page.slice(
+      page.indexOf("\n### The class constants\n"),
+      page.indexOf("\n### from\n"),
+    );
+    const start = text.indexOf("\n#### The range of a class\n");
     expect(start).toBeGreaterThan(-1);
     const range = text.slice(start);
-    expect(range).toContain("`[0, ℓ)`");
-    expect(range).toContain("`BoundedInt` takes the centered one");
-    expect(range).toContain("`BoundedInt.min ≤ min`");
-    expect(range).toContain("`end ≤ BoundedInt.end`");
-    expect(text).toMatch(
-      /\| `min` below `BoundedInt\.min`, or `end` above `BoundedInt\.end` +\| `RangeError` \|/,
-    );
+    expect(range).toContain("The range of `BoundedInt` is `[0, ℓ)`");
+    expect(range).toContain("**at most `ℓ` integers**: `end − min ≤ ℓ`");
+    expect(text).toMatch(/\| `end − min` above `ℓ` +\| `RangeError` \|/);
+    expect(text).not.toMatch(/±22|10\^15/);
   });
 });
 
