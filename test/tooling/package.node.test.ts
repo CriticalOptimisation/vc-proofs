@@ -153,4 +153,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #38    | ./core exports RistrettoElement, RistrettoScalar (#35)        |
 // | #40    | ./core exports BlindingContext, and no RistrettoScalar (#39)   |
 // | #42    | ./core exports BoundedInt, and declares it (#41)              |
-// | #47    | ./core declares the constants and new members of BoundedInt (#44) |
+// | #47    | ./core declares the constants, min and end included, and new members of BoundedInt (#44) |

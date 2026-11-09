@@ -452,3 +452,4 @@ describe("BoundedInt: subclasses", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #42    | new: the casts, refusals and conversions of BoundedInt (#41)  |
+// | #47    | the range [0, ℓ): negative casts on Signed; −1, ℓ and beyond refused by from; the bounds min and end (#44) |

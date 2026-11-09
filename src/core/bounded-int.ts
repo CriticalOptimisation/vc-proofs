@@ -439,4 +439,4 @@ checked.add(BoundedInt);
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #42    | new: BoundedInt, from, valueOf, toString, toPrimitive (#41)   |
-// | #47    | decimal classes: scale, range, from, fromValue, errors, define, defineRaw (#44) |
+// | #47    | decimal classes: scale, range, from, fromValue, errors, define, defineRaw; the range [0, ℓ) on BoundedInt, at most ℓ integers per class; scales -308 to 323; valueOf() through Number (#44) |

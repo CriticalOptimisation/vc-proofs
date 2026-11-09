@@ -427,5 +427,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #42 | new: BoundedInt, its casts, conversions and subclasses (#41) |
-| #47 | decimal classes: scale, range, from and fromValue, three errors, define, defineRaw, rounding; no salt (#44) |
+| #47 | decimal classes: scale, range, from and fromValue, three errors, define, defineRaw, rounding; no salt; every class has a range, [0, ℓ) on BoundedInt, at most ℓ integers; scales -308 to 323, no limit of 10^15 (#44) |
 -->

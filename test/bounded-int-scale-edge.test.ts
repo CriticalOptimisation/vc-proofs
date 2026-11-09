@@ -437,4 +437,4 @@ describe("BoundedInt classes: the ends of the scales and of the range", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #47    | new: the edge cases of the BoundedInt classes (#44)           |
+// | #47    | new: the edge cases of the BoundedInt classes, at the ends of the scales -308 to 323 and of ranges of ℓ integers (#44) |

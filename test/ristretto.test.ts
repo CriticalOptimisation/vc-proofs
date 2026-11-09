@@ -444,3 +444,4 @@ describe("The scalar members of RistrettoElement", () => {
 // |--------|---------------------------------------------------------------|
 // | #38    | new: both classes against RFC 9496 and the vectors of h (#35) |
 // | #40    | scalars are bigints: the tests of RistrettoScalar become placeholders; ORDER, encodeScalar, decodeScalar, invertScalar; the value of a BoundedInt (#39) |
+// | #47    | a BoundedInt passes its value: ℓ − 1 in place of −1; placeholders of #40 removed (#44) |
