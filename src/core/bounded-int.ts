@@ -3,9 +3,10 @@
  * that carries its scale and its range as class-level constants. A `bigint` cannot: it
  * is a primitive with no own property.
  *
- * Stage 1 (#44): every bound, step and error is an exact decimal, a `bigint` mantissa
- * `n` and an integer exponent `e`, worth `n · 10^e`. A value given to `from` may also be a
- * `number`, converted at once to the exact decimal of its binary value. Nothing is
+ * Stage 1 (#44): every value, bound, step and error is an exact decimal, a `bigint`
+ * mantissa `n` and an integer exponent `e`, worth `n · 10^e`. Wherever a quantity is
+ * comparable to a value (`x`, the bounds, the step, the error of `define`), a `number` is
+ * also taken, and converted at once to the exact decimal of its binary value. Nothing is
  * rounded but the scaling of a value to the step of its class, once, ties to even, after
  * the value has been checked against the exact bounds.
  *
@@ -24,7 +25,12 @@
  *   JavaScript; `toLocaleString()` writes the same digits for a locale.
  *   `[Symbol.toPrimitive]` converts to a string only.
  */
-import { RistrettoElement } from "./ristretto.js";
+
+/**
+ * The range of `BoundedInt`, `[0, ORDER)`: the scalars of ristretto255, written here so
+ * that this file depends on no group. The tests check it against `RistrettoElement.ORDER`.
+ */
+const ORDER = 2n ** 252n + 27742317777372353535851937790883648493n;
 
 /** The lowest and the highest scales. */
 const LOWEST_SCALE = -308;
@@ -48,11 +54,11 @@ export interface BoundedIntErrors {
 /** The specification of `define`: exact physical bounds, inclusive, and an optional step. */
 export interface BoundedIntSpec {
   readonly name: string;
-  readonly min: bigint | Decimal;
-  readonly max: bigint | Decimal;
-  readonly step?: bigint | Decimal;
+  readonly min: bigint | number | Decimal;
+  readonly max: bigint | number | Decimal;
+  readonly step?: bigint | number | Decimal;
   /** The accuracy of the values, in their unit, exact; half a step when left out. */
-  readonly error?: bigint | Decimal;
+  readonly error?: bigint | number | Decimal;
   /** The number of distinct integers allowed, or a form that states it; that of the base when left out. */
   readonly order?: BoundedIntOrder | bigint;
 }
@@ -61,8 +67,8 @@ export interface BoundedIntSpec {
 export interface BoundedIntRawSpec {
   readonly name: string;
   readonly scale: number;
-  readonly min: bigint;
-  readonly end: bigint;
+  readonly min: bigint | number;
+  readonly end: bigint | number;
   /** Whether `from` takes only integers; `false` when left out. */
   readonly integerOnly?: boolean;
   /** The errors of the values, in steps; half a step when left out. */
@@ -159,6 +165,16 @@ function normalize([n, e]: Decimal): Decimal {
   return [n, e];
 }
 
+/** An integer bound: a `bigint`, or a `number` that is an integer, converted exactly. */
+function integer(x: unknown, where: string, what: string): bigint {
+  if (typeof x === "bigint") return x;
+  if (typeof x === "number" && Number.isInteger(x)) {
+    const [n, e] = numberDecimal(x);
+    return n * pow10n(e);
+  }
+  throw new TypeError(`${where}: ${what} must be a bigint or an integer number`);
+}
+
 /** Whether a decimal is an integer. */
 function isInteger([n, e]: Decimal): boolean {
   return e >= 0 || n === 0n || (digits(n) > -e && n % pow10n(-e) === 0n);
@@ -210,9 +226,9 @@ function position([n, e]: Decimal): number {
   return n === 0n ? 0 : Math.max(0, digits(2n * n) + e - 1);
 }
 
-/** A valid error: a `bigint` or a decimal, 0 or more, normalized. */
-function checkError(e: unknown, where: string, what: string): Decimal {
-  const d = decimal(e, where, what);
+/** A valid error: a `bigint` or a decimal (or, with `numbers`, a `number`), 0 or more, normalized. */
+function checkError(e: unknown, where: string, what: string, numbers = false): Decimal {
+  const d = decimal(e, where, what, numbers);
   if (d[0] < 0n) throw new RangeError(`${where}: ${what} must be 0 or more`);
   return normalize(d);
 }
@@ -386,7 +402,7 @@ export class BoundedInt {
   /** The lowest integer of the range: `0n` on `BoundedInt`. */
   static readonly min: bigint = 0n;
   /** The integer just above the range; on `BoundedInt`, the scalars of ristretto255. */
-  static readonly end: bigint = RistrettoElement.ORDER;
+  static readonly end: bigint = ORDER;
   /**
    * The number of distinct integers a class may hold, as for integers of a fixed size;
    * `undefined`, no limit, on `BoundedInt`.
@@ -464,13 +480,13 @@ export class BoundedInt {
    * that the values within them scale to.
    *
    * @param spec - `name`; `min` and `max`, the lowest and the highest values, inclusive,
-   *   `bigint`s or decimals; `step`, the accuracy, which gives the smallest scale `k`
+   *   `bigint`s, `number`s or decimals, kept exactly; `step`, the accuracy, which gives the smallest scale `k`
    *   with `10^-k ≤ step`. Without `step`, the class takes integers only, with a scale of 0.
    *   `error`, the accuracy of the values, in their unit, which sets the three errors of
    *   the class, in steps; half a step when left out. `order`, the number of distinct
    *   integers allowed, that of the base when left out.
-   * @throws TypeError for a bad name, a bound, a step or an error that is not a `bigint`
-   *   or a decimal, a bound that is not an integer without `step`, or a bad `order`.
+   * @throws TypeError for a bad name, a bound, a step or an error that is not a `bigint`,
+   *   a finite `number` or a decimal, a bound that is not an integer without `step`, or a bad `order`.
    * @throws RangeError for `min > max`, a `step` that is not above 0, a `step` finer than
    *   the highest scale, a negative `error`, or a range of more than `order` integers.
    */
@@ -481,15 +497,15 @@ export class BoundedInt {
     }
     const name = checkName(spec.name, where);
     const order = orderOf(spec.order, this, where);
-    const low = decimal(spec.min, where, "min");
-    const high = decimal(spec.max, where, "max");
+    const low = decimal(spec.min, where, "min", true);
+    const high = decimal(spec.max, where, "max", true);
     let k = 0;
     if (spec.step === undefined) {
       if (!isInteger(low) || !isInteger(high)) {
         throw new TypeError(`${where}: min and max must be integers when there is no step`);
       }
     } else {
-      const step = decimal(spec.step, where, "step");
+      const step = decimal(spec.step, where, "step", true);
       if (step[0] <= 0n) throw new RangeError(`${where}: step must be above 0`);
       k = LOWEST_SCALE;
       while (k <= HIGHEST_SCALE && compare([1n, -k], step) > 0) k++;
@@ -500,7 +516,7 @@ export class BoundedInt {
     if (compare(low, high) > 0) throw new RangeError(`${where}: min must not be above max`);
     let error = HALF;
     if (spec.error !== undefined) {
-      const [n, e] = checkError(spec.error, where, "error");
+      const [n, e] = checkError(spec.error, where, "error", true);
       error = normalize([n, e + k]);
     }
     return makeClass(
@@ -529,7 +545,8 @@ export class BoundedInt {
    * with `bound` ½, `quadratic` `bound` and `term` `quadratic` when left out; and `order`,
    * that of the base when left out. Its exact bounds are the decimals of `min` and `end − 1`.
    *
-   * @throws TypeError for a bad name, bounds that are not `bigint`s, a scale that is not a
+   * @throws TypeError for a bad name, bounds that are not integers (`bigint`s or integer
+   *   `number`s, converted exactly), a scale that is not a
    *   `number`, an `integerOnly` that is not a boolean, errors that are not `bigint`s or
    *   decimals, or a bad `order`.
    * @throws RangeError for `min ≥ end`, more than `order` integers, a scale that is not
@@ -542,11 +559,10 @@ export class BoundedInt {
       throw new TypeError(`${where}: spec must be an object`);
     }
     const name = checkName(spec.name, where);
-    const { scale, min, end } = spec as { scale: number; min: unknown; end: unknown };
+    const { scale } = spec as { scale: number };
     // Left out, both bounds would give the class the range of its base: defineRaw requires them.
-    if (typeof min !== "bigint" || typeof end !== "bigint") {
-      throw new TypeError(`${where}: min and end must be bigints`);
-    }
+    const min = integer(spec.min, where, "min");
+    const end = integer(spec.end, where, "end");
     const integerOnly = spec.integerOnly ?? false;
     const order = orderOf(spec.order, this, where);
     const [errorBound, quadraticError, termError] = checkErrors(spec.errors, where);
