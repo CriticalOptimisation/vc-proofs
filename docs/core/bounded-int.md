@@ -308,15 +308,18 @@ is called on, from the physical values a user thinks in:
 
 - `name` is the name of the class, a non-empty string, used in the messages;
 - `min` and `max` are the lowest and the highest physical values, inclusive: finite
-  `number`s, `bigint`s or decimals `[n, e]`, with `min ≤ max`. They are kept exactly;
-- `step` is the accuracy, a finite `number` above 0. The scale `k` is the smallest
+  `number`s, `bigint`s or decimals `[n, e]`, with `min ≤ max`. They are kept exactly; a `number` is converted at once to the
+  exact decimal of its binary value, as `x` is by `from`, so that `max: 15.99` and
+  `from(15.99)` are the same decimal;
+- `step` is the accuracy, above 0: a finite `number`, a `bigint` or a decimal. The scale
+  `k` is the smallest
   integer, from `−308` to `323`, with `10^-k ≤ step`: a step of `0.1` gives `k = 1`, a
   step of `0.025` gives `k = 2`, a step of 1000 gives `k = −3`. The comparison is made
-  between exact `number`s, `Number("1e" + (−k))` and `step`, never with a logarithm;
+  between exact decimals, `10^-k` and `step`, never with a logarithm;
 - without `step`, the class takes integers only: `k = 0` and `integerOnly`, and `min`
   and `max` must be integers;
-- `error` is the accuracy of the values, in their unit, exact: a `bigint` or a decimal,
-  `0` or more. The three errors of the class are `error · 10^k` steps, or `½` when it is
+- `error` is the accuracy of the values, in their unit: a `number`, a `bigint` or a
+  decimal, `0` or more. The three errors of the class are `error · 10^k` steps, or `½` when it is
   left out;
 - `order` is the number of distinct integers allowed (see
   [The order](#the-range-of-a-class)), that of the base when left out.
@@ -343,7 +346,8 @@ guarantees of [Rounding](#rounding) hold only below `10^15`.
 
 `BoundedInt.defineRaw({ name, scale, min, end, integerOnly?, errors?, order? })` makes a frozen
 subclass from its constants directly: `scale` an integer from `−308` to `323`, and
-`min < end`, two `bigint`s with `end − min ≤ order`, anywhere. `integerOnly` is a
+`min < end`, two integers with `end − min ≤ order`, anywhere: `bigint`s, or `number`s
+without a fractional part, converted exactly. `integerOnly` is a
 boolean, `false` when left out, so that a class of integers only can be made at any
 scale. `errors` is `{ bound, quadratic, term }`, in steps, each a `bigint` or a decimal:
 `bound` is `½` when it is left out, `quadratic` is `bound`, `term` is `quadratic`, and
