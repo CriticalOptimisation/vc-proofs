@@ -400,7 +400,7 @@ describe("The scalar members of RistrettoElement", () => {
     ["a string", "5"],
     ["null", null],
     ["undefined", undefined],
-    ["a BoundedInt", BoundedInt.from(5)],
+    ["a BoundedInt", BoundedInt.from(5n)],
     ["an element", g()],
   ])(
     "encodeScalar and invertScalar refuse %s, which is not a bigint, with a TypeError",
@@ -413,7 +413,7 @@ describe("The scalar members of RistrettoElement", () => {
   );
 
   test("a BoundedInt passes its value: multiplyScalar(x.value) takes it, multiplyScalar(x) is a TypeError", () => {
-    expect(hex(g().multiplyScalar(BoundedInt.from(5).value).encode())).toBe(multiples[5]);
+    expect(hex(g().multiplyScalar(BoundedInt.from(5n).value).encode())).toBe(multiples[5]);
     // The range of BoundedInt is [0, ℓ) (#44): −1 is the scalar ℓ − 1.
     expect(
       g()
@@ -423,7 +423,7 @@ describe("The scalar members of RistrettoElement", () => {
     expect(hex(RistrettoElement.encodeScalar(BoundedInt.from(L - 1n).value))).toBe(
       hex(le32(L - 1n)),
     );
-    expect(() => g().multiplyScalar(BoundedInt.from(5) as never)).toThrow(TypeError);
+    expect(() => g().multiplyScalar(BoundedInt.from(5n) as never)).toThrow(TypeError);
   });
 
   test("the scalar parameters are bigints, and so are the scalars returned", () => {

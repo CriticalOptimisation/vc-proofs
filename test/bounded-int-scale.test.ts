@@ -133,10 +133,21 @@ describe("BoundedInt classes: the range is checked on the integer", () => {
     expect(() => Reading.fromValue(-800n)).toThrow(RangeError);
   });
 
-  test("a value that rounds into the range is accepted, one that rounds out of it is refused", () => {
+  // REVIEW PLACEHOLDER (#44: the bounds are checked exactly, before any rounding)
+  // a value that rounds into the range is accepted, one that rounds out of it is refused
+  //   -> a value beyond the bounds is refused, even when it rounds into the range
+  //   -> test/bounded-int-decimal.test.ts: Mass, from 0 to 100 at the step of 0.1: 100.04
+  //      and −0.04 are refused, not rounded into the range
+  // test("a value that rounds into the range is accepted, one that rounds out of it is refused", () => {
+  //   const { Mass } = classes();
+  //   expect(Mass.from(-0.04).value).toBe(0n);
+  //   expect(() => Mass.from(-0.06)).toThrow(RangeError);
+  // });
+  test("a value beyond the bounds is refused, even when it rounds into the range", () => {
     const { Mass } = classes();
-    expect(Mass.from(-0.04).value).toBe(0n);
+    expect(() => Mass.from(-0.04)).toThrow(RangeError);
     expect(() => Mass.from(-0.06)).toThrow(RangeError);
+    expect(() => Mass.from(100.04)).toThrow(RangeError);
   });
 
   // REVIEW PLACEHOLDER (#44: every class has a range; that of BoundedInt is [0, ℓ))

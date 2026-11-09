@@ -87,14 +87,17 @@ export const examples: readonly Example[] = [
     number: 5,
     string: "5.0",
   },
-  {
-    call: "Mass.from(100.04)",
-    run: (c) => c.Mass.from(100.04),
-    value: 1000n,
-    errors: half,
-    number: 100,
-    string: "100.0",
-  },
+  // REVIEW PLACEHOLDER (#44: the bounds are checked exactly, before any rounding)
+  // the row Mass.from(100.04), accepted as 1000n -> the row Mass.from(100.04), a RangeError
+  // {
+  //   call: "Mass.from(100.04)",
+  //   run: (c) => c.Mass.from(100.04),
+  //   value: 1000n,
+  //   errors: half,
+  //   number: 100,
+  //   string: "100.0",
+  // },
+  { call: "Mass.from(100.04)", run: (c) => c.Mass.from(100.04), throws: RangeError },
   { call: "Mass.from(100.06)", run: (c) => c.Mass.from(100.06), throws: RangeError },
   {
     call: "Mass.from(2.3, 0)",
