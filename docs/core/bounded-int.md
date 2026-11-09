@@ -14,8 +14,8 @@ class-level constants, the same for every instance, and **every class has both**
 `BoundedInt` itself has a scale of 0, a factor of 1, and the range `[0, ℓ)`: the scalars
 of the group, as the group writes them (see
 [The range of a class](#the-range-of-a-class)). Its subclasses, made by
-[`define`](#define) and [`defineRaw`](#defineraw), have their own, anywhere, of at most
-`ℓ` integers.
+[`define`](#define) and [`defineRaw`](#defineraw), have their own, anywhere. So are
+the errors of its values: they belong to the class, not to a value.
 
 ```ts
 import { BoundedInt } from "@criticaloptimisation/vc-proofs/core";
@@ -39,8 +39,8 @@ BoundedInt.from(-1); // RangeError: -1 is below BoundedInt.min
 
 ## Values and errors
 
-- **Immutable.** The integer and its errors are held in private fields, read through
-  getters with no setter. No method changes an instance. The classes made by `define`
+- **Immutable.** The integer is held in a private field, read through a getter with no
+  setter. No method changes an instance. The classes made by `define`
   and `defineRaw` are frozen.
 - **No public constructor.** Instances come only from `from` and `fromValue`, on
   `BoundedInt` or on one of its subclasses.
@@ -58,14 +58,11 @@ BoundedInt.from(-1); // RangeError: -1 is below BoundedInt.min
 
 | Member                         | Returns                                                        | Errors                               |
 | ------------------------------ | -------------------------------------------------------------- | ------------------------------------ |
-| `static from(x, error?)`       | a new instance holding the physical value `x`, scaled          | see [from](#from)                    |
-| `static fromValue(q, errors?)` | a new instance holding the integer `q`, as it is               | see [fromValue](#fromvalue)          |
+| `static from(x)`               | a new instance holding the physical value `x`, scaled          | see [from](#from)                    |
+| `static fromValue(q)`          | a new instance holding the integer `q`, as it is               | see [fromValue](#fromvalue)          |
 | `static define(spec)`          | a new subclass, from physical bounds and a step                | see [define](#define)                |
 | `static defineRaw(spec)`       | a new subclass, from a scale and integer bounds                | see [defineRaw](#defineraw)          |
 | `value`                        | the integer, a `bigint`                                        | none                                 |
-| `errorBound`                   | the bound of the error, in steps, exact like the value         | none                                 |
-| `quadraticError`               | the quadratic error, in steps, exact like the value            | none                                 |
-| `termError`                    | the error of the least accurate term, in steps                 | none                                 |
 | `valueOf()`                    | the physical value, a `number`, without its meaningless digits | `RangeError` where it is `±Infinity` |
 | `toString()`                   | the string of `valueOf()`, with the digits that carry meaning  | as `valueOf()`                       |
 | `toLocaleString(locales?, o?)` | the digits of `toString()`, in the form of a locale            | `RangeError` beyond 100 decimals     |
@@ -80,15 +77,18 @@ instances of its own.
 A class is described by four constants, which every member reads from the class of the
 call (`this` in a static member, `this.constructor` in an instance member):
 
-| Constant      | Meaning                                                                   | On `BoundedInt` |
-| ------------- | ------------------------------------------------------------------------- | --------------- |
-| `scale`       | the integer `k` of the factor `10^k`: the step of the class is `10^-k`    | `0`             |
-| `min`         | the lowest integer of the range, a `bigint`                               | `0n`            |
-| `end`         | the integer just above the range, a `bigint`: the range is `[min, end)`   | `ℓ`             |
-| `integerOnly` | whether `from` accepts only integers, as `BoundedInt` does, or rounds `x` | `true`          |
-| `lowest`      | the lowest physical value, exact and inclusive, a decimal `[n, e]`        | absent          |
-| `highest`     | the highest physical value, exact and inclusive, a decimal `[n, e]`       | absent          |
-| `order`       | the order of the group of the class: it holds at most `order` integers    | `ℓ`             |
+| Constant         | Meaning                                                                   | On `BoundedInt` |
+| ---------------- | ------------------------------------------------------------------------- | --------------- |
+| `scale`          | the integer `k` of the factor `10^k`: the step of the class is `10^-k`    | `0`             |
+| `min`            | the lowest integer of the range, a `bigint`                               | `0n`            |
+| `end`            | the integer just above the range, a `bigint`: the range is `[min, end)`   | `ℓ`             |
+| `integerOnly`    | whether `from` accepts only integers, as `BoundedInt` does, or rounds `x` | `true`          |
+| `lowest`         | the lowest physical value, exact and inclusive, a decimal `[n, e]`        | absent          |
+| `highest`        | the highest physical value, exact and inclusive, a decimal `[n, e]`       | absent          |
+| `order`          | the number of distinct integers allowed, as for integers of a fixed size  | absent          |
+| `errorBound`     | the guaranteed bound of the error of a value, in steps, a decimal         | `[5n, -1]`, ½   |
+| `quadraticError` | the quadratic error of a value, in steps, a decimal                       | `[5n, -1]`, ½   |
+| `termError`      | the error of the least accurate term of a value, in steps, a decimal      | `[5n, -1]`, ½   |
 
 - **The scale is a power of ten.** `k` is an integer, and the step `10^-k` is a
   `number` above 0 and finite: `k` goes from `−308` to `323`, the powers of ten that a
@@ -98,7 +98,8 @@ call (`this` in a static member, `this.constructor` in an instance member):
   exact: see [Rounding](#rounding) for why the factor is a power of ten and not of two.
 - **The range is semi-open**, like the integers of a fixed width: `[−8, 8)` holds the
   integers from −8 to 7. `end − min` is the number of integers in the range. Every
-  class has one, of at most `ℓ` integers, so every class can be asked for its bounds.
+  class has one, so every class can be asked for its bounds; a class with an `order`
+  holds at most `order` integers.
 - **No offset.** Zero is the integer 0, and a negative value is a negative `bigint`. A
   public constant `c` therefore commits as `c·g`, and a linear combination of values
   needs no correction for an offset.
@@ -137,15 +138,14 @@ are all valid. A class whose values can be negative declares a range that holds 
 linear combination such as `cutoff − DoB` computes the range of its result from the
 ranges of its terms (#31).
 
-The one rule is **at most `ℓ` integers**: `end − min ≤ ℓ`, where `ℓ` is the `order` of
-the class. `BoundedInt` reads it from its group, `RistrettoElement.ORDER`, rather than
-keeping a copy; `define` and `defineRaw` take the group of a class, or its order as a
-`bigint`, and inherit that of their base when it is left out. Two integers of a class then
-never stand for the same scalar, so an opening, a scalar, gives back one value of the
-class. Two classes may give the same scalar different integers: −1 in a class of
-differences is `ℓ − 1` in `BoundedInt`. The difference of two values of `BoundedInt`
-spans `2ℓ − 1` integers, more than `ℓ`: it has no class, and a combination works on
-terms of narrower ranges.
+**The order.** A class may have an `order`: the number of distinct values it may hold,
+as for integers of a fixed size. A byte has 256 values, and a class of bytes, `[0, 256)`
+or `[−128, 128)`, has the order `256n`: `end − min ≤ order`, else a `RangeError`. Without
+an order, `end − min` has no limit. `BoundedInt` has none. `define` and `defineRaw` take
+`order`, a `bigint`, or any form with a `bigint` `ORDER`, such as a class with a static
+`ORDER`; a class inherits the order of its base when it is left out. An application that
+maps the integers of a class onto a finite set of `N` values gives the class the order
+`N`, so that two integers of the class never stand for the same value.
 
 The constants of a class made by `define` or `defineRaw` are checked when it is made. A
 class written by hand, `class Days extends BoundedInt { static override min = 0n; static
@@ -153,20 +153,21 @@ override end = 365251n }`, is checked at its first `from` or `fromValue`, once. 
 constant it declares overrides that of `BoundedInt`, so TypeScript requires `override`
 under `noImplicitOverride`:
 
-| Constants                                                                          | Error        |
-| ---------------------------------------------------------------------------------- | ------------ |
-| `min` without `end`, or `end` without `min`                                        | `TypeError`  |
-| `min` or `end` not a `bigint`, `scale` not a `number`, `integerOnly` not a boolean | `TypeError`  |
-| `min ≥ end`                                                                        | `RangeError` |
-| `end − min` above `ℓ`                                                              | `RangeError` |
-| `scale` not an integer, or `10^-scale` not a `number` above 0 and finite           | `RangeError` |
+| Constants                                                                            | Error                     |
+| ------------------------------------------------------------------------------------ | ------------------------- |
+| `min` without `end`, or `end` without `min`                                          | `TypeError`               |
+| `min` or `end` not a `bigint`, `scale` not a `number`, `integerOnly` not a boolean   | `TypeError`               |
+| `min ≥ end`                                                                          | `RangeError`              |
+| `end − min` above `order`                                                            | `RangeError`              |
+| an error not a decimal, negative, or `termError ≤ quadraticError ≤ errorBound` false | `TypeError`, `RangeError` |
+| `scale` not an integer, or `10^-scale` not a `number` above 0 and finite             | `RangeError`              |
 
 Constants changed after the first use of a class are not checked again: declare them once.
 
 ### from
 
-`from(x, error?)` takes the **physical** value `x`, a `number` or a `bigint`, and makes
-an instance of the class it is called on:
+`from(x)` takes the **physical** value `x`, a `number`, a `bigint` or a decimal
+`[n, e]`, and makes an instance of the class it is called on:
 
 1. **Range.** `x` must lie within the [exact bounds](#the-class-constants) of the class,
    `lowest ≤ x ≤ highest`. The check is made on `x` itself, exactly, **before any
@@ -175,28 +176,24 @@ an instance of the class it is called on:
    refused first.
 2. **Scaling.** `x` is multiplied by `10^k` exactly. A `number` is taken at its exact
    binary value: it is split into its integer mantissa and its power of two, and the
-   product is computed with `bigint`s. A `bigint` `n` is the exact integer `n`, and a
-   decimal `[n, e]` the exact value `n · 10^e`.
+   product is computed with `bigint`s: `m · 2^e` is the decimal `[m · 5^-e, e]`. A
+   `bigint` `n` is the exact integer `n`, and a decimal `[n, e]` the exact value
+   `n · 10^e`. In stage 1, a `number` is converted at once, and everything after works on
+   the decimal.
 3. **Rounding.** The product is rounded to the nearest integer, ties to even (see
    [Rounding](#rounding)). This is the only rounding of `from`. The integer `q` is then
    within `[min, end)`.
-4. **Errors.** `error` is the accuracy of `x`, in the unit of `x`, exact like `x`: a
-   `bigint` or a decimal `[n, e]`, `0` or more (and a `number` for a `number` `x`). It is
-   scaled like `x`, exactly, and the three errors of the instance are set to
-   `error · 10^k`. When it is left out, they are `½`: half a step, the error of the
-   rounding. The error is a property of how `x` was obtained, not of `x`: a clock that
-   reads exactly 12 is no more accurate than when it reads 12.3. A caller that knows `x`
-   to be exact passes `0`.
 
-| `x` or `error`                                                          | Result                           |
+The errors of the instance are those of its class (see
+[The errors of a class](#the-errors-of-a-class)).
+
+| `x`                                                                     | Result                           |
 | ----------------------------------------------------------------------- | -------------------------------- |
 | a finite `number`, or a `bigint`, whose integer is in the range         | a new instance                   |
 | a `number` with a fractional part, on a class with `integerOnly`        | `TypeError`: not an integer      |
 | `NaN`, `Infinity`, `-Infinity`                                          | `TypeError`: not a finite number |
 | anything else: a string, `null`, `undefined`, an object, a `BoundedInt` | `TypeError`                      |
 | a value outside `[lowest, highest]`, compared exactly                   | `RangeError`                     |
-| `error` not of the type of `x`                                          | `TypeError`                      |
-| `error` negative, `NaN` or infinite                                     | `RangeError`                     |
 
 On `BoundedInt`, with a scale of 0, `from` keeps its integer exactly within `[0, ℓ)`: a
 `bigint` as it is, `from(ℓ - 1n).value` is `ℓ - 1n`, and every `number` without a
@@ -209,31 +206,25 @@ A `BoundedInt` is refused: a caller that has one already has its `value`.
 
 ### fromValue
 
-`fromValue(q, errors?)` takes the **integer** `q`, a `bigint`, as it is: the
+`fromValue(q)` takes the **integer** `q`, a `bigint`, as it is: the
 representation, not the physical value. A linear combination makes its result with it,
 and so does the decoding of an opening. On a scaled class the two differ:
 `Mass.from(5n)` is 5 kg, `50n`, while `Mass.fromValue(5n)` is 0.5 kg.
 
-`errors` is `{ bound, quadratic, term }`, in steps, each exact like `q`: a `bigint` or a
-decimal `[n, e]`. The getters return them as decimals:
+| `q`                                     | Result         |
+| --------------------------------------- | -------------- |
+| a `bigint` in the range                 | a new instance |
+| `q` not a `bigint`, a `number` included | `TypeError`    |
+| `q` outside `[min, end)`                | `RangeError`   |
 
-- `bound` is `½` when it is left out; `quadratic` is `bound` when it is left out, and
-  `term` is `quadratic`;
-- they must satisfy `0 ≤ term ≤ quadratic ≤ bound`.
+### The errors of a class
 
-| `q` or `errors`                                                 | Result         |
-| --------------------------------------------------------------- | -------------- |
-| a `bigint` in the range, and valid errors                       | a new instance |
-| `q` not a `bigint`, a `number` included                         | `TypeError`    |
-| `q` outside `[min, end)`                                        | `RangeError`   |
-| an error not a `bigint` or a decimal, or `errors` not an object | `TypeError`    |
-| an error negative, `NaN` or infinite, or out of order           | `RangeError`   |
-
-### The errors of an instance
-
-An instance carries three errors, in steps of its class, never in the unit of its value.
-They describe how the integer was obtained; they never enter a commitment, and they are
-never published.
+A class carries three errors, class constants like its scale, in steps of the class,
+exact decimals like the integers they affect. They are set when the class is made, never
+by a value: `define` sets the three to its `error`, in the unit of the values, scaled to
+steps, or to `½`, half a step, the error of the rounding; `defineRaw` takes them in steps.
+They describe how the values of the class are obtained; they never enter a commitment,
+and they are never published.
 
 - **`errorBound`** is a guaranteed bound: the true value is within
   `errorBound · 10^-k` of `D(q)`. It may be committed, or used to move a threshold, when
@@ -243,8 +234,9 @@ never published.
 - **`termError`** is the error of the least accurate term alone. It is the one that
   decides which digits carry meaning.
 
-For an instance made by `from`, the three are equal. A linear combination with
-coefficients `aᵢ` computes them from its terms: `errorBound = Σ |aᵢ| · boundᵢ`,
+For a class made by `define`, the three are equal. A linear combination with
+coefficients `aᵢ` computes the errors of the class of its results from those of its
+terms: `errorBound = Σ |aᵢ| · boundᵢ`,
 `quadraticError = √(Σ (aᵢ · quadraticᵢ)²)` and `termError = max |aᵢ| · termᵢ`, so that
 `termError ≤ quadraticError ≤ errorBound` always holds.
 
@@ -311,7 +303,7 @@ the worst outcome. Since `[Symbol.toPrimitive]` comes first, JavaScript never ca
 
 ### define
 
-`BoundedInt.define({ name, min, max, step?, group? })` makes a frozen subclass of the class it
+`BoundedInt.define({ name, min, max, step?, error?, order? })` makes a frozen subclass of the class it
 is called on, from the physical values a user thinks in:
 
 - `name` is the name of the class, a non-empty string, used in the messages;
@@ -323,8 +315,11 @@ is called on, from the physical values a user thinks in:
   between exact `number`s, `Number("1e" + (−k))` and `step`, never with a logarithm;
 - without `step`, the class takes integers only: `k = 0` and `integerOnly`, and `min`
   and `max` must be integers;
-- `group` is the group of the class, such as `RistrettoElement`, or its order, a
-  `bigint`: the class gets its `order`. It is that of the base when left out.
+- `error` is the accuracy of the values, in their unit, exact: a `bigint` or a decimal,
+  `0` or more. The three errors of the class are `error · 10^k` steps, or `½` when it is
+  left out;
+- `order` is the number of distinct integers allowed (see
+  [The order](#the-range-of-a-class)), that of the base when left out.
 
 The class gets `scale = k`, `lowest = min` and `highest = max`, exactly, and
 `integerOnly`, `true` only when `step` is left out. Its integers are those that the values
@@ -346,11 +341,13 @@ guarantees of [Rounding](#rounding) hold only below `10^15`.
 
 ### defineRaw
 
-`BoundedInt.defineRaw({ name, scale, min, end, integerOnly?, group? })` makes a frozen
+`BoundedInt.defineRaw({ name, scale, min, end, integerOnly?, errors?, order? })` makes a frozen
 subclass from its constants directly: `scale` an integer from `−308` to `323`, and
 `min < end`, two `bigint`s with `end − min ≤ order`, anywhere. `integerOnly` is a
 boolean, `false` when left out, so that a class of integers only can be made at any
-scale. `group` gives `order`, as for `define`. A linear
+scale. `errors` is `{ bound, quadratic, term }`, in steps, each a `bigint` or a decimal:
+`bound` is `½` when it is left out, `quadratic` is `bound`, `term` is `quadratic`, and
+`0 ≤ term ≤ quadratic ≤ bound` must hold. `order` is as for `define`. A linear
 combination makes the class of its results with it. Its errors are those of
 [the class constants](#the-class-constants), and a `TypeError` for a `name` that is not a
 non-empty string.
