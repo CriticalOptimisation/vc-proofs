@@ -19,7 +19,16 @@ function section(title: string): string {
 }
 
 /** The class constants, which have a table of their own (#44). */
-const CONSTANTS = ["scale", "min", "end", "integerOnly", "order"];
+const CONSTANTS = [
+  "scale",
+  "min",
+  "end",
+  "integerOnly",
+  "order",
+  "errorBound",
+  "quadraticError",
+  "termError",
+];
 
 /** The public members of the class: static, prototype, and well-known symbols. */
 function members(): string[] {
@@ -36,7 +45,27 @@ function members(): string[] {
 }
 
 describe("docs/core/bounded-int.md, section BoundedInt", () => {
-  test("the class has its public members: from, fromValue, define, defineRaw, value, the three errors, valueOf, toString, toPrimitive", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: the errors and the order belong to the class)
+  // the class has its public members: from, fromValue, define, defineRaw, value, the three errors, valueOf, toString, toPrimitive
+  //   -> the class has its public members: from, fromValue, define, defineRaw, value, valueOf, toString, toLocaleString, toPrimitive
+  // test("the class has its public members: from, fromValue, define, defineRaw, value, the three errors, valueOf, toString, toPrimitive", () => {
+  //   expect(members().sort()).toEqual(
+  //     [
+  //       "static from",
+  //       "static fromValue",
+  //       "static define",
+  //       "static defineRaw",
+  //       "value",
+  //       "errorBound",
+  //       "quadraticError",
+  //       "termError",
+  //       "valueOf",
+  //       "toString",
+  //       "[Symbol.toPrimitive]",
+  //     ].sort(),
+  //   );
+  // });
+  test("the class has its public members: from, fromValue, define, defineRaw, value, valueOf, toString, toLocaleString, toPrimitive", () => {
     expect(members().sort()).toEqual(
       [
         "static from",
@@ -44,11 +73,9 @@ describe("docs/core/bounded-int.md, section BoundedInt", () => {
         "static define",
         "static defineRaw",
         "value",
-        "errorBound",
-        "quadraticError",
-        "termError",
         "valueOf",
         "toString",
+        "toLocaleString",
         "[Symbol.toPrimitive]",
       ].sort(),
     );
@@ -95,7 +122,23 @@ describe("docs/core/bounded-int.md, section The class constants", () => {
     expect(BoundedInt.integerOnly).toBe(true);
   });
 
-  test("the subsection The range of a class gives [0, ℓ) to BoundedInt and at most ℓ integers to every class, and the table of checks refuses more", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: the errors and the order belong to the class)
+  // the subsection The range of a class gives [0, ℓ) to BoundedInt and at most ℓ integers to every class, and the table of checks refuses more
+  //   -> the subsection The range of a class gives [0, ℓ) to BoundedInt and an optional order to every class, and the table of checks refuses more than order integers
+  // test("the subsection The range of a class gives [0, ℓ) to BoundedInt and at most ℓ integers to every class, and the table of checks refuses more", () => {
+  //   const text = page.slice(
+  //     page.indexOf("\n### The class constants\n"),
+  //     page.indexOf("\n### from\n"),
+  //   );
+  //   const start = text.indexOf("\n#### The range of a class\n");
+  //   expect(start).toBeGreaterThan(-1);
+  //   const range = text.slice(start);
+  //   expect(range).toContain("The range of `BoundedInt` is `[0, ℓ)`");
+  //   expect(range).toContain("**at most `ℓ` integers**: `end − min ≤ ℓ`");
+  //   expect(text).toMatch(/\| `end − min` above `ℓ` +\| `RangeError` \|/);
+  //   expect(text).not.toMatch(/±22|10\^15/);
+  // });
+  test("the subsection The range of a class gives [0, ℓ) to BoundedInt and an optional order to every class, and the table of checks refuses more than order integers", () => {
     const text = page.slice(
       page.indexOf("\n### The class constants\n"),
       page.indexOf("\n### from\n"),
@@ -104,8 +147,9 @@ describe("docs/core/bounded-int.md, section The class constants", () => {
     expect(start).toBeGreaterThan(-1);
     const range = text.slice(start);
     expect(range).toContain("The range of `BoundedInt` is `[0, ℓ)`");
-    expect(range).toContain("**at most `ℓ` integers**: `end − min ≤ ℓ`");
-    expect(text).toMatch(/\| `end − min` above `ℓ` +\| `RangeError` \|/);
+    expect(range).toContain("`end − min ≤ order`");
+    expect(range).toContain("Without\nan order, `end − min` has no limit.");
+    expect(text).toMatch(/\| `end − min` above `order` +\| `RangeError` +\|/);
     expect(text).not.toMatch(/±22|10\^15/);
   });
 });

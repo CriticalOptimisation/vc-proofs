@@ -1,9 +1,11 @@
 /**
  * Stage 1 of the decimal classes of `BoundedInt` (#44; docs/core/bounded-int.md): every
- * value is an exact decimal `[n, e]`, worth `n · 10^e`, or a `bigint`; a `number` is never
- * a value, and an error is exact like the value it affects. A value is compared exactly
- * with the bounds of its class, then scaled to the step and rounded once, ties to even.
- * The examples are those of the maintainer's order and review on PR #47. The same file runs in Node.js and in every headless browser.
+ * bound, step and error is an exact decimal `[n, e]`, worth `n · 10^e`, or a `bigint`;
+ * the value `x` of `from` may also be a `number`, converted at once to the exact decimal
+ * of its binary value. The errors and the order belong to the class. A value is compared
+ * exactly with the bounds of its class, then scaled to the step and rounded once, ties to
+ * even. The examples are those of the maintainer's order and reviews on PR #47. The same
+ * file runs in Node.js and in every headless browser.
  */
 import { describe, expect, test } from "vitest";
 import { BoundedInt, RistrettoElement } from "../src/core/index.js";
@@ -101,7 +103,7 @@ describe("BoundedInt stage 1: the bounds are exact decimals, checked before any 
   });
 });
 
-describe("BoundedInt stage 1: the factories take integerOnly and the group", () => {
+describe("BoundedInt stage 1: the factories take integerOnly and the order", () => {
   test("defineRaw makes an integerOnly class on request, and not otherwise", () => {
     const Count = BoundedInt.defineRaw({
       name: "Count",
@@ -121,37 +123,85 @@ describe("BoundedInt stage 1: the factories take integerOnly and the group", () 
     ).toThrow(TypeError);
   });
 
-  test("BoundedInt reads its order from its group, ristretto255: no copy of ℓ to keep in sync", () => {
-    expect(BoundedInt.order).toBe(L);
+  // REVIEW PLACEHOLDER (#44, review of PR #47: errors and order on the class; a number x)
+  // BoundedInt reads its order from its group, ristretto255: no copy of ℓ to keep in sync
+  //   -> BoundedInt has no order: end − min has no limit
+  // test("BoundedInt reads its order from its group, ristretto255: no copy of ℓ to keep in sync", () => {
+  //   expect(BoundedInt.order).toBe(L);
+  //   expect(BoundedInt.end).toBe(L);
+  //   expect(BoundedInt.defineRaw({ name: "C", scale: 0, min: 0n, end: 1n }).order).toBe(L);
+  // });
+  test("BoundedInt has no order: end − min has no limit", () => {
+    expect(BoundedInt.order).toBeUndefined();
     expect(BoundedInt.end).toBe(L);
-    expect(BoundedInt.defineRaw({ name: "C", scale: 0, min: 0n, end: 1n }).order).toBe(L);
+    const Wide = BoundedInt.defineRaw({ name: "Wide", scale: 0, min: -(L ** 2n), end: L ** 2n });
+    expect(Wide.order).toBeUndefined();
+    expect(Wide.fromValue(L ** 2n - 1n).value).toBe(L ** 2n - 1n);
   });
 
-  test("define and defineRaw take the group, or its order as a bigint, for the count of integers", () => {
-    const Small = { ORDER: 11n };
-    expect(BoundedInt.define({ name: "A", min: 0n, max: 10n, group: Small }).order).toBe(11n);
-    expect(() => BoundedInt.define({ name: "B", min: 0n, max: 11n, group: Small })).toThrow(
+  // REVIEW PLACEHOLDER (#44, review of PR #47: errors and order on the class; a number x)
+  // define and defineRaw take the group, or its order as a bigint, for the count of integers
+  //   -> define and defineRaw take an order, a bigint or a form with ORDER: a byte holds 256 integers
+  // test("define and defineRaw take the group, or its order as a bigint, for the count of integers", () => {
+  //   const Small = { ORDER: 11n };
+  //   expect(BoundedInt.define({ name: "A", min: 0n, max: 10n, group: Small }).order).toBe(11n);
+  //   expect(() => BoundedInt.define({ name: "B", min: 0n, max: 11n, group: Small })).toThrow(
+  //     RangeError,
+  //   );
+  //   expect(BoundedInt.defineRaw({ name: "C", scale: 0, min: 0n, end: 11n, group: 11n }).order).toBe(
+  //     11n,
+  //   );
+  //   expect(() =>
+  //     BoundedInt.defineRaw({ name: "D", scale: 0, min: 0n, end: 12n, group: 11n }),
+  //   ).toThrow(RangeError);
+  //   expect(BoundedInt.define({ name: "E", min: 0n, max: 1n, group: RistrettoElement }).order).toBe(
+  //     L,
+  //   );
+  //   expect(() =>
+  //     BoundedInt.define({ name: "F", min: 0n, max: 1n, group: { ORDER: 11 } as never }),
+  //   ).toThrow(TypeError);
+  //   expect(() =>
+  //     BoundedInt.defineRaw({ name: "G", scale: 0, min: 0n, end: 1n, group: 0n }),
+  //   ).toThrow(RangeError);
+  // });
+  test("define and defineRaw take an order, a bigint or a form with ORDER: a byte holds 256 integers", () => {
+    const Byte = BoundedInt.defineRaw({ name: "Byte", scale: 0, min: 0n, end: 256n, order: 256n });
+    expect(Byte.order).toBe(256n);
+    expect(() =>
+      BoundedInt.defineRaw({ name: "Over", scale: 0, min: 0n, end: 257n, order: 256n }),
+    ).toThrow(RangeError);
+    const Signed = BoundedInt.define({ name: "Signed", min: -128n, max: 127n, order: 256n });
+    expect([Signed.min, Signed.end, Signed.order]).toEqual([-128n, 128n, 256n]);
+    expect(() => BoundedInt.define({ name: "B", min: 0n, max: 256n, order: 256n })).toThrow(
       RangeError,
     );
-    expect(BoundedInt.defineRaw({ name: "C", scale: 0, min: 0n, end: 11n, group: 11n }).order).toBe(
+    expect(BoundedInt.define({ name: "E", min: 0n, max: 1n, order: RistrettoElement }).order).toBe(
+      L,
+    );
+    expect(BoundedInt.define({ name: "F", min: 0n, max: 1n, order: { ORDER: 11n } }).order).toBe(
       11n,
     );
     expect(() =>
-      BoundedInt.defineRaw({ name: "D", scale: 0, min: 0n, end: 12n, group: 11n }),
-    ).toThrow(RangeError);
-    expect(BoundedInt.define({ name: "E", min: 0n, max: 1n, group: RistrettoElement }).order).toBe(
-      L,
-    );
-    expect(() =>
-      BoundedInt.define({ name: "F", min: 0n, max: 1n, group: { ORDER: 11 } as never }),
+      BoundedInt.define({ name: "G", min: 0n, max: 1n, order: { ORDER: 11 } as never }),
     ).toThrow(TypeError);
     expect(() =>
-      BoundedInt.defineRaw({ name: "G", scale: 0, min: 0n, end: 1n, group: 0n }),
+      BoundedInt.defineRaw({ name: "H", scale: 0, min: 0n, end: 1n, order: 0n }),
     ).toThrow(RangeError);
   });
 
-  test("a class made with a group passes it on to the classes made from it", () => {
-    const Small = BoundedInt.defineRaw({ name: "Small", scale: 0, min: 0n, end: 5n, group: 11n });
+  // REVIEW PLACEHOLDER (#44, review of PR #47: errors and order on the class; a number x)
+  // a class made with a group passes it on to the classes made from it
+  //   -> a class with an order passes it on to the classes made from it
+  // test("a class made with a group passes it on to the classes made from it", () => {
+  //   const Small = BoundedInt.defineRaw({ name: "Small", scale: 0, min: 0n, end: 5n, group: 11n });
+  //   const Sub = Small.defineRaw({ name: "Sub", scale: 0, min: 0n, end: 11n });
+  //   expect(Sub.order).toBe(11n);
+  //   expect(() => Small.defineRaw({ name: "Over", scale: 0, min: 0n, end: 12n })).toThrow(
+  //     RangeError,
+  //   );
+  // });
+  test("a class with an order passes it on to the classes made from it", () => {
+    const Small = BoundedInt.defineRaw({ name: "Small", scale: 0, min: 0n, end: 5n, order: 11n });
     const Sub = Small.defineRaw({ name: "Sub", scale: 0, min: 0n, end: 11n });
     expect(Sub.order).toBe(11n);
     expect(() => Small.defineRaw({ name: "Over", scale: 0, min: 0n, end: 12n })).toThrow(
@@ -161,17 +211,66 @@ describe("BoundedInt stage 1: the factories take integerOnly and the group", () 
 });
 
 describe("BoundedInt stage 1: the inputs", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: errors and order on the class; a number x)
+  // from(%s) is a TypeError: only a bigint or a decimal [n, e]
+  //   -> from(%s) is a TypeError: only a bigint, a finite number or a decimal [n, e]
+  //   -> a number x is converted at once to the exact decimal of its binary value
+  // test.each([
+  //   ["5", 5],
+  //   ["0.5", 0.5],
+  //   ['"5"', "5"],
+  //   ["[5n]", [5n]],
+  //   ["[5n, 0.5]", [5n, 0.5]],
+  //   ["[5, 0]", [5, 0]],
+  //   ["null", null],
+  // ] as const)("from(%s) is a TypeError: only a bigint or a decimal [n, e]", (_, x) => {
+  //   expect(() => BoundedInt.from(x as never)).toThrow(TypeError);
+  //   expect(() => BoundedInt.from(x as never)).toThrow(/^BoundedInt\.from: /);
+  // });
   test.each([
-    ["5", 5],
-    ["0.5", 0.5],
+    ["NaN", NaN],
+    ["Infinity", Infinity],
     ['"5"', "5"],
     ["[5n]", [5n]],
     ["[5n, 0.5]", [5n, 0.5]],
     ["[5, 0]", [5, 0]],
     ["null", null],
-  ] as const)("from(%s) is a TypeError: only a bigint or a decimal [n, e]", (_, x) => {
-    expect(() => BoundedInt.from(x as never)).toThrow(TypeError);
-    expect(() => BoundedInt.from(x as never)).toThrow(/^BoundedInt\.from: /);
+  ] as const)(
+    "from(%s) is a TypeError: only a bigint, a finite number or a decimal [n, e]",
+    (_, x) => {
+      expect(() => BoundedInt.from(x as never)).toThrow(TypeError);
+      expect(() => BoundedInt.from(x as never)).toThrow(/^BoundedInt\.from: /);
+    },
+  );
+
+  test("a number x is converted at once to the exact decimal of its binary value", () => {
+    expect(BoundedInt.from(5).value).toBe(5n);
+    expect(BoundedInt.from(-0).value).toBe(0n);
+    expect(BoundedInt.from(2 ** 60).value).toBe(2n ** 60n);
+    expect(() => BoundedInt.from(0.5)).toThrow(TypeError);
+    expect(() => BoundedInt.from(-1)).toThrow(RangeError);
+    const Mass = BoundedInt.define({ name: "Mass", min: 0n, max: 100n, step: [1n, -1] });
+    expect(Mass.from(2.3).value).toBe(23n);
+    expect(Mass.from(100).value).toBe(1000n);
+    expect(() => Mass.from(100.04)).toThrow(RangeError);
+    expect(() => Mass.from(-0.04)).toThrow(RangeError);
+    const Reading = BoundedInt.define({
+      name: "Reading",
+      min: [-799n, -2],
+      max: [1600n, -2],
+      step: [1n, -2],
+    });
+    // 0.125 is exact in binary: a tie, to even. 1.005 is 1.00499999999999989…: no tie.
+    expect(Reading.from(0.125).value).toBe(12n);
+    expect(Reading.from(-0.125).value).toBe(-12n);
+    expect(Reading.from(1.005).value).toBe(100n);
+    // 15.99 is 15.9900000000000002131…, above the decimal 15.99.
+    const Exact = BoundedInt.define({ name: "Exact", min: 0n, max: [1599n, -2], step: [1n, -2] });
+    expect(() => Exact.from(15.99)).toThrow(RangeError);
+    expect(Exact.from([1599n, -2]).value).toBe(1599n);
+    expect(
+      BoundedInt.defineRaw({ name: "Tiny", scale: 323, min: 0n, end: 10n }).from(5e-323).value,
+    ).toBe(5n);
   });
 
   test("on a class with integerOnly, a decimal that is not an integer is a TypeError", () => {
@@ -191,7 +290,7 @@ describe("BoundedInt stage 1: the inputs", () => {
     expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, step: [1n, -324] })).toThrow(
       RangeError,
     );
-    expect(() => BoundedInt.define({ name: "X", min: 0n, max: L })).toThrow(RangeError);
+    expect(() => BoundedInt.define({ name: "X", min: 0n, max: L, order: L })).toThrow(RangeError);
   });
 
   test("the step gives the smallest scale k with 10^-k ≤ step, compared exactly", () => {
@@ -235,8 +334,14 @@ describe("BoundedInt stage 1: toString() writes the exact decimal", () => {
     ["an error of 4.9 steps", 1, 45n, [49n, -1], "4.5"],
     ["a huge error", 1, 45n, [1n, 1000], "0"],
   ] as const)("%s gives %s", (_, scale, q, bound, text) => {
-    const C = BoundedInt.defineRaw({ name: "C", scale, min: -10000n, end: 10000n });
-    expect(C.fromValue(q, { bound }).toString()).toBe(text);
+    const C = BoundedInt.defineRaw({
+      name: "C",
+      scale,
+      min: -10000n,
+      end: 10000n,
+      errors: { bound },
+    });
+    expect(C.fromValue(q).toString()).toBe(text);
   });
 
   test.each([
@@ -268,34 +373,110 @@ describe("BoundedInt stage 1: toString() writes the exact decimal", () => {
     expect(`<${BoundedInt.from(L - 1n) as unknown as string}>`).toBe(`<${String(L - 1n)}>`);
   });
 
-  test("the error of from is exact like x, in the unit of x, and scaled to steps exactly", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: errors and order on the class; a number x)
+  // the error of from is exact like x, in the unit of x, and scaled to steps exactly
+  //   -> the errors belong to the class: define sets them from its error, in the unit of the values
+  // test("the error of from is exact like x, in the unit of x, and scaled to steps exactly", () => {
+  //   const Mass = BoundedInt.define({ name: "Mass", min: 0n, max: 100n, step: [1n, -1] });
+  //   const m = Mass.from([23n, -1], [5n, -1]);
+  //   expect([m.errorBound, m.quadraticError, m.termError]).toEqual([
+  //     [5n, 0],
+  //     [5n, 0],
+  //     [5n, 0],
+  //   ]);
+  //   expect(m.toString()).toBe("2");
+  //   expect(Mass.from(2n).errorBound).toEqual([5n, -1]);
+  //   expect(Mass.from(2n, 0n).errorBound).toEqual([0n, 0]);
+  //   expect(Mass.from(2n, [20n, -2]).errorBound).toEqual([2n, 0]);
+  //   expect(() => Mass.from(2n, 0.5 as never)).toThrow(TypeError);
+  //   expect(() => Mass.from(2n, [-1n, -1])).toThrow(RangeError);
+  // });
+  test("the errors belong to the class: define sets them from its error, in the unit of the values", () => {
     const Mass = BoundedInt.define({ name: "Mass", min: 0n, max: 100n, step: [1n, -1] });
-    const m = Mass.from([23n, -1], [5n, -1]);
-    expect([m.errorBound, m.quadraticError, m.termError]).toEqual([
+    expect([Mass.errorBound, Mass.quadraticError, Mass.termError]).toEqual([
+      [5n, -1],
+      [5n, -1],
+      [5n, -1],
+    ]);
+    const Rough = BoundedInt.define({
+      name: "Rough",
+      min: 0n,
+      max: 100n,
+      step: [1n, -1],
+      error: [5n, -1],
+    });
+    expect([Rough.errorBound, Rough.quadraticError, Rough.termError]).toEqual([
       [5n, 0],
       [5n, 0],
       [5n, 0],
     ]);
-    expect(m.toString()).toBe("2");
-    expect(Mass.from(2n).errorBound).toEqual([5n, -1]);
-    expect(Mass.from(2n, 0n).errorBound).toEqual([0n, 0]);
-    expect(Mass.from(2n, [20n, -2]).errorBound).toEqual([2n, 0]);
-    expect(() => Mass.from(2n, 0.5 as never)).toThrow(TypeError);
-    expect(() => Mass.from(2n, [-1n, -1])).toThrow(RangeError);
+    expect(Rough.from([23n, -1]).toString()).toBe("2");
+    expect(Rough.fromValue(23n).toString()).toBe("2");
+    expect("errorBound" in Rough.from(2n)).toBe(false);
+    expect(BoundedInt.define({ name: "E", min: 0n, max: 1n, error: 0n }).errorBound).toEqual([
+      0n,
+      0,
+    ]);
+    expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, error: 0.5 as never })).toThrow(
+      TypeError,
+    );
+    expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, error: -1n })).toThrow(
+      RangeError,
+    );
   });
 
-  test("the errors of fromValue are exact like q, in steps, and ordered exactly", () => {
-    const C = BoundedInt.defineRaw({ name: "C", scale: 1, min: -1000n, end: 1001n });
-    const x = C.fromValue(1n, { bound: 3n, quadratic: [25n, -1] });
-    expect([x.errorBound, x.quadraticError, x.termError]).toEqual([
+  // REVIEW PLACEHOLDER (#44, review of PR #47: errors and order on the class; a number x)
+  // the errors of fromValue are exact like q, in steps, and ordered exactly
+  //   -> defineRaw takes the errors of the class, in steps, exact and ordered exactly
+  // test("the errors of fromValue are exact like q, in steps, and ordered exactly", () => {
+  //   const C = BoundedInt.defineRaw({ name: "C", scale: 1, min: -1000n, end: 1001n });
+  //   const x = C.fromValue(1n, { bound: 3n, quadratic: [25n, -1] });
+  //   expect([x.errorBound, x.quadraticError, x.termError]).toEqual([
+  //     [3n, 0],
+  //     [25n, -1],
+  //     [25n, -1],
+  //   ]);
+  //   expect(C.fromValue(1n).termError).toEqual([5n, -1]);
+  //   expect(() => C.fromValue(1n, { bound: 1 as never })).toThrow(TypeError);
+  //   expect(() => C.fromValue(1n, { bound: [1n, 0], quadratic: [10001n, -4] })).toThrow(RangeError);
+  //   expect(() => C.fromValue(1n, { bound: -1n })).toThrow(RangeError);
+  // });
+  test("defineRaw takes the errors of the class, in steps, exact and ordered exactly", () => {
+    const C = BoundedInt.defineRaw({
+      name: "C",
+      scale: 1,
+      min: -1000n,
+      end: 1001n,
+      errors: { bound: 3n, quadratic: [25n, -1] },
+    });
+    expect([C.errorBound, C.quadraticError, C.termError]).toEqual([
       [3n, 0],
       [25n, -1],
       [25n, -1],
     ]);
-    expect(C.fromValue(1n).termError).toEqual([5n, -1]);
-    expect(() => C.fromValue(1n, { bound: 1 as never })).toThrow(TypeError);
-    expect(() => C.fromValue(1n, { bound: [1n, 0], quadratic: [10001n, -4] })).toThrow(RangeError);
-    expect(() => C.fromValue(1n, { bound: -1n })).toThrow(RangeError);
+    const spec = { name: "D", scale: 1, min: -1000n, end: 1001n };
+    expect(BoundedInt.defineRaw(spec).termError).toEqual([5n, -1]);
+    expect(() => BoundedInt.defineRaw({ ...spec, errors: { bound: 1 as never } })).toThrow(
+      TypeError,
+    );
+    expect(() =>
+      BoundedInt.defineRaw({ ...spec, errors: { bound: [1n, 0], quadratic: [10001n, -4] } }),
+    ).toThrow(RangeError);
+    expect(() => BoundedInt.defineRaw({ ...spec, errors: { bound: -1n } })).toThrow(RangeError);
+  });
+
+  test("a class written by hand may declare its errors, checked at its first use", () => {
+    class Coarse extends BoundedInt {
+      static override errorBound = [5n, 0] as const;
+      static override quadraticError = [5n, 0] as const;
+      static override termError = [5n, 0] as const;
+    }
+    expect(Coarse.fromValue(47n).toString()).toBe("50");
+    class Disordered extends BoundedInt {
+      static override termError = [1n, 0] as const;
+    }
+    expect(() => Disordered.fromValue(1n)).toThrow(RangeError);
+    expect(() => Disordered.fromValue(1n)).toThrow(/Disordered/);
   });
 
   test("any other implicit conversion is a TypeError that points to toString() and value", () => {
@@ -308,4 +489,4 @@ describe("BoundedInt stage 1: toString() writes the exact decimal", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #47    | new: stage 1 of the decimal classes: exact bounds, decimal inputs, the exact toString() (#44) |
+// | #47    | new: stage 1 of the decimal classes: exact bounds, decimal inputs, the exact toString(); errors and order on the class; a number x (#44) |
