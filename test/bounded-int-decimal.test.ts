@@ -1,8 +1,8 @@
 /**
  * Stage 1 of the decimal classes of `BoundedInt` (#44; docs/core/bounded-int.md): every
- * bound, step and error is an exact decimal `[n, e]`, worth `n · 10^e`, or a `bigint`;
- * the value `x` of `from` may also be a `number`, converted at once to the exact decimal
- * of its binary value. The errors and the order belong to the class. A value is compared
+ * value, bound, step and error is an exact decimal `[n, e]`, worth `n · 10^e`, or a
+ * `bigint`; wherever a quantity is comparable to a value, a `number` is also taken,
+ * converted at once to the exact decimal of its binary value. The errors and the order belong to the class. A value is compared
  * exactly with the bounds of its class, then scaled to the step and rounded once, ties to
  * even. The examples are those of the maintainer's order and reviews on PR #47. The same
  * file runs in Node.js and in every headless browser.
@@ -279,18 +279,72 @@ describe("BoundedInt stage 1: the inputs", () => {
     expect(BoundedInt.from([7n, 2]).value).toBe(700n);
   });
 
-  test("define takes bigints and decimals, never numbers", () => {
-    expect(() => BoundedInt.define({ name: "X", min: 0 as never, max: 1n })).toThrow(TypeError);
-    expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, step: 0.1 as never })).toThrow(
+  // REVIEW PLACEHOLDER (#44, maintainer: a number for every quantity comparable to x)
+  // define takes bigints and decimals, never numbers
+  //   -> define takes bigints, numbers and decimals, and refuses the other types
+  //   -> define and defineRaw take numbers, converted to the exact decimal of their binary value
+  // test("define takes bigints and decimals, never numbers", () => {
+  //   expect(() => BoundedInt.define({ name: "X", min: 0 as never, max: 1n })).toThrow(TypeError);
+  //   expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, step: 0.1 as never })).toThrow(
+  //     TypeError,
+  //   );
+  //   expect(() => BoundedInt.define({ name: "X", min: [5n, -1], max: 1n })).toThrow(TypeError);
+  //   expect(() => BoundedInt.define({ name: "X", min: 2n, max: 1n })).toThrow(RangeError);
+  //   expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, step: 0n })).toThrow(RangeError);
+  //   expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, step: [1n, -324] })).toThrow(
+  //     RangeError,
+  //   );
+  //   expect(() => BoundedInt.define({ name: "X", min: 0n, max: L, order: L })).toThrow(RangeError);
+  // });
+  test("define takes bigints, numbers and decimals, and refuses the other types", () => {
+    expect(() => BoundedInt.define({ name: "X", min: "0" as never, max: 1n })).toThrow(TypeError);
+    expect(() => BoundedInt.define({ name: "X", min: 0n, max: NaN })).toThrow(TypeError);
+    expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, step: Infinity })).toThrow(
       TypeError,
     );
     expect(() => BoundedInt.define({ name: "X", min: [5n, -1], max: 1n })).toThrow(TypeError);
+    expect(() => BoundedInt.define({ name: "X", min: 0.5, max: 1 })).toThrow(TypeError);
     expect(() => BoundedInt.define({ name: "X", min: 2n, max: 1n })).toThrow(RangeError);
     expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, step: 0n })).toThrow(RangeError);
+    expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, step: -0.1 })).toThrow(
+      RangeError,
+    );
     expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, step: [1n, -324] })).toThrow(
       RangeError,
     );
     expect(() => BoundedInt.define({ name: "X", min: 0n, max: L, order: L })).toThrow(RangeError);
+  });
+
+  test("define and defineRaw take numbers, converted to the exact decimal of their binary value", () => {
+    const Mass = BoundedInt.define({ name: "Mass", min: 0, max: 100, step: 0.1 });
+    expect([Mass.scale, Mass.min, Mass.end]).toEqual([1, 0n, 1001n]);
+    expect(Mass.highest).toEqual([1n, 2]);
+    expect(() => Mass.from(100.04)).toThrow(RangeError);
+    // 15.99 is 15.9900000000000002131…: a bound and a value given as the same number are equal.
+    const Reading = BoundedInt.define({ name: "Reading", min: -7.99, max: 15.99, step: 0.01 });
+    expect([Reading.scale, Reading.min, Reading.end]).toEqual([2, -799n, 1600n]);
+    expect(Reading.from(15.99).value).toBe(1599n);
+    expect(Reading.from(-7.99).value).toBe(-799n);
+    expect(() => Reading.from([1600n, -2])).toThrow(RangeError);
+    expect(BoundedInt.define({ name: "Fine", min: 0, max: 1, step: 0.025 }).scale).toBe(2);
+    expect(BoundedInt.define({ name: "Coarse", min: 0, max: 1e6, step: 1000 }).scale).toBe(-3);
+    const Rough = BoundedInt.define({ name: "Rough", min: 0, max: 100, step: 0.1, error: 0.5 });
+    expect(Rough.errorBound).toEqual([5n, 0]);
+    const Raw = BoundedInt.defineRaw({ name: "Raw", scale: 1, min: -1000, end: 1001 });
+    expect([Raw.min, Raw.end]).toEqual([-1000n, 1001n]);
+    expect(BoundedInt.defineRaw({ name: "Big", scale: 0, min: 0, end: 2 ** 60 }).end).toBe(
+      2n ** 60n,
+    );
+    expect(() => BoundedInt.defineRaw({ name: "X", scale: 0, min: 0.5, end: 2 })).toThrow(
+      TypeError,
+    );
+    expect(() => BoundedInt.defineRaw({ name: "X", scale: 0, min: 0, end: Infinity })).toThrow(
+      TypeError,
+    );
+  });
+
+  test("BoundedInt states its own range: its end is the order of ristretto255, checked here", () => {
+    expect([BoundedInt.min, BoundedInt.end]).toEqual([0n, RistrettoElement.ORDER]);
   });
 
   test("the step gives the smallest scale k with 10^-k ≤ step, compared exactly", () => {
@@ -417,7 +471,7 @@ describe("BoundedInt stage 1: toString() writes the exact decimal", () => {
       0n,
       0,
     ]);
-    expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, error: 0.5 as never })).toThrow(
+    expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, error: "0.5" as never })).toThrow(
       TypeError,
     );
     expect(() => BoundedInt.define({ name: "X", min: 0n, max: 1n, error: -1n })).toThrow(
