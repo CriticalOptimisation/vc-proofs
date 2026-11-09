@@ -1,80 +1,56 @@
 /**
- * `BoundedInt` (docs/core/bounded-int.md): an integer held as a `bigint`, in a class
- * that carries its scale and its range as class-level constants. A `bigint` cannot: it
- * is a primitive with no own property.
+ * `BoundedInt` (docs/core/bounded-int.md): an integer held as a `bigint`, in a class that
+ * carries the scale and the bounds of its values as class-level constants. A `bigint`
+ * cannot: it is a primitive with no own property.
  *
- * Stage 1 (#44): every value, bound, step and error is an exact decimal, a `bigint`
- * mantissa `n` and an integer exponent `e`, worth `n · 10^e`. Wherever a quantity is
- * comparable to a value (`x`, the bounds, the step, the error of `define`), a `number` is
- * also taken, and converted at once to the exact decimal of its binary value. Nothing is
- * rounded but the scaling of a value to the step of its class, once, ties to even, after
- * the value has been checked against the exact bounds.
- *
+ * - Every quantity, a value, a bound, a step or an error, is a `bigint`, a `number` or an
+ *   exact decimal `[n, e]`, worth `n · 10^e`. It is converted at once to an exact decimal:
+ *   a `number` gives the exact decimal of its binary value. All the arithmetic is on
+ *   `bigint`s.
  * - A class is described by its constants: `scale` (`k`: the step is `10^-k`), the
- *   semi-open range `[min, end)` of its integers, `integerOnly`, and the three errors of
- *   its values, in steps, set when the class is made. A class made by `define` also keeps
- *   its physical bounds exactly, as decimals: `lowest` and `highest`, inclusive.
- * - `order`, when a class has one, models the integers of a fixed size, such as bytes,
- *   which have a limited number of distinct values: the class then holds at most `order`
- *   integers. Without it, `end − min` has no limit.
- * - `from` takes a physical value, compares it exactly with the bounds of its class, then
- *   scales it to the step; `fromValue` takes the integer as it is. The integer is never
- *   reduced modulo anything.
- * - `toString()` writes the decimal of the integer exactly, without the digits that the
- *   term error of the class makes meaningless, in the locale-independent form of
- *   JavaScript; `toLocaleString()` writes the same digits for a locale.
+ *   semi-open bounds `[min, max)` of its values, kept exactly, `integerOnly`, `order`, the
+ *   number of distinct values it allows, if any, and `error`, the accuracy of its values,
+ *   half a step when it is left out.
+ * - `from` compares a value exactly with the bounds, then scales it to the step and rounds
+ *   it once, ties to even; `fromValue` takes the integer as it is.
+ * - `valueOf()` is the nearest `number`; `toString()` and `toLocaleString()` write the
+ *   exact decimal, without the digits that the error makes meaningless.
  *   `[Symbol.toPrimitive]` converts to a string only.
  */
 
-/**
- * The range of `BoundedInt`, `[0, ORDER)`: the scalars of ristretto255, written here so
- * that this file depends on no group. The tests check it against `RistrettoElement.ORDER`.
- */
-const ORDER = 2n ** 252n + 27742317777372353535851937790883648493n;
+/** The upper bound of `BoundedInt`: its values are the integers from 0 to `END − 1`. */
+const END = 2n ** 252n + 27742317777372353535851937790883648493n;
 
-/** The lowest and the highest scales. */
+/** The lowest and the highest scales: those whose step `10^-k` is a `number`. */
 const LOWEST_SCALE = -308;
 const HIGHEST_SCALE = 323;
 
 /** An exact decimal `[n, e]`, worth `n · 10^e`: `[23n, -1]` is 2.3. */
 export type Decimal = readonly [mantissa: bigint, exponent: number];
 
-/** Anything that states an order as `ORDER`, such as a class with a static `ORDER`. */
+/** A quantity: a `bigint`, a `number`, or an exact decimal. */
+export type Quantity = bigint | number | Decimal;
+
+/** Anything that states an order as `ORDER`. */
 export interface BoundedIntOrder {
   readonly ORDER: bigint;
 }
 
-/** The errors of the values of a class, in steps, exact like the integers they affect. */
-export interface BoundedIntErrors {
-  readonly bound?: bigint | Decimal;
-  readonly quadratic?: bigint | Decimal;
-  readonly term?: bigint | Decimal;
-}
-
-/** The specification of `define`: exact physical bounds, inclusive, and an optional step. */
+/** The specification of `define`. */
 export interface BoundedIntSpec {
   readonly name: string;
-  readonly min: bigint | number | Decimal;
-  readonly max: bigint | number | Decimal;
-  readonly step?: bigint | number | Decimal;
-  /** The accuracy of the values, in their unit, exact; half a step when left out. */
-  readonly error?: bigint | number | Decimal;
-  /** The number of distinct integers allowed, or a form that states it; that of the base when left out. */
+  /** The lowest value, included. */
+  readonly min: Quantity;
+  /** The value just above the highest, excluded. */
+  readonly max: Quantity;
+  /** The accuracy, which gives the scale; integers only when left out. */
+  readonly step?: Quantity;
+  /** The accuracy of the values, in their unit; half a step when left out. */
+  readonly error?: Quantity;
+  /** The number of distinct values allowed; that of the base when left out. */
   readonly order?: BoundedIntOrder | bigint;
-}
-
-/** The specification of `defineRaw`: the class constants themselves. */
-export interface BoundedIntRawSpec {
-  readonly name: string;
-  readonly scale: number;
-  readonly min: bigint | number;
-  readonly end: bigint | number;
-  /** Whether `from` takes only integers; `false` when left out. */
+  /** Whether `from` takes only integers; `true` only without a step when left out. */
   readonly integerOnly?: boolean;
-  /** The errors of the values, in steps; half a step when left out. */
-  readonly errors?: BoundedIntErrors;
-  /** The number of distinct integers allowed, or a form that states it; that of the base when left out. */
-  readonly order?: BoundedIntOrder | bigint;
 }
 
 // --- Exact decimals ---------------------------------------------------------
@@ -89,36 +65,48 @@ function digits(n: bigint): number {
   return n === 0n ? 0 : (n < 0n ? -n : n).toString().length;
 }
 
-/** A finite `number` split exactly into `[m, e]` with `x = m · 2^e`, `m` a `bigint`. */
-function split(x: number): [bigint, number] {
+/** The same decimal without trailing zeros in its mantissa: `[50n, -2]` is `[5n, -1]`. */
+function normalize([n, e]: Decimal): Decimal {
+  if (n === 0n) return [0n, 0];
+  while (n % 10n === 0n) {
+    n /= 10n;
+    e++;
+  }
+  return [n, e];
+}
+
+/**
+ * The exact decimal of a finite `number`. A `number` is `±1.f · 2^E`, its mantissa a
+ * binary fraction of 52 bits: every power of 2 is a decimal, so every `number` is one.
+ * - The 53 bits of the mantissa, with its hidden bit, are an integer `m`, read as a
+ *   `bigint`: `9007199254740991` when they are all ones. A subnormal has no hidden bit.
+ * - The binary point moves 52 bits to the right: the exponent becomes `E − 52`.
+ * - A positive exponent multiplies `m` by `2n ** (E − 52)`.
+ * - A negative exponent multiplies `m` by `5n ** (52 − E)`, and is kept as the power of ten
+ *   `E − 52`, since `2^-p = 5^p · 10^-p`.
+ * - The trailing zeros of the product move into the power of ten.
+ */
+function numberDecimal(x: number): Decimal {
   const view = new DataView(new ArrayBuffer(8));
   view.setFloat64(0, x);
   const high = view.getUint32(0);
   const low = view.getUint32(4);
-  const exponent = (high >>> 20) & 0x7ff;
-  let mantissa = (BigInt(high & 0xfffff) << 32n) | BigInt(low);
-  // A subnormal has no hidden bit, and the exponent of the smallest normal.
-  if (exponent !== 0) mantissa |= 1n << 52n;
-  const e = exponent === 0 ? -1074 : exponent - 1075;
-  return [high >>> 31 === 1 ? -mantissa : mantissa, e];
+  const biased = (high >>> 20) & 0x7ff;
+  let m = (BigInt(high & 0xfffff) << 32n) | BigInt(low);
+  if (biased !== 0) m |= 1n << 52n;
+  if (high >>> 31 === 1) m = -m;
+  // E is 1 − 1023 for a subnormal, and the exponent read minus 1023 otherwise.
+  const p = (biased === 0 ? -1022 : biased - 1023) - 52;
+  return normalize(p >= 0 ? [m * 2n ** BigInt(p), 0] : [m * 5n ** BigInt(-p), p]);
 }
 
 /**
- * The exact decimal of a finite `number`, its binary value: `m · 2^e` is `m · 5^-e · 10^e`
- * when `e < 0`. `0.1` is `[1000000000000000055511151231257827021181583404541015625n, -55]`.
+ * `x` as an exact decimal, or a `TypeError`: a `bigint`, a finite `number`, or `[n, e]`
+ * with a `bigint` `n` and an integer `e`.
  */
-function numberDecimal(x: number): Decimal {
-  const [m, e] = split(x);
-  return normalize(e >= 0 ? [m << BigInt(e), 0] : [m * 5n ** BigInt(-e), e]);
-}
-
-/**
- * `x` as a decimal, or a `TypeError`: a `bigint`, or `[n, e]` with an integer `e`, or,
- * with `numbers`, a finite `number`, converted exactly.
- */
-function decimal(x: unknown, where: string, what: string, numbers = false): Decimal {
+function decimal(x: unknown, where: string, what: string): Decimal {
   if (typeof x === "bigint") return [x, 0];
-  if (numbers && typeof x === "number") {
+  if (typeof x === "number") {
     if (!Number.isFinite(x)) throw new TypeError(`${where}: ${what} must be a finite number`);
     return numberDecimal(x);
   }
@@ -130,9 +118,7 @@ function decimal(x: unknown, where: string, what: string, numbers = false): Deci
   ) {
     return [x[0], x[1] as number];
   }
-  throw new TypeError(
-    `${where}: ${what} must be a bigint${numbers ? ", a number" : ""} or a decimal [n, e]`,
-  );
+  throw new TypeError(`${where}: ${what} must be a bigint, a number or a decimal [n, e]`);
 }
 
 /**
@@ -155,24 +141,16 @@ function compare([an, ae]: Decimal, [bn, be]: Decimal): -1 | 0 | 1 {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** The same decimal without trailing zeros in its mantissa: `[50n, -2]` is `[5n, -1]`. */
-function normalize([n, e]: Decimal): Decimal {
-  if (n === 0n) return [0n, 0];
-  while (n % 10n === 0n) {
-    n /= 10n;
-    e++;
-  }
-  return [n, e];
+/** `a − b`, exact. */
+function subtract([an, ae]: Decimal, [bn, be]: Decimal): Decimal {
+  const m = Math.min(ae, be);
+  return normalize([an * pow10n(ae - m) - bn * pow10n(be - m), m]);
 }
 
-/** An integer bound: a `bigint`, or a `number` that is an integer, converted exactly. */
-function integer(x: unknown, where: string, what: string): bigint {
-  if (typeof x === "bigint") return x;
-  if (typeof x === "number" && Number.isInteger(x)) {
-    const [n, e] = numberDecimal(x);
-    return n * pow10n(e);
-  }
-  throw new TypeError(`${where}: ${what} must be a bigint or an integer number`);
+/** `a / b` as the nearest `number` but for the last digits, for `b ≠ 0`. */
+function ratio([an, ae]: Decimal, [bn, be]: Decimal): number {
+  const p = Math.max(0, digits(bn) - digits(an) + 20);
+  return Number(`${String((an * pow10n(p)) / bn)}e${String(ae - be - p)}`);
 }
 
 /** Whether a decimal is an integer. */
@@ -180,10 +158,23 @@ function isInteger([n, e]: Decimal): boolean {
   return e >= 0 || n === 0n || (digits(n) > -e && n % pow10n(-e) === 0n);
 }
 
+/** `n / d` rounded down, for `d > 0`. */
+function floorDiv(n: bigint, d: bigint): bigint {
+  const q = n / d;
+  return n % d !== 0n && n < 0n ? q - 1n : q;
+}
+
+/** The smallest integer at or above a decimal. */
+function ceiling([n, e]: Decimal): bigint {
+  if (e >= 0) return n * pow10n(e);
+  // |x| < 10^-1: the smallest integer above it is 0 or 1.
+  if (digits(n) < -e) return n > 0n ? 1n : 0n;
+  return -floorDiv(-n, pow10n(-e));
+}
+
 /** `n / d` rounded to the nearest integer, ties to even, for `d > 0`. */
 function roundHalfEven(n: bigint, d: bigint): bigint {
-  let q = n / d;
-  if (n % d !== 0n && n < 0n) q -= 1n; // the floor
+  let q = floorDiv(n, d);
   const twice = 2n * (n - q * d);
   if (twice > d || (twice === d && (q & 1n) === 1n)) q += 1n;
   return q;
@@ -200,9 +191,21 @@ function scaleExact([n, e]: Decimal, k: number): bigint {
 }
 
 /**
+ * The highest integer that a value below `x` rounds to at the scale `k`: `⌈x · 10^k − ½⌉`.
+ * Just below a tie, a value rounds down; just below an integer, it rounds to it.
+ */
+function scaleBelow([n, e]: Decimal, k: number): bigint {
+  const t = e + k;
+  if (t >= 0) return n * pow10n(t);
+  // |x · 10^k| < 10^-1: the values just below it round to 0.
+  if (digits(n) < -t) return 0n;
+  const d = pow10n(-t);
+  return -floorDiv(d - 2n * n, 2n * d);
+}
+
+/**
  * The exact decimal string of `n · 10^e`: `"-0.05"`, `"2.0"`, `"1200"`. It is the
- * locale-independent form of JavaScript, as `Number.prototype.toString` writes it, with a
- * point: `toLocaleString()` writes the form of a locale.
+ * locale-independent form of JavaScript, with a point.
  */
 function decimalString(n: bigint, e: number): string {
   if (e >= 0) return n === 0n ? "0" : `${String(n)}${"0".repeat(e)}`;
@@ -211,34 +214,96 @@ function decimalString(n: bigint, e: number): string {
   return `${sign}${text.slice(0, e)}.${text.slice(e)}`;
 }
 
-// --- Errors -----------------------------------------------------------------
-
 /** Half a step: the error of a rounding, and the default error of a class. */
 const HALF: Decimal = [5n, -1];
 
 /**
- * The position of the rounding of `toString()` for the error `e`, in steps: the largest
- * `j ≥ 1` with `10^j ≤ 2e`, or 0 when there is none. Rounding at `10^j` adds at most
- * `½ · 10^j ≤ e`. `2e` lies in `[10^(o − 1), 10^o)`, with `o` its digits plus its
+ * The position of the rounding of the shown value for the error `e`, in steps: the
+ * largest `j ≥ 1` with `10^j ≤ 2e`, or 0 when there is none. Rounding at `10^j` adds at
+ * most `½ · 10^j ≤ e`. `2e` lies in `[10^(o − 1), 10^o)`, with `o` its digits plus its
  * exponent, so `j` is `o − 1`, exactly.
  */
 function position([n, e]: Decimal): number {
   return n === 0n ? 0 : Math.max(0, digits(2n * n) + e - 1);
 }
 
-/** A valid error: a `bigint` or a decimal (or, with `numbers`, a `number`), 0 or more, normalized. */
-function checkError(e: unknown, where: string, what: string, numbers = false): Decimal {
-  const d = decimal(e, where, what, numbers);
-  if (d[0] < 0n) throw new RangeError(`${where}: ${what} must be 0 or more`);
-  return normalize(d);
+// --- Classes ----------------------------------------------------------------
+
+/** A class of bounded integers, as the static members see it. */
+type BoundedIntClass = typeof BoundedInt;
+
+/** The constants of a class, checked and converted: computed once per class. */
+interface Constants {
+  readonly scale: number;
+  /** The exact bounds `[min, max)`. */
+  readonly min: Decimal;
+  readonly max: Decimal;
+  /** The integers that the values of `[min, max)` round to, from `low` to `high`. */
+  readonly low: bigint;
+  readonly high: bigint;
+  readonly integerOnly: boolean;
+  /** The error, in steps. */
+  readonly error: Decimal;
 }
 
-/**
- * The `order` given to `define` or `defineRaw`: a `bigint`, or a form with a `bigint`
- * `ORDER`, such as a class with a static `ORDER`; that of `base` when left out.
- */
-function orderOf(given: unknown, base: BoundedIntClass, where: string): bigint | undefined {
-  if (given === undefined) return base.order;
+const known = new WeakMap<BoundedIntClass, Constants>();
+
+/** The nearest class from `C` up that owns `key`, or `BoundedInt`. */
+function owner(C: BoundedIntClass, key: string): BoundedIntClass {
+  let c: object = C;
+  while (c !== BoundedInt && !Object.hasOwn(c, key)) c = Object.getPrototypeOf(c) as object;
+  return c as BoundedIntClass;
+}
+
+/** The constants of `C`, checked at its first use; throws for an invalid set. */
+function constants(C: BoundedIntClass, where: string): Constants {
+  const done = known.get(C);
+  if (done !== undefined) return done;
+  if (owner(C, "min") !== owner(C, "max")) {
+    throw new TypeError(`${where}: ${C.name} must declare both min and max, or neither`);
+  }
+  const { scale, order } = C as { scale: unknown; order: unknown };
+  if (typeof scale !== "number") throw new TypeError(`${where}: ${C.name}.scale must be a number`);
+  if (!Number.isInteger(scale) || scale < LOWEST_SCALE || scale > HIGHEST_SCALE) {
+    throw new RangeError(
+      `${where}: ${C.name}.scale must be an integer from ${String(LOWEST_SCALE)} to ${String(HIGHEST_SCALE)}`,
+    );
+  }
+  const owned = owner(C, "integerOnly");
+  const integerOnly = owned === BoundedInt && C !== BoundedInt ? scale === 0 : owned.integerOnly;
+  if (typeof integerOnly !== "boolean") {
+    throw new TypeError(`${where}: ${C.name}.integerOnly must be a boolean`);
+  }
+  const min = decimal(C.min, where, `${C.name}.min`);
+  const max = decimal(C.max, where, `${C.name}.max`);
+  if (compare(min, max) >= 0) {
+    throw new RangeError(`${where}: ${C.name}.min must be below ${C.name}.max`);
+  }
+  // With integers only, the values are the integers from ⌈min⌉ to ⌈max⌉ − 1.
+  const low = scaleExact(integerOnly ? [ceiling(min), 0] : min, scale);
+  const high = integerOnly ? scaleExact([ceiling(max) - 1n, 0], scale) : scaleBelow(max, scale);
+  if (order !== undefined) {
+    if (typeof order !== "bigint") {
+      throw new TypeError(`${where}: ${C.name}.order must be a bigint, or undefined`);
+    }
+    if (order <= 0n) throw new RangeError(`${where}: ${C.name}.order must be above 0`);
+    if (high - low + 1n > order) {
+      throw new RangeError(`${where}: ${C.name} must not hold more than ${C.name}.order values`);
+    }
+  }
+  let error = HALF;
+  if (C.error !== undefined) {
+    const [n, e] = decimal(C.error, where, `${C.name}.error`);
+    if (n < 0n) throw new RangeError(`${where}: ${C.name}.error must be 0 or more`);
+    error = normalize([n, e + scale]);
+  }
+  const result: Constants = { scale, min, max, low, high, integerOnly, error };
+  known.set(C, result);
+  return result;
+}
+
+/** The order given to `define`: a `bigint`, or a form with a `bigint` `ORDER`. */
+function orderOf(given: unknown, where: string): bigint {
   const order =
     (typeof given === "object" && given !== null) || typeof given === "function"
       ? (given as { ORDER?: unknown }).ORDER
@@ -249,180 +314,20 @@ function orderOf(given: unknown, base: BoundedIntClass, where: string): bigint |
   return order;
 }
 
-/** The three errors of `errors`, in steps: `bound` ½, `quadratic` `bound`, `term` `quadratic`. */
-function checkErrors(errors: unknown, where: string): [Decimal, Decimal, Decimal] {
-  if (errors === undefined) return [HALF, HALF, HALF];
-  if (typeof errors !== "object" || errors === null) {
-    throw new TypeError(`${where}: errors must be an object`);
-  }
-  const given = errors as BoundedIntErrors;
-  const bound = checkError(given.bound ?? HALF, where, "errors.bound");
-  const quadratic = checkError(given.quadratic ?? bound, where, "errors.quadratic");
-  const term = checkError(given.term ?? quadratic, where, "errors.term");
-  return [bound, quadratic, term];
-}
-
-// --- Classes ----------------------------------------------------------------
-
-/** A class of bounded integers, as the static members see it. */
-type BoundedIntClass = typeof BoundedInt;
-
-/** The classes whose constants have been checked: each one is checked once. */
-const checked = new WeakSet<BoundedIntClass>();
-
-/**
- * `integerOnly` as it applies to `C`: the value of the nearest class that declares it,
- * below `BoundedInt`, or else whether the scale is 0.
- */
-function integerOnly(C: BoundedIntClass): unknown {
-  for (let c: object = C; c !== BoundedInt; c = Object.getPrototypeOf(c) as object) {
-    if (Object.hasOwn(c, "integerOnly")) return (c as BoundedIntClass).integerOnly;
-  }
-  return C.scale === 0;
-}
-
-/**
- * The exact bounds of `C`, inclusive: those that the nearest class declaring `min`
- * declares as `lowest` and `highest`, or else the decimals of `min` and `end − 1`.
- */
-function bounds(C: BoundedIntClass): [Decimal, Decimal] {
-  let c: object = C;
-  while (c !== BoundedInt && !Object.hasOwn(c, "min")) c = Object.getPrototypeOf(c) as object;
-  const D = c as BoundedIntClass;
-  if (Object.hasOwn(D, "lowest")) return [D.lowest as Decimal, D.highest as Decimal];
-  return [
-    [C.min, -C.scale],
-    [C.end - 1n, -C.scale],
-  ];
-}
-
-/** Checks the constants of `C` once, and throws for an invalid set. */
-function checkClass(C: BoundedIntClass, where: string): void {
-  if (checked.has(C)) return;
-  const { min, end, scale, order, lowest, highest, errorBound, quadraticError, termError } = C as {
-    min?: unknown;
-    end?: unknown;
-    scale: unknown;
-    order: unknown;
-    lowest?: unknown;
-    highest?: unknown;
-    errorBound: unknown;
-    quadraticError: unknown;
-    termError: unknown;
-  };
-  if (
-    (min === undefined) !== (end === undefined) ||
-    Object.hasOwn(C, "min") !== Object.hasOwn(C, "end")
-  ) {
-    throw new TypeError(`${where}: ${C.name} must declare both min and end, or neither`);
-  }
-  if (typeof min !== "bigint" || typeof end !== "bigint") {
-    throw new TypeError(`${where}: ${C.name}.min and ${C.name}.end must be bigints`);
-  }
-  if (typeof scale !== "number") throw new TypeError(`${where}: ${C.name}.scale must be a number`);
-  if (typeof integerOnly(C) !== "boolean") {
-    throw new TypeError(`${where}: ${C.name}.integerOnly must be a boolean`);
-  }
-  if (order !== undefined && typeof order !== "bigint") {
-    throw new TypeError(`${where}: ${C.name}.order must be a bigint, or undefined`);
-  }
-  if (min >= end) throw new RangeError(`${where}: ${C.name}.min must be below ${C.name}.end`);
-  if (order !== undefined) {
-    if (order <= 0n) throw new RangeError(`${where}: ${C.name}.order must be above 0`);
-    if (end - min > order) {
-      throw new RangeError(`${where}: ${C.name} must not hold more than ${C.name}.order integers`);
-    }
-  }
-  const bound = checkError(errorBound, where, `${C.name}.errorBound`);
-  const quadratic = checkError(quadraticError, where, `${C.name}.quadraticError`);
-  const term = checkError(termError, where, `${C.name}.termError`);
-  if (compare(term, quadratic) > 0 || compare(quadratic, bound) > 0) {
-    throw new RangeError(
-      `${where}: ${C.name} must satisfy termError ≤ quadraticError ≤ errorBound`,
-    );
-  }
-  if (!Number.isInteger(scale) || scale < LOWEST_SCALE || scale > HIGHEST_SCALE) {
-    throw new RangeError(
-      `${where}: ${C.name}.scale must be an integer from ${String(LOWEST_SCALE)} to ${String(HIGHEST_SCALE)}`,
-    );
-  }
-  if (Object.hasOwn(C, "lowest") !== Object.hasOwn(C, "highest")) {
-    throw new TypeError(`${where}: ${C.name} must declare both lowest and highest, or neither`);
-  }
-  if (Object.hasOwn(C, "lowest")) {
-    if (!Object.hasOwn(C, "min")) {
-      throw new TypeError(`${where}: ${C.name} declares lowest and highest without min and end`);
-    }
-    const low = decimal(lowest, where, `${C.name}.lowest`);
-    const high = decimal(highest, where, `${C.name}.highest`);
-    // Every value within the bounds must scale to an integer of the range.
-    if (compare(low, high) > 0 || scaleExact(low, scale) < min || scaleExact(high, scale) >= end) {
-      throw new RangeError(
-        `${where}: ${C.name}.lowest and ${C.name}.highest must scale into [min, end)`,
-      );
-    }
-  }
-  checked.add(C);
-}
-
-/** Checks that `q` is in the range of `C`. */
-function checkRange(C: BoundedIntClass, q: bigint, where: string): void {
-  if (q < C.min) throw new RangeError(`${where}: ${String(q)} is below ${C.name}.min`);
-  if (q >= C.end) throw new RangeError(`${where}: ${String(q)} is not below ${C.name}.end`);
-}
-
-/** Checks the name of a class to be made. */
-function checkName(name: unknown, where: string): string {
-  if (typeof name !== "string" || name === "") {
-    throw new TypeError(`${where}: name must be a non-empty string`);
-  }
-  return name;
-}
-
-/** A frozen subclass of `base`, named `name`, with the constants as given. */
-function makeClass(
-  base: BoundedIntClass,
-  name: string,
-  constants: Record<string, unknown>,
-  where: string,
-): BoundedIntClass {
-  const C = class extends base {};
-  Object.defineProperty(C, "name", { value: name });
-  for (const [key, value] of Object.entries(constants)) {
-    Object.defineProperty(C, key, { value, enumerable: true });
-  }
-  checkClass(C, where);
-  return Object.freeze(C);
-}
-
-/** An integer with the scale and the range of its class. */
+/** An integer with the scale and the bounds of its class. */
 export class BoundedInt {
   /** The scale `k`: the step of the class is `10^-k`. */
   static readonly scale: number = 0;
-  /** The lowest integer of the range: `0n` on `BoundedInt`. */
-  static readonly min: bigint = 0n;
-  /** The integer just above the range; on `BoundedInt`, the scalars of ristretto255. */
-  static readonly end: bigint = ORDER;
-  /**
-   * The number of distinct integers a class may hold, as for integers of a fixed size;
-   * `undefined`, no limit, on `BoundedInt`.
-   */
-  declare static readonly order?: bigint;
-  /** The guaranteed bound of the error of a value, in steps: ½ on `BoundedInt`. */
-  static readonly errorBound: Decimal = HALF;
-  /** The quadratic error of a value, in steps: ½ on `BoundedInt`. */
-  static readonly quadraticError: Decimal = HALF;
-  /** The error of the least accurate term of a value, in steps: ½ on `BoundedInt`. */
-  static readonly termError: Decimal = HALF;
-  /**
-   * Whether `from` takes only integers. A class that does not declare it takes integers
-   * only when its scale is 0.
-   */
+  /** The lowest value, included. */
+  static readonly min: Quantity = 0n;
+  /** The value just above the highest, excluded. */
+  static readonly max: Quantity = END;
+  /** Whether `from` takes only integers. */
   static readonly integerOnly: boolean = true;
-  /** The lowest physical value, exact and inclusive, on a class made by `define`. */
-  declare static readonly lowest?: Decimal;
-  /** The highest physical value, exact and inclusive, on a class made by `define`. */
-  declare static readonly highest?: Decimal;
+  /** The number of distinct values allowed; no limit when it is absent. */
+  declare static readonly order?: bigint;
+  /** The accuracy of the values, in their unit; half a step when it is absent. */
+  declare static readonly error?: Quantity;
 
   readonly #value: bigint;
 
@@ -431,147 +336,110 @@ export class BoundedInt {
     this.#value = value;
   }
 
+  /** The guaranteed bound of the error of a value, relative to `max − min`. */
+  static get errorBound(): number {
+    const c = constants(this, `${this.name}.errorBound`);
+    return ratio([c.error[0], c.error[1] - c.scale], subtract(c.max, c.min));
+  }
+
+  /** The quadratic error of a value, relative to `max − min`: the bound, for one value. */
+  static get quadraticError(): number {
+    return this.errorBound;
+  }
+
+  /** The error of the least accurate term, relative to `max − min`: the bound, for one value. */
+  static get termError(): number {
+    return this.errorBound;
+  }
+
   /**
-   * Makes an instance of the class it is called on, holding the physical value `x`. `x`
-   * is compared exactly with the bounds of the class, then scaled by `10^k` and rounded
-   * once, ties to even.
+   * Makes an instance of the class it is called on, holding the value `x`. `x` is compared
+   * exactly with the bounds of the class, then scaled by `10^k` and rounded once, ties to
+   * even.
    *
-   * @param x - a `bigint`, an exact decimal `[n, e]`, worth `n · 10^e`, or a finite
-   *   `number`, taken at once as the exact decimal of its binary value.
+   * @param x - a `bigint`, a finite `number`, or an exact decimal `[n, e]`.
    * @throws TypeError when `x` is none of these, or not an integer on a class with
    *   `integerOnly`.
-   * @throws RangeError when `x` is outside the bounds of the class, or the constants of
-   *   the class are invalid.
+   * @throws RangeError when `x` is not in `[min, max)`, or the constants of the class are
+   *   invalid.
    */
-  static from(x: bigint | number | Decimal): BoundedInt {
+  static from(x: Quantity): BoundedInt {
     const where = `${this.name}.from`;
-    checkClass(this, where);
-    const d = decimal(x, where, "x", true);
-    if (integerOnly(this) === true && !isInteger(d)) {
-      throw new TypeError(`${where}: x must be an integer`);
-    }
-    const [low, high] = bounds(this);
-    if (compare(d, low) < 0) throw new RangeError(`${where}: x is below ${this.name}'s lowest`);
-    if (compare(d, high) > 0) throw new RangeError(`${where}: x is above ${this.name}'s highest`);
-    const q = scaleExact(d, this.scale);
-    checkRange(this, q, where);
-    return new this(q);
+    const c = constants(this, where);
+    const d = decimal(x, where, "x");
+    if (c.integerOnly && !isInteger(d)) throw new TypeError(`${where}: x must be an integer`);
+    if (compare(d, c.min) < 0) throw new RangeError(`${where}: x is below ${this.name}.min`);
+    if (compare(d, c.max) >= 0) throw new RangeError(`${where}: x is not below ${this.name}.max`);
+    return new this(scaleExact(d, c.scale));
   }
 
   /**
    * Makes an instance of the class it is called on, holding the integer `q` as it is.
    *
-   * @param q - the integer, a `bigint`.
+   * @param q - the integer, a `bigint`: one that a value of `[min, max)` rounds to.
    * @throws TypeError when `q` is not a `bigint`.
-   * @throws RangeError when `q` is outside `[min, end)`, or the constants of the class
-   *   are invalid.
+   * @throws RangeError when no value of `[min, max)` rounds to `q`, or the constants of
+   *   the class are invalid.
    */
   static fromValue(q: bigint): BoundedInt {
     const where = `${this.name}.fromValue`;
-    checkClass(this, where);
+    const c = constants(this, where);
     if (typeof q !== "bigint") throw new TypeError(`${where}: q must be a bigint`);
-    checkRange(this, q, where);
+    if (q < c.low || q > c.high) {
+      throw new RangeError(`${where}: no value of ${this.name} rounds to ${String(q)}`);
+    }
     return new this(q);
   }
 
   /**
-   * Makes a frozen subclass of the class it is called on, from exact physical bounds.
-   * The class keeps them as `lowest` and `highest`; its integers `[min, end)` are those
-   * that the values within them scale to.
+   * Makes a frozen subclass of the class it is called on.
    *
-   * @param spec - `name`; `min` and `max`, the lowest and the highest values, inclusive,
-   *   `bigint`s, `number`s or decimals, kept exactly; `step`, the accuracy, which gives the smallest scale `k`
-   *   with `10^-k ≤ step`. Without `step`, the class takes integers only, with a scale of 0.
-   *   `error`, the accuracy of the values, in their unit, which sets the three errors of
-   *   the class, in steps; half a step when left out. `order`, the number of distinct
-   *   integers allowed, that of the base when left out.
-   * @throws TypeError for a bad name, a bound, a step or an error that is not a `bigint`,
-   *   a finite `number` or a decimal, a bound that is not an integer without `step`, or a bad `order`.
-   * @throws RangeError for `min > max`, a `step` that is not above 0, a `step` finer than
-   *   the highest scale, a negative `error`, or a range of more than `order` integers.
+   * @param spec - `name`; `min` and `max`, the bounds `[min, max)`, kept exactly; `step`,
+   *   which gives the smallest scale `k` with `10^-k ≤ step`, or the scale 0 and integers
+   *   only when left out; `error`, the accuracy of the values, half a step when left out;
+   *   `order`, the number of distinct values allowed; `integerOnly`.
+   * @throws TypeError for a bad name, a quantity of the wrong type, or a bad `order`.
+   * @throws RangeError for `min ≥ max`, a `step` that is not above 0 or finer than
+   *   `10^-323`, a negative `error`, or more distinct values than `order`.
    */
   static define(spec: BoundedIntSpec): BoundedIntClass {
     const where = `${this.name}.define`;
     if (typeof spec !== "object" || (spec as unknown) === null) {
       throw new TypeError(`${where}: spec must be an object`);
     }
-    const name = checkName(spec.name, where);
-    const order = orderOf(spec.order, this, where);
-    const low = decimal(spec.min, where, "min", true);
-    const high = decimal(spec.max, where, "max", true);
-    let k = 0;
-    if (spec.step === undefined) {
-      if (!isInteger(low) || !isInteger(high)) {
-        throw new TypeError(`${where}: min and max must be integers when there is no step`);
-      }
-    } else {
-      const step = decimal(spec.step, where, "step", true);
+    if (typeof spec.name !== "string" || spec.name === "") {
+      throw new TypeError(`${where}: name must be a non-empty string`);
+    }
+    let scale = 0;
+    if (spec.step !== undefined) {
+      const step = decimal(spec.step, where, "step");
       if (step[0] <= 0n) throw new RangeError(`${where}: step must be above 0`);
-      k = LOWEST_SCALE;
-      while (k <= HIGHEST_SCALE && compare([1n, -k], step) > 0) k++;
-      if (k > HIGHEST_SCALE) {
+      scale = LOWEST_SCALE;
+      while (scale <= HIGHEST_SCALE && compare([1n, -scale], step) > 0) scale++;
+      if (scale > HIGHEST_SCALE) {
         throw new RangeError(`${where}: step must be 10^-${String(HIGHEST_SCALE)} or more`);
       }
     }
-    if (compare(low, high) > 0) throw new RangeError(`${where}: min must not be above max`);
-    let error = HALF;
-    if (spec.error !== undefined) {
-      const [n, e] = checkError(spec.error, where, "error", true);
-      error = normalize([n, e + k]);
+    // The quantities are kept as given, a decimal frozen: the class converts them once.
+    const keep = (q: unknown, what: string): unknown => {
+      decimal(q, where, what);
+      return Array.isArray(q) ? Object.freeze([...(q as unknown[])]) : q;
+    };
+    const own: Record<string, unknown> = {
+      scale,
+      min: keep(spec.min, "min"),
+      max: keep(spec.max, "max"),
+      integerOnly: spec.integerOnly ?? spec.step === undefined,
+    };
+    if (spec.error !== undefined) own.error = keep(spec.error, "error");
+    if (spec.order !== undefined) own.order = orderOf(spec.order, where);
+    const C = class extends this {};
+    Object.defineProperty(C, "name", { value: spec.name });
+    for (const [key, value] of Object.entries(own)) {
+      Object.defineProperty(C, key, { value, enumerable: true });
     }
-    return makeClass(
-      this,
-      name,
-      {
-        scale: k,
-        min: scaleExact(low, k),
-        end: scaleExact(high, k) + 1n,
-        integerOnly: spec.step === undefined,
-        order,
-        errorBound: error,
-        quadraticError: error,
-        termError: error,
-        lowest: Object.freeze([...low]),
-        highest: Object.freeze([...high]),
-      },
-      where,
-    );
-  }
-
-  /**
-   * Makes a frozen subclass of the class it is called on, from its constants: the scale
-   * and the integer bounds `[min, end)`, anywhere, of at most `order` integers;
-   * `integerOnly`, `false` when left out; `errors`, `{ bound, quadratic, term }` in steps,
-   * with `bound` ½, `quadratic` `bound` and `term` `quadratic` when left out; and `order`,
-   * that of the base when left out. Its exact bounds are the decimals of `min` and `end − 1`.
-   *
-   * @throws TypeError for a bad name, bounds that are not integers (`bigint`s or integer
-   *   `number`s, converted exactly), a scale that is not a
-   *   `number`, an `integerOnly` that is not a boolean, errors that are not `bigint`s or
-   *   decimals, or a bad `order`.
-   * @throws RangeError for `min ≥ end`, more than `order` integers, a scale that is not
-   *   an integer from -308 to 323, or errors negative or out of the order
-   *   `term ≤ quadratic ≤ bound`.
-   */
-  static defineRaw(spec: BoundedIntRawSpec): BoundedIntClass {
-    const where = `${this.name}.defineRaw`;
-    if (typeof spec !== "object" || (spec as unknown) === null) {
-      throw new TypeError(`${where}: spec must be an object`);
-    }
-    const name = checkName(spec.name, where);
-    const { scale } = spec as { scale: number };
-    // Left out, both bounds would give the class the range of its base: defineRaw requires them.
-    const min = integer(spec.min, where, "min");
-    const end = integer(spec.end, where, "end");
-    const integerOnly = spec.integerOnly ?? false;
-    const order = orderOf(spec.order, this, where);
-    const [errorBound, quadraticError, termError] = checkErrors(spec.errors, where);
-    return makeClass(
-      this,
-      name,
-      { scale, min, end, integerOnly, order, errorBound, quadraticError, termError },
-      where,
-    );
+    constants(C, where);
+    return Object.freeze(C);
   }
 
   /** The integer, a `bigint`. */
@@ -580,21 +448,35 @@ export class BoundedInt {
   }
 
   /**
-   * The decimal that `toString()` and `toLocaleString()` write: `q · 10^-k`, rounded at
-   * the largest power of ten `10^j` with `10^j ≤ 2 · termError` of the class, ties to
+   * The decimal that `valueOf()`, `toString()` and `toLocaleString()` give: `q · 10^-k`,
+   * rounded at the largest power of ten `10^j` with `10^j ≤ 2 · error`, in steps, ties to
    * even, as `[n, e]`.
    */
   #shown(): Decimal {
     const C = this.constructor as BoundedIntClass;
-    const k = C.scale;
-    const j = position(C.termError);
+    const c = constants(C, `${C.name}.toString`);
+    const j = position(c.error);
     const q = this.#value;
     // |q| < 10^(j − 1) rounds to 0, with no power of ten to build.
     const n = j === 0 ? q : digits(q) < j ? 0n : roundHalfEven(q, pow10n(j));
-    return [n, j - k];
+    return [n, j - c.scale];
   }
 
-  /** The exact decimal of the integer, with `k − j` decimals and a point: `"2.3"`. */
+  /**
+   * The nearest `number` to the shown decimal, read from its exact string `n e`.
+   *
+   * @throws RangeError when that `number` would be `±Infinity`.
+   */
+  valueOf(): number {
+    const [n, e] = this.#shown();
+    const result = Number(`${String(n)}e${String(e)}`);
+    if (!Number.isFinite(result)) {
+      throw new RangeError(`${this.constructor.name}.valueOf: beyond the range of a number`);
+    }
+    return result;
+  }
+
+  /** The exact decimal of the integer, with its meaningful decimals and a point: `"2.3"`. */
   toString(): string {
     const [n, e] = this.#shown();
     return decimalString(n, e);
@@ -623,16 +505,14 @@ export class BoundedInt {
   [Symbol.toPrimitive](hint: "number" | "string" | "default"): string {
     if (hint === "string") return this.toString();
     throw new TypeError(
-      `${this.constructor.name}: no implicit conversion; call x.toString() for the decimal, ` +
+      `${this.constructor.name}: no implicit conversion; call x.valueOf() for the number, ` +
         "or read x.value for the bigint",
     );
   }
 }
 
-checked.add(BoundedInt);
-
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #42    | new: BoundedInt, from, valueOf, toString, toPrimitive (#41)   |
-// | #47    | decimal classes: scale, range, from, fromValue, errors, define, defineRaw; the range [0, ℓ) on BoundedInt, at most ℓ integers per class; stage 1: exact decimals, the bounds checked exactly before rounding; errors and order on the class, order optional; toLocaleString; a number x in from (#44) |
+// | #47    | decimal classes: scale, the exact bounds [min, max), integerOnly, order, error; from, fromValue, define; exact decimals on bigints; valueOf, toString, toLocaleString (#44) |
