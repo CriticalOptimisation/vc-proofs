@@ -93,5 +93,5 @@ Change History
 | #38 | links The group ristretto255 and The generator h (#35) |
 | #40 | links The blinding context; setTimeout; scalars are bigints (#39) |
 | #42 | links Bounded integers (#41) |
-| #47 | Bounded integers: classes with a decimal scale and a range; BoundedInt's is [0, ℓ) (#44) |
+| #47 | Bounded integers: classes with a decimal scale and exact bounds [min, max) (#44) |
 -->
