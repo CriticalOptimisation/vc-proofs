@@ -28,7 +28,7 @@ const m = Mass.from(2.3);
 m.value; // 23n: the integer, a bigint
 m.valueOf(); // 2.3: the physical value, a number
 `${m}`; // "2.3"
-Mass.from(100.06); // RangeError: 1001 is not below Mass.end
+Mass.from(100.04); // RangeError: above 100, the max of Mass, even if it rounds to 100.0
 m + 1n; // TypeError: no implicit conversion, except to a string
 
 const days = BoundedInt.from(19_000); // BoundedInt: scale 0, the range [0, ℓ)
@@ -85,6 +85,8 @@ call (`this` in a static member, `this.constructor` in an instance member):
 | `min`         | the lowest integer of the range, a `bigint`                               | `0n`            |
 | `end`         | the integer just above the range, a `bigint`: the range is `[min, end)`   | `ℓ`             |
 | `integerOnly` | whether `from` accepts only integers, as `BoundedInt` does, or rounds `x` | `true`          |
+| `lowest`      | the lowest physical value, exact and inclusive, a decimal `[n, e]`        | absent          |
+| `highest`     | the highest physical value, exact and inclusive, a decimal `[n, e]`       | absent          |
 
 - **The scale is a power of ten.** `k` is an integer, and the step `10^-k` is a
   `number` above 0 and finite: `k` goes from `−308` to `323`, the powers of ten that a
@@ -104,6 +106,18 @@ call (`this` in a static member, `this.constructor` in an instance member):
 A class that declares none of the constants inherits those of `BoundedInt`: a scale of 0,
 the range of `BoundedInt`, integers only. A class that declares one bound must declare
 both.
+
+**The exact bounds.** `from` checks a value against the **exact** bounds of its class,
+never against its integers: `lowest ≤ x ≤ highest`, compared as decimals, before any
+rounding. A class made by [`define`](#define) keeps the `min` and the `max` it was given,
+exactly, as `lowest` and `highest`. A class without them, such as `BoundedInt` or a class
+made by [`defineRaw`](#defineraw), has the exact bounds of its integers: the decimals of
+`min` and `end − 1`. A class written by hand may declare `lowest` and `highest` with
+`min` and `end`; every value between them must then scale to an integer of `[min, end)`,
+else the class is refused with a `RangeError`. Two decimals are compared exactly, in
+`bigint`s: the one with the larger exponent is multiplied by the power of ten that aligns
+it on the other, so `0.52229`, `[52229n, -5]`, is below `0.5223`, `[5223n, -4]`, since
+`52229 < 52230`.
 
 #### The range of a class
 
@@ -149,15 +163,18 @@ Constants changed after the first use of a class are not checked again: declare 
 `from(x, error?)` takes the **physical** value `x`, a `number` or a `bigint`, and makes
 an instance of the class it is called on:
 
-1. **Scaling.** `x` is multiplied by `10^k` exactly. A `number` is taken at its exact
+1. **Range.** `x` must lie within the [exact bounds](#the-class-constants) of the class,
+   `lowest ≤ x ≤ highest`. The check is made on `x` itself, exactly, **before any
+   rounding**: `Mass.from(100.04)` is refused, although it would round to `1000n`, the
+   integer of 100.0 kg. On a class with `integerOnly`, a value that is not an integer is
+   refused first.
+2. **Scaling.** `x` is multiplied by `10^k` exactly. A `number` is taken at its exact
    binary value: it is split into its integer mantissa and its power of two, and the
-   product is computed with `bigint`s. A `bigint` `n` is the exact integer `n`.
-2. **Rounding.** The product is rounded to the nearest integer, ties to even (see
-   [Rounding](#rounding)). This is the only rounding of `from`. On a class with
-   `integerOnly`, a `number` that is not an integer is refused instead.
-3. **Range.** The integer `q` must satisfy `min ≤ q < end`. The check is made on `q`,
-   after rounding: `Mass.from(100.04)` is accepted as `1000n`,
-   100.0 kg, and `Mass.from(100.06)`, which rounds to 1001, is refused.
+   product is computed with `bigint`s. A `bigint` `n` is the exact integer `n`, and a
+   decimal `[n, e]` the exact value `n · 10^e`.
+3. **Rounding.** The product is rounded to the nearest integer, ties to even (see
+   [Rounding](#rounding)). This is the only rounding of `from`. The integer `q` is then
+   within `[min, end)`.
 4. **Errors.** `error` is the accuracy of `x`, in the unit of `x`: a finite `number`,
    `0` or more. It is scaled like `x`, and the three errors of the instance are set to
    `error · 10^k`. When it is left out, they are `½`: half a step, the error of the
@@ -171,7 +188,7 @@ an instance of the class it is called on:
 | a `number` with a fractional part, on a class with `integerOnly`        | `TypeError`: not an integer      |
 | `NaN`, `Infinity`, `-Infinity`                                          | `TypeError`: not a finite number |
 | anything else: a string, `null`, `undefined`, an object, a `BoundedInt` | `TypeError`                      |
-| an integer outside `[min, end)`                                         | `RangeError`                     |
+| a value outside `[lowest, highest]`, compared exactly                   | `RangeError`                     |
 | `error` not a `number`                                                  | `TypeError`                      |
 | `error` negative, `NaN` or infinite                                     | `RangeError`                     |
 
@@ -284,7 +301,7 @@ is called on, from the physical values a user thinks in:
 
 - `name` is the name of the class, a non-empty string, used in the messages;
 - `min` and `max` are the lowest and the highest physical values, inclusive: finite
-  `number`s or `bigint`s, with `min ≤ max`;
+  `number`s, `bigint`s or decimals `[n, e]`, with `min ≤ max`. They are kept exactly;
 - `step` is the accuracy, a finite `number` above 0. The scale `k` is the smallest
   integer, from `−308` to `323`, with `10^-k ≤ step`: a step of `0.1` gives `k = 1`, a
   step of `0.025` gives `k = 2`, a step of 1000 gives `k = −3`. The comparison is made
@@ -292,8 +309,12 @@ is called on, from the physical values a user thinks in:
 - without `step`, the class takes integers only: `k = 0` and `integerOnly`, and `min`
   and `max` must be integers.
 
-The class gets `scale = k`, `min = round(min · 10^k)`, `end = round(max · 10^k) + 1`, both
-rounded as by `from`, and `integerOnly`, `true` only when `step` is left out.
+The class gets `scale = k`, `lowest = min` and `highest = max`, exactly, and
+`integerOnly`, `true` only when `step` is left out. Its integers are those that the values
+from `min` to `max` scale to: `[round(min · 10^k), round(max · 10^k) + 1)`, rounded as by
+`from`. They are the range of `q`, for `fromValue` and for linear combinations; `from`
+never checks a value against them, but against `lowest` and `highest`. With `max` 2.9999
+and a step of 1, the integers end at 3, and 2.99994 is still refused: it is above `max`.
 
 | `spec`                                                                | Error        |
 | --------------------------------------------------------------------- | ------------ |
@@ -376,7 +397,7 @@ of 1 and `x₂` a `Mass`: the coefficients align the scales, never the values.
 | `Mass.from(2.3)`                                                     | `23n`        | ½, ½, ½                         | 2.3         | `"2.3"`      |
 | `Mass.from(2)`                                                       | `20n`        | ½, ½, ½                         | 2           | `"2.0"`      |
 | `Mass.from(5n)`                                                      | `50n`        | ½, ½, ½                         | 5           | `"5.0"`      |
-| `Mass.from(100.04)`                                                  | `1000n`      | ½, ½, ½                         | 100         | `"100.0"`    |
+| `Mass.from(100.04)`                                                  | `RangeError` |                                 |             |              |
 | `Mass.from(100.06)`                                                  | `RangeError` |                                 |             |              |
 | `Mass.from(2.3, 0)`                                                  | `23n`        | 0, 0, 0                         | 2.3         | `"2.3"`      |
 | `Mass.from(2.3, 0.5)`                                                | `23n`        | 5, 5, 5                         | 2           | `"2"`        |
