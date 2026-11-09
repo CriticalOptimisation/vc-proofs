@@ -382,6 +382,58 @@ describe("BoundedInt.from(x, error) at a negative scale", () => {
   });
 });
 
+describe("BoundedInt classes: the ends of the scales and of the range", () => {
+  test("beyond the scale 308, from scales its error although 10^k is not a number", () => {
+    const Finest = BoundedInt.define({ name: "Finest", min: 0, max: 1e-300, step: 1e-323 });
+    expect(Finest.from(1e-320, 0).errorBound).toBe(0);
+    const x = Finest.from(1e-320, 1e-320);
+    expect([x.errorBound, x.quadraticError, x.termError]).toEqual([1000, 1000, 1000]);
+    expect(x.value).toBe(1000n);
+    expect(() => Finest.from(1e-320, 1)).toThrow(RangeError);
+    expect(() => Finest.from(1e-320, 1)).toThrow(/^Finest\.from: /);
+  });
+
+  test("toString() writes 100 decimals with toFixed, and 101 in exponential notation", () => {
+    const At100 = BoundedInt.defineRaw({ name: "At100", scale: 100, min: 0n, end: 1000n });
+    const At101 = BoundedInt.defineRaw({ name: "At101", scale: 101, min: 0n, end: 1000n });
+    expect(At100.fromValue(123n).toString()).toBe(`0.${"0".repeat(97)}123`);
+    expect(At101.fromValue(123n).toString()).toBe("1.23e-99");
+    expect(At101.fromValue(123n).valueOf()).toBe(1.23e-99);
+  });
+
+  test("a scale of NaN or Infinity on a class written by hand is a RangeError that names it", () => {
+    class NotANumber extends BoundedInt {
+      static override scale = NaN;
+    }
+    class Endless extends BoundedInt {
+      static override scale = Infinity;
+    }
+    expect(() => NotANumber.from(1)).toThrow(RangeError);
+    expect(() => NotANumber.from(1)).toThrow(/NotANumber/);
+    expect(() => Endless.fromValue(1n)).toThrow(RangeError);
+    expect(() => Endless.fromValue(1n)).toThrow(/^Endless\.fromValue: /);
+  });
+
+  test("a range of exactly ℓ integers, all below 0, is valid: [−ℓ, 0)", () => {
+    const Below = BoundedInt.defineRaw({ name: "Below", scale: 0, min: -L, end: 0n });
+    expect(Below.fromValue(-L).value).toBe(-L);
+    expect(Below.fromValue(-1n).value).toBe(-1n);
+    expect(() => Below.fromValue(0n)).toThrow(RangeError);
+    expect(() => Below.fromValue(-L - 1n)).toThrow(RangeError);
+    expect(() => BoundedInt.defineRaw({ name: "X", scale: 0, min: -L - 1n, end: 0n })).toThrow(
+      RangeError,
+    );
+  });
+
+  test("a step above 1e308 gives the scale −308, the coarsest", () => {
+    for (const step of [1.5e308, Number.MAX_VALUE]) {
+      const C = BoundedInt.define({ name: "Huge", min: 0, max: 0, step });
+      expect(C.scale).toBe(-308);
+      expect([C.min, C.end]).toEqual([0n, 1n]);
+    }
+  });
+});
+
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
