@@ -13,7 +13,7 @@ const L = 2n ** 252n + 27742317777372353535851937790883648493n;
 /** A class of `ℓ` integers centered on 0, for negative integers (#44). */
 class Signed extends BoundedInt {
   static override min = -(L - 1n) / 2n;
-  static override end = (L + 1n) / 2n;
+  static override max = (L + 1n) / 2n;
 }
 
 describe("BoundedInt.from: the edges of the casts", () => {
@@ -188,11 +188,20 @@ describe("BoundedInt: valueOf at the edges of a number", () => {
     },
   );
 
-  test("value stays exact where valueOf() is not", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: exact decimals; toString() does not go through valueOf(); the bounds [min, max))
+  // value stays exact where valueOf() is not
+  //   -> value and toString() stay exact where valueOf() is not
+  // test("value stays exact where valueOf() is not", () => {
+  //   const a = BoundedInt.from(2n ** 53n + 1n);
+  //   expect(a.value).toBe(2n ** 53n + 1n);
+  //   expect(a.value.toString()).toBe("9007199254740993");
+  //   expect(a.toString()).toBe("9007199254740992");
+  // });
+  test("value and toString() stay exact where valueOf() is not", () => {
     const a = BoundedInt.from(2n ** 53n + 1n);
     expect(a.value).toBe(2n ** 53n + 1n);
-    expect(a.value.toString()).toBe("9007199254740993");
-    expect(a.toString()).toBe("9007199254740992");
+    expect(a.toString()).toBe("9007199254740993");
+    expect(a.valueOf()).toBe(2 ** 53);
   });
 });
 

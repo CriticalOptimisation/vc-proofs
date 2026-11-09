@@ -21,7 +21,7 @@ const x = () => BoundedInt.from(5);
  */
 class Signed extends BoundedInt {
   static override min = -(L - 1n) / 2n;
-  static override end = (L + 1n) / 2n;
+  static override max = (L + 1n) / 2n;
 }
 
 describe("BoundedInt.from: the casts", () => {
@@ -201,13 +201,26 @@ describe("BoundedInt: the instance", () => {
   //     expect(name in x()).toBe(false);
   //   }
   // });
-  test("the bounds are min and end, on the class: [0n, ℓ) on BoundedInt; no max, minValue or maxValue, and none on an instance", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: exact decimals; toString() does not go through valueOf(); the bounds [min, max))
+  // the bounds are min and end, on the class: [0n, ℓ) on BoundedInt; no max, minValue or maxValue, and none on an instance
+  //   -> the bounds are min and max, on the class: [0n, ℓ) on BoundedInt; no end, minValue or maxValue, and none on an instance
+  // test("the bounds are min and end, on the class: [0n, ℓ) on BoundedInt; no max, minValue or maxValue, and none on an instance", () => {
+  //   expect(BoundedInt.min).toBe(0n);
+  //   expect(BoundedInt.end).toBe(L);
+  //   for (const name of ["min", "end", "max", "minValue", "maxValue"]) {
+  //     expect(name in x()).toBe(false);
+  //   }
+  //   for (const name of ["max", "minValue", "maxValue"]) {
+  //     expect(name in BoundedInt).toBe(false);
+  //   }
+  // });
+  test("the bounds are min and max, on the class: [0n, ℓ) on BoundedInt; no end, minValue or maxValue, and none on an instance", () => {
     expect(BoundedInt.min).toBe(0n);
-    expect(BoundedInt.end).toBe(L);
+    expect(BoundedInt.max).toBe(L);
     for (const name of ["min", "end", "max", "minValue", "maxValue"]) {
       expect(name in x()).toBe(false);
     }
-    for (const name of ["max", "minValue", "maxValue"]) {
+    for (const name of ["end", "minValue", "maxValue"]) {
       expect(name in BoundedInt).toBe(false);
     }
   });
@@ -216,7 +229,9 @@ describe("BoundedInt: the instance", () => {
     expectTypeOf(x().value).toEqualTypeOf<bigint>();
     expectTypeOf(x().valueOf()).toEqualTypeOf<number>();
     expectTypeOf(x().toString()).toEqualTypeOf<string>();
-    expectTypeOf<Parameters<typeof BoundedInt.from>[0]>().toEqualTypeOf<bigint | number>();
+    expectTypeOf<Parameters<typeof BoundedInt.from>[0]>().toEqualTypeOf<
+      bigint | number | readonly [mantissa: bigint, exponent: number]
+    >();
     expectTypeOf<BoundedInt>().not.toExtend<bigint>();
     expectTypeOf<BoundedInt>().not.toExtend<number>();
   });
@@ -328,60 +343,70 @@ describe("BoundedInt: valueOf and toString", () => {
   // ] as const)("from(%s).toString() is the string of valueOf(): %s", (input, expected) => {
   //   expect(BoundedInt.from(input).toString()).toBe(expected);
   // });
-  test.each([
-    [5n, "5"],
-    [10n ** 21n, "1e+21"],
-  ] as const)("from(%s).toString() is the string of valueOf(): %s", (input, expected) => {
-    expect(BoundedInt.from(input).toString()).toBe(expected);
-  });
-
-  test('on a class with negative integers, toString() of -7n is "-7"', () => {
-    expect(Signed.from(-7n).toString()).toBe("-7");
-  });
-});
-
-describe("BoundedInt: valueOf gives back every integer number that from took", () => {
-  // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ))
-  // from(%s).valueOf() gives the number back
-  //   -> from(%s).valueOf() gives the number back (the rows below ℓ: 2 ** 252 in place of
-  //      1e300, 2 ** 1023 and Number.MAX_VALUE)
-  //   -> on a class with negative integers, from(%s).valueOf() gives the number back
+  // REVIEW PLACEHOLDER (#44, review of PR #47: exact decimals; toString() does not go through valueOf(); the bounds [min, max))
+  // from(%s).toString() is the string of valueOf(): %s
+  //   -> from(%s).toString() is the exact decimal: %s
+  // test.each([
+  //   [5n, "5"],
+  //   [10n ** 21n, "1e+21"],
+  // ] as const)("from(%s).toString() is the string of valueOf(): %s", (input, expected) => {
+  //   expect(BoundedInt.from(input).toString()).toBe(expected);
+  // });
+  //
+  // test('on a class with negative integers, toString() of -7n is "-7"', () => {
+  //   expect(Signed.from(-7n).toString()).toBe("-7");
+  // });
+  // });
+  //
+  // describe("BoundedInt: valueOf gives back every integer number that from took", () => {
+  // // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ))
+  // // from(%s).valueOf() gives the number back
+  // //   -> from(%s).valueOf() gives the number back (the rows below ℓ: 2 ** 252 in place of
+  // //      1e300, 2 ** 1023 and Number.MAX_VALUE)
+  // //   -> on a class with negative integers, from(%s).valueOf() gives the number back
+  // // test.each([
+  // //   ["0", 0],
+  // //   ["-7", -7],
+  // //   ["Number.MAX_SAFE_INTEGER", Number.MAX_SAFE_INTEGER],
+  // //   ["2 ** 53", 2 ** 53],
+  // //   ["-(2 ** 53 + 2)", -(2 ** 53 + 2)],
+  // //   ["-(2 ** 60)", -(2 ** 60)],
+  // //   ["2 ** 60 + 2 ** 8", 2 ** 60 + 2 ** 8],
+  // //   ["1e300", 1e300],
+  // //   ["2 ** 1023", 2 ** 1023],
+  // //   ["Number.MAX_VALUE", Number.MAX_VALUE],
+  // //   ["-Number.MAX_VALUE", -Number.MAX_VALUE],
+  // // ] as const)("from(%s).valueOf() gives the number back", (_, n) => {
+  // //   expect(BoundedInt.from(n).valueOf()).toBe(n);
+  // // });
   // test.each([
   //   ["0", 0],
-  //   ["-7", -7],
   //   ["Number.MAX_SAFE_INTEGER", Number.MAX_SAFE_INTEGER],
   //   ["2 ** 53", 2 ** 53],
-  //   ["-(2 ** 53 + 2)", -(2 ** 53 + 2)],
-  //   ["-(2 ** 60)", -(2 ** 60)],
   //   ["2 ** 60 + 2 ** 8", 2 ** 60 + 2 ** 8],
-  //   ["1e300", 1e300],
-  //   ["2 ** 1023", 2 ** 1023],
-  //   ["Number.MAX_VALUE", Number.MAX_VALUE],
-  //   ["-Number.MAX_VALUE", -Number.MAX_VALUE],
+  //   ["2 ** 252", 2 ** 252],
   // ] as const)("from(%s).valueOf() gives the number back", (_, n) => {
   //   expect(BoundedInt.from(n).valueOf()).toBe(n);
   // });
+  //
+  // test.each([
+  //   ["-7", -7],
+  //   ["-(2 ** 53 + 2)", -(2 ** 53 + 2)],
+  //   ["-(2 ** 60)", -(2 ** 60)],
+  //   ["-(2 ** 251)", -(2 ** 251)],
+  // ] as const)(
+  //   "on a class with negative integers, from(%s).valueOf() gives the number back",
+  //   (_, n) => {
+  //     expect(Signed.from(n).valueOf()).toBe(n);
+  //   },
+  // );
   test.each([
-    ["0", 0],
-    ["Number.MAX_SAFE_INTEGER", Number.MAX_SAFE_INTEGER],
-    ["2 ** 53", 2 ** 53],
-    ["2 ** 60 + 2 ** 8", 2 ** 60 + 2 ** 8],
-    ["2 ** 252", 2 ** 252],
-  ] as const)("from(%s).valueOf() gives the number back", (_, n) => {
-    expect(BoundedInt.from(n).valueOf()).toBe(n);
+    [5n, "5"],
+    [10n ** 21n, "1000000000000000000000"],
+    [2n ** 53n + 1n, "9007199254740993"],
+  ] as const)("from(%s).toString() is the exact decimal: %s", (input, expected) => {
+    expect(BoundedInt.from(input).toString()).toBe(expected);
   });
-
-  test.each([
-    ["-7", -7],
-    ["-(2 ** 53 + 2)", -(2 ** 53 + 2)],
-    ["-(2 ** 60)", -(2 ** 60)],
-    ["-(2 ** 251)", -(2 ** 251)],
-  ] as const)(
-    "on a class with negative integers, from(%s).valueOf() gives the number back",
-    (_, n) => {
-      expect(Signed.from(n).valueOf()).toBe(n);
-    },
-  );
 });
 
 describe("BoundedInt: implicit conversion", () => {
@@ -436,9 +461,16 @@ describe("BoundedInt: subclasses", () => {
     expect(s.unit).toBe("1/256");
   });
 
-  test("toString and the string conversion follow the subclass's valueOf", () => {
-    expect(Scaled.from(3).toString()).toBe("3");
-    expect(`<${Scaled.from(3) as unknown as string}>`).toBe("<3>");
+  // REVIEW PLACEHOLDER (#44, review of PR #47: exact decimals; toString() does not go through valueOf(); the bounds [min, max))
+  // toString and the string conversion follow the subclass's valueOf
+  //   -> toString and the string conversion do not follow the subclass's valueOf: they write the integer's decimal
+  // test("toString and the string conversion follow the subclass's valueOf", () => {
+  //   expect(Scaled.from(3).toString()).toBe("3");
+  //   expect(`<${Scaled.from(3) as unknown as string}>`).toBe("<3>");
+  // });
+  test("toString and the string conversion do not follow the subclass's valueOf: they write the integer's decimal", () => {
+    expect(Scaled.from(3).toString()).toBe("768");
+    expect(`<${Scaled.from(3) as unknown as string}>`).toBe("<768>");
   });
 
   test("a subclass that keeps from gets an instance of itself", () => {
