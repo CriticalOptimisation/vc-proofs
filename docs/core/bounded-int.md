@@ -8,7 +8,7 @@ the class carries the bounds.
 A class of bounded integers holds a quantity. Its **scale**, a power of ten, turns a value
 into an integer, and its **bounds**, `[min, max)`, delimit the values it accepts. Both are
 class-level constants, the same for every instance. `BoundedInt` itself has a scale of 0,
-and holds the integers from 0 up to a fixed bound of 253 bits. Its subclasses, made by
+and the bounds `[0, 32767.5)`: the 15-bit integers from 0 to 32767. Its subclasses, made by
 [`define`](#define) or written by hand, have their own.
 
 ```ts
@@ -25,10 +25,10 @@ Mass.from(100.04).value; // 1000n: 100.0 kg
 Mass.from(100.05); // RangeError: not below Mass.max
 m + 1n; // TypeError: no implicit conversion, except to a string
 
-const days = BoundedInt.from(19_000n); // BoundedInt: scale 0
+const days = BoundedInt.from(19_000); // BoundedInt: scale 0, [0, 32767.5)
 days.value; // 19000n
-BoundedInt.from(-1n); // RangeError: below BoundedInt.min
-BoundedInt.from(19_000); // TypeError: BoundedInt needs more than the 15 digits of a number
+BoundedInt.from(1.5).value; // 2n: rounded to the step, ties to even
+BoundedInt.from(-1); // RangeError: below BoundedInt.min
 ```
 
 ## Values and errors
@@ -74,57 +74,49 @@ Every quantity a class takes, a value, a bound, a step or an error, is one of:
 - an exact decimal `[n, e]`, a `bigint` `n` and an integer `e`, worth `n · 10^e`:
   `[23n, -1]` is 2.3.
 
-It is converted at once to an exact decimal, and all the arithmetic is done on `bigint`s.
-A `number` is a binary fraction: `±m · 2^p`, with an integer mantissa `m` of 53 bits. Every
-power of 2 is a decimal, since `2^-p = 5^p · 10^-p`, so every `number` is a decimal, and is
-converted exactly:
+It is converted at once to a decimal, and all the arithmetic is done on `bigint`s. A
+`number` is a binary fraction: `±m · 2^p`, with an integer mantissa `m` of 53 bits. Every
+power of 2 is a decimal, since `2^-p = 5^p · 10^-p`, so every `number` is a decimal:
 
 - the mantissa is read as a `bigint` `m`, with its hidden bit: `9007199254740991` when its
   53 bits are all ones;
 - the binary point moves 52 bits to the right: the exponent becomes `p = E − 52`;
 - a positive `p` multiplies `m` by `2n ** p`;
 - a negative `p` multiplies `m` by `5n ** −p`, and `p` is kept as the power of ten;
-- the trailing zeros of the product move into the power of ten.
+- the product is rounded once to 15 significant digits, ties to even;
+- the trailing zeros move into the power of ten.
 
 The converse does not hold: 0.3 is a finite decimal in base 10, but an endless one in base
-2 (`0.0100110011…`). So the `number` written `0.3` is the decimal
-`0.299999999999999988897769753748434595763683319091796875`, exactly. JavaScript displays
-it rounded to the fewest digits that read back as the same `number`, `0.3`; a class sees
-the exact value, and keeps its bounds and its values as exact decimals. A bound and a value
-written as the same `number` are the same decimal.
+2 (`0.0100110011…`). The `number` written `0.3` is exactly
+`0.299999999999999988897769753748434595763683319091796875`, but a `number` holds only 15
+significant digits reliably: it cannot tell that value apart from the decimals around it,
+0.3 among them. So the conversion keeps 15 digits, and the `number` `0.3` is the decimal
+0.3, as its writer meant. A bound and a value written as the same `number` are the same
+decimal, and a decimal between 0.1 and the binary value of the `number` 0.1 is above the
+bound `max: 0.1`, as its writer meant. The rounding is done once, to 15 digits: dividing
+by 10 again and again would truncate, and give 0.299999999999999.
 
-A `number` holds about 15 significant digits reliably: beyond them, its exact decimal
-carries digits that its writer never meant. So a class whose values need more than 15
-digits takes no `number` (see [from](#from)).
+A class whose values need more than 15 digits takes no `number` (see [from](#from)).
 
 ### The class constants
 
 A class is described by its constants, which every member reads from the class of the
 call (`this` in a static member, `this.constructor` in an instance member):
 
-| Constant      | Meaning                                                                    | On `BoundedInt`    |
-| ------------- | -------------------------------------------------------------------------- | ------------------ |
-| `scale`       | the integer `k` of the factor `10^k`: the step of the class is `10^-k`     | `0`                |
-| `min`         | the lowest value, included, a quantity                                     | `0n`               |
-| `max`         | the value just above the highest, excluded, a quantity                     | a 253-bit `bigint` |
-| `integerOnly` | whether `from` accepts only integers, or rounds `x` to the step            | `true`             |
-| `order`       | the most distinct values the class, and every class made from it, may hold | absent: no limit   |
-| `error`       | the accuracy of the values, in the unit of the values, a quantity          | absent: ½ step     |
+| Constant | Meaning                                                                    | On `BoundedInt`  |
+| -------- | -------------------------------------------------------------------------- | ---------------- |
+| `scale`  | the integer `k` of the factor `10^k`: the step of the class is `10^-k`     | `0`              |
+| `min`    | the lowest value, included, a quantity                                     | `0n`             |
+| `max`    | the value just above the highest, excluded, a quantity                     | `32767.5`        |
+| `order`  | the most distinct values the class, and every class made from it, may hold | absent: no limit |
+| `error`  | the accuracy of the values, in the unit of the values, a quantity          | absent: ½ step   |
 
 - **The scale is a power of ten.** `k` is an integer from `−308` to `323`, the powers of
   ten whose step `10^-k` a `number` can write. A step of `0.01` is `k = 2`, a step of 1000
   is `k = −3`. The integer of a value `x` counts steps: `q = x · 10^k`, rounded. The
   decimal that `q` stands for is `D(q) = q · 10^-k`.
-- **`integerOnly`** restricts the values to integers, whatever the scale: `from` refuses a
-  value with a fractional part with a `TypeError`, where it would otherwise round it to the
-  step. With a positive scale, a class could hold fractions, but holds only the integers
-  among them: its integers `q` are multiples of `10^k`. With a negative scale, the integers
-  are rounded to the step: at the step 1000, `from(1500)` gives `2n`. `integerOnly` is
-  `true` on `BoundedInt`, and, for a class that does not declare it, `true` when its scale
-  is 0 and `false` otherwise.
-
-A class that declares none of the constants inherits those of its base. A class that
-declares one bound must declare both.
+  A class that declares none of the constants inherits those of its base. A class that
+  declares one bound must declare both.
 
 #### The range of a class
 
@@ -168,7 +160,7 @@ by hand, `class Days extends BoundedInt { static override min = 0n; static overr
 | -------------------------------------------------------------- | ------------ |
 | `min` without `max`, or `max` without `min`                    | `TypeError`  |
 | `min`, `max` or `error` not a quantity, `scale` not a `number` | `TypeError`  |
-| `integerOnly` not a boolean, `order` not a `bigint`            | `TypeError`  |
+| `order` not a `bigint`                                         | `TypeError`  |
 | `min ≥ max`                                                    | `RangeError` |
 | `scale` not an integer from `−308` to `323`                    | `RangeError` |
 | `order` not above 0, or more distinct values than `order`      | `RangeError` |
@@ -183,8 +175,7 @@ constants are read then: changing one afterwards, against TypeScript, has no eff
 `from(x)` takes the value `x`, a quantity, and makes an instance of the class it is called
 on:
 
-1. **Type.** On a class with `integerOnly`, a value that is not an integer is a
-   `TypeError`. A `number` is a `TypeError` on a class whose values need more than 15
+1. **Type.** A `number` is a `TypeError` on a class whose values need more than 15
    significant digits: the larger of `|min|` and `|max|`, in steps and rounded up, is
    `10^15` or more. Pass a `bigint` or a decimal there.
 2. **Bounds.** `x` must satisfy `min ≤ x < max`, exactly, **before any rounding**.
@@ -194,29 +185,25 @@ on:
 | `x`                                                                     | Result                           |
 | ----------------------------------------------------------------------- | -------------------------------- |
 | a quantity in `[min, max)`                                              | a new instance                   |
-| a value that is not an integer, on a class with `integerOnly`           | `TypeError`: not an integer      |
 | a `number`, on a class whose values need more than 15 digits            | `TypeError`: more than 15 digits |
 | `NaN`, `Infinity`, `-Infinity`                                          | `TypeError`: not a finite number |
 | anything else: a string, `null`, `undefined`, an object, a `BoundedInt` | `TypeError`                      |
 | a quantity outside `[min, max)`                                         | `RangeError`                     |
 
-**Why 15 digits.** The exact decimal of a `number` is exact, but its writer meant fewer
-digits. The `number` written `1.005` is `1.00499999999999989…`. At the scale 2, it gives
-`100`, a correct rounding of 1.005; at the scale 15, `1005000000000000`, still what was
-meant, the `…89` rounding up. At the scale 16, it would give `10049999999999999` where
-`10050000000000000` was meant, and the default error of half a step would overstate the
-accuracy by far. A second rounding would not repair this, so a class that needs that many
-digits refuses the `number`. Below 15 digits, the error of the `number` is below half a
-step, and the default error holds. A value known less accurately belongs to a class of
-fewer values, scaled accordingly.
+**Why 15 digits.** A `number` holds 15 significant digits reliably, and its conversion
+keeps 15. A class whose values need 16 digits or more would take a value whose last digits
+were never known, and the default error of half a step would overstate its accuracy by far:
+at the scale 16, `1.00499999999999989…`, the exact value of the `number` written `1.005`,
+would give `10049999999999999` where `10050000000000000` was meant. A second rounding would
+not repair this, so such a class refuses the `number`. A value known less accurately
+belongs to a class of fewer values, scaled accordingly.
 
-On `BoundedInt`, with a scale of 0, `from` keeps its integer exactly: `from(2n ** 60n).value`
-is `2n ** 60n`. Its values need 76 digits, so it takes no `number`: `from(5)` is a
-`TypeError`, and `from(5n)` or `from([5n, 0])` is accepted. Outside its bounds, it throws
-a `RangeError`, as every class does: `from(-1n)` is refused. On a class of at most 15
-digits, such as `DayCount`, an integer `number` is kept exactly, `-0` gives `0n`, and, as
-`DayCount` has `integerOnly`, `DayCount.from(-0.5)` is a `TypeError`: the type is checked
-before the bounds.
+On `BoundedInt`, with a scale of 0 and the bounds `[0, 32767.5)`, `from(5)` is `5n`,
+`from(-0)` is `0n`, and `from(1.5)` is `2n`: a value finer than the step is rounded to it,
+ties to even. Outside its bounds, it throws a `RangeError`, as every class does:
+`from(-1)` and `from(32767.5)` are refused. A class of the integers `[0, 2^252)`, written
+by hand or made by `define`, needs 76 digits: it keeps a `bigint` exactly, and refuses a
+`number` with a `TypeError`.
 
 A `BoundedInt` is refused: a caller that has one already has its `value`.
 
@@ -306,7 +293,7 @@ the worst outcome. Since `[Symbol.toPrimitive]` comes first, JavaScript never ca
 
 ### define
 
-`BoundedInt.define({ name, min, max, step?, error?, order?, integerOnly? })` makes a
+`BoundedInt.define({ name, min, max, step?, error?, order? })` makes a
 frozen subclass of the class it is called on:
 
 - `name` is the name of the class, a non-empty string, used in the messages;
@@ -318,16 +305,14 @@ frozen subclass of the class it is called on:
 - `error` is the accuracy of the values, in the unit of the values (the unit of `min` and
   `max`), a quantity, 0 or more; half a step when it is left out;
 - `order` is the most distinct values the class and every class made from it may hold, a
-  `bigint` or a form with a `bigint` `ORDER`; that of the base when it is left out;
-- `integerOnly` is a boolean; when it is left out, it is `true` without `step`, and
-  `false` with one.
+  `bigint` or a form with a `bigint` `ORDER`; that of the base when it is left out.
 
-| `spec`                                                                              | Error        |
-| ----------------------------------------------------------------------------------- | ------------ |
-| `name` not a non-empty string; a quantity, `order` or `integerOnly` of another type | `TypeError`  |
-| `min ≥ max`; `step` not above 0                                                     | `RangeError` |
-| a `step` below `10^-323`                                                            | `RangeError` |
-| `error` below 0; more distinct values than `order`                                  | `RangeError` |
+| `spec`                                                               | Error        |
+| -------------------------------------------------------------------- | ------------ |
+| `name` not a non-empty string; a quantity or `order` of another type | `TypeError`  |
+| `min ≥ max`; `step` not above 0                                      | `RangeError` |
+| a `step` below `10^-323`                                             | `RangeError` |
+| `error` below 0; more distinct values than `order`                   | `RangeError` |
 
 ## Rounding
 
@@ -336,8 +321,8 @@ nearest integer. A tie, an exact half, goes to the even integer. Rounding is sym
 `from(-x).value` is `-from(x).value`.
 
 A tie needs `x · 10^k` to be exactly a half, as for `0.125` with `k = 2`: it gives 12.
-The `number` written `1.005` is no tie: it is `1.00499999999999989…`, and it rounds to
-`100`.
+The `number` written `1.005` is the decimal 1.005, at 15 digits: a tie at `k = 2`, which
+gives `100`.
 
 **Why integers and powers of ten.** The base of a representation decides which numbers
 are finite decimals in it: in base 2, the base of the `number` type, 0.3 is not. Every
@@ -366,7 +351,7 @@ The classes:
 const Mass = BoundedInt.define({ name: "Mass", min: 0, max: 100.05, step: 0.1 }); // 0 to 1000, k = 1
 const Reading = BoundedInt.define({ name: "Reading", min: -7.99, max: 15.995, step: 0.01 }); // −799 to 1599, k = 2
 const Volume = BoundedInt.define({ name: "Volume", min: 0, max: 1000500, step: 1000 }); // 0 to 1000, k = −3
-const DayCount = BoundedInt.define({ name: "DayCount", min: 0, max: 365251 }); // 0 to 365250, k = 0, integers only
+const DayCount = BoundedInt.define({ name: "DayCount", min: -0.5, max: 365250.5 }); // 0 to 365250, k = 0
 const Rough = BoundedInt.define({ name: "Rough", min: 0, max: 100.05, step: 0.1, error: 0.5 }); // as Mass, known to 0.5 kg
 ```
 
@@ -389,7 +374,6 @@ const Rough = BoundedInt.define({ name: "Rough", min: 0, max: 100.05, step: 0.1,
 | `Volume.from(2500)`      | `2n`         | 2000        | `"2000"`     |
 | `Volume.from(3500)`      | `4n`         | 4000        | `"4000"`     |
 | `DayCount.from(20000)`   | `20000n`     | 20000       | `"20000"`    |
-| `DayCount.from(1.5)`     | `TypeError`  |             |              |
 | `Rough.from(2.3)`        | `23n`        | 2           | `"2"`        |
 | `Rough.from(4.5)`        | `45n`        | 4           | `"4"`        |
 
@@ -413,5 +397,5 @@ Change History
 | PR  | Summary |
 |-----|---------|
 | #42 | new: BoundedInt, its casts, conversions and subclasses (#41) |
-| #47 | decimal classes: scale, the exact bounds [min, max), integerOnly, order, error; quantities as exact decimals; from, fromValue, define; valueOf, toString, toLocaleString, rounding (#44) |
+| #47 | decimal classes: scale, the exact bounds [min, max), order, error; quantities as decimals, numbers at 15 digits; from, fromValue, define; valueOf, toString, toLocaleString, rounding (#44) |
 -->
