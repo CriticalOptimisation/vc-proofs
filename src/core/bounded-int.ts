@@ -244,6 +244,8 @@ interface Constants {
   readonly integerOnly: boolean;
   /** The error, in steps. */
   readonly error: Decimal;
+  /** Whether `from` takes a `number`: the class needs at most 15 significant digits. */
+  readonly numbers: boolean;
 }
 
 const known = new WeakMap<BoundedIntClass, Constants>();
@@ -297,9 +299,33 @@ function constants(C: BoundedIntClass, where: string): Constants {
     if (n < 0n) throw new RangeError(`${where}: ${C.name}.error must be 0 or more`);
     error = normalize([n, e + scale]);
   }
-  const result: Constants = { scale, min, max, low, high, integerOnly, error };
+  const result: Constants = {
+    scale,
+    min,
+    max,
+    low,
+    high,
+    integerOnly,
+    error,
+    numbers: fits(min, max, scale),
+  };
   known.set(C, result);
   return result;
+}
+
+/** The digits that a `number` holds reliably. */
+const NUMBER_DIGITS = 15;
+
+/**
+ * Whether the values of `[min, max)` at the scale `k` need at most 15 significant digits:
+ * the larger of `|min|` and `|max|`, in steps, rounded up, is below `10^15`. A `number`
+ * holds 15 digits reliably; beyond, its exact decimal carries digits it never meant:
+ * `1.005` is `1.00499999999999989…`, so at the scale 16 it gives `10049999999999999`.
+ */
+function fits(min: Decimal, max: Decimal, k: number): boolean {
+  const abs = ([n, e]: Decimal): Decimal => [n < 0n ? -n : n, e];
+  const larger = compare(abs(min), abs(max)) > 0 ? abs(min) : abs(max);
+  return ceiling([larger[0], larger[1] + k]) < 10n ** BigInt(NUMBER_DIGITS);
 }
 
 /** The order given to `define`: a `bigint`, or a form with a `bigint` `ORDER`. */
@@ -359,7 +385,8 @@ export class BoundedInt {
    *
    * @param x - a `bigint`, a finite `number`, or an exact decimal `[n, e]`.
    * @throws TypeError when `x` is none of these, or not an integer on a class with
-   *   `integerOnly`.
+   *   `integerOnly`, or a `number` on a class whose values need more than 15 significant
+   *   digits.
    * @throws RangeError when `x` is not in `[min, max)`, or the constants of the class are
    *   invalid.
    */
@@ -367,6 +394,11 @@ export class BoundedInt {
     const where = `${this.name}.from`;
     const c = constants(this, where);
     const d = decimal(x, where, "x");
+    if (typeof x === "number" && !c.numbers) {
+      throw new TypeError(
+        `${where}: ${this.name} needs more than ${String(NUMBER_DIGITS)} digits, which a number does not hold: pass a bigint or a decimal [n, e]`,
+      );
+    }
     if (c.integerOnly && !isInteger(d)) throw new TypeError(`${where}: x must be an integer`);
     if (compare(d, c.min) < 0) throw new RangeError(`${where}: x is below ${this.name}.min`);
     if (compare(d, c.max) >= 0) throw new RangeError(`${where}: x is not below ${this.name}.max`);
