@@ -64,7 +64,8 @@ gh attestation verify criticaloptimisation-vc-proofs-<version>.tgz -R CriticalOp
 - [Integration](docs/integration.md): the functions an issuer, a wallet and a verifier
   call at each step.
 - [The group ristretto255](docs/core/ristretto255.md): `RistrettoElement`, the group
-  elements of the low-level entry point, and its scalars, which are `bigint`s.
+  elements of the low-level entry point, its scalars, which are `bigint`s, and
+  `BoundedInt`, the integer of Z_ℓ that the entry point exports.
 - [Bounded integers](docs/core/bounded-int.md): `BoundedInt`, the integer of the low-level
   entry point, and its classes, each with a decimal scale and a range.
 - [The generator h](docs/generator-h.md): how the Pedersen generator `h` is derived, and
@@ -94,4 +95,5 @@ Change History
 | #40 | links The blinding context; setTimeout; scalars are bigints (#39) |
 | #42 | links Bounded integers (#41) |
 | #47 | Bounded integers: classes with a decimal scale and exact bounds [min, max) (#44) |
+| #51 | the page of the group lists BoundedInt, the integer of Z_ℓ (#49) |
 -->

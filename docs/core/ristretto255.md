@@ -4,7 +4,8 @@ The commitments and proofs of vc-proofs work in the group ristretto255
 ([RFC 9496](https://www.rfc-editor.org/rfc/rfc9496.html)), of prime order
 `ℓ = 2²⁵² + 27742317777372353535851937790883648493`. The low-level entry point,
 `@criticaloptimisation/vc-proofs/core`, gives it the class `RistrettoElement`, an
-element of the group. A scalar is a plain `bigint` (see [Scalars](#scalars)).
+element of the group. A scalar is a plain `bigint` (see [Scalars](#scalars)). Its
+`BoundedInt` is the integer of Z_ℓ (see [BoundedInt](#boundedint)).
 
 `RistrettoElement` is the only way the rest of the library handles group elements. It
 holds the arithmetic of [`@noble/curves`](https://github.com/paulmillr/noble-curves), but
@@ -235,14 +236,67 @@ defined for every integer `n`, in any group.
   `bigint`, never a `number`.
 - **From the numbers of an application.** The group converts nothing: only the
   application knows how a value of its own, such as a day count, is bounded and scaled.
-  That conversion belongs to [`BoundedInt`](bounded-int.md) and to its
-  subclasses. The group takes its `value`: `P.multiplyScalar(BoundedInt.from(5).value)`
-  is `P.multiplyScalar(5n)`, and `P.multiplyScalar(BoundedInt.from(5))` is a
+  That conversion belongs to [`BoundedInt`](#boundedint) and to its
+  subclasses. The group takes its `value`: `P.multiplyScalar(BoundedInt.from(5n).value)`
+  is `P.multiplyScalar(5n)`, and `P.multiplyScalar(BoundedInt.from(5n))` is a
   `TypeError`.
 - **Ranges.** Whether a linear combination of committed values can wrap around `ℓ`
   depends on the range of each value, not on the value itself. The group knows no range:
   ranges belong to the classes of [`BoundedInt`](bounded-int.md#the-class-constants),
-  and the linear combinations check them against `ORDER` (#31).
+  and the linear combinations check them against `ORDER` (#31). The `BoundedInt` of the
+  low-level entry point has the order `ℓ`, which every class made from it inherits: none
+  of them holds more than `ℓ` integers (see [BoundedInt](#boundedint)).
+
+## BoundedInt
+
+The `BoundedInt` of `@criticaloptimisation/vc-proofs/core` is the integer of Z_ℓ. It is a
+subclass of the class of [bounded integers](bounded-int.md), specialized for this group:
+that page documents every member it inherits, and only its constants and its `define`
+differ.
+
+| Constant | On `BoundedInt`                         |
+| -------- | --------------------------------------- |
+| `scale`  | `0`                                     |
+| `min`    | `-0.5`                                  |
+| `max`    | `ℓ − 0.5`, kept as `[10n * ℓ - 5n, -1]` |
+| `order`  | `ℓ`, `RistrettoElement.ORDER`           |
+| `error`  | absent: ½ step                          |
+
+- **The bounds** `[−0.5, ℓ − 0.5)` are `ℓ` equal buckets of width 1, one for each integer
+  from 0 to `ℓ − 1`: every value of `[i − 0.5, i + 0.5)` rounds to `i`. The bounds
+  `{ min: 0n, max: ℓ }` would hold `ℓ + 1` integers: `max` is excluded, but the values
+  just below it, such as `ℓ − 0.1`, round to `ℓ`.
+- **The order** `ℓ` is inherited by every class made from `BoundedInt`: none of them holds
+  more than `ℓ` integers, else a `RangeError` when it is made.
+- **`define`** takes no `order`: `BoundedInt.define({ name, min, max, step?, error? })`. An
+  `order` in `spec` is a `TypeError`, whose message begins with `<Class>.define: `. The
+  classes it makes inherit this `define`, so they refuse an `order` too. Otherwise it is
+  the `define` of [bounded integers](bounded-int.md#define).
+- **A class written by hand** may still declare an `order` of its own, such as
+  `static override order = 256n`. Nothing prevents it, and it is checked like any other
+  constant. A consumer that expects the order `ℓ` may refuse such a class.
+- **No `number`.** The values of `BoundedInt` need 76 digits, more than a `number` holds,
+  so `from(5)` is a `TypeError`, and `from(5n)` is `5n`. A class of a narrower range made
+  from it, such as `Mass`, takes a `number`.
+- **Frozen**, like the classes made by `define`.
+
+```ts
+import { BoundedInt, RistrettoElement } from "@criticaloptimisation/vc-proofs/core";
+
+const ℓ = RistrettoElement.ORDER;
+BoundedInt.from(19_000n).value; // 19000n
+BoundedInt.from([15n, -1]).value; // 2n: 1.5, rounded to the step, ties to even
+BoundedInt.from([-5n, -1]).value; // 0n: −0.5, a tie, goes to 0
+BoundedInt.from(-1n); // RangeError: below BoundedInt.min
+BoundedInt.from(5); // TypeError: BoundedInt needs 76 digits, more than a number holds
+
+const Mass = BoundedInt.define({ name: "Mass", min: 0, max: 100.05, step: 0.1 }); // order ℓ
+Mass.from(2.3).value; // 23n
+const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 }); // 256 values
+const Percent = Byte.define({ name: "Percent", min: -0.5, max: 100.5 }); // order ℓ too
+BoundedInt.define({ name: "Full", min: 0n, max: ℓ }); // RangeError: ℓ + 1 values
+BoundedInt.define({ name: "Word", min: -0.5, max: 65535.5, order: 65536n }); // TypeError
+```
 
 ## Constant time
 
@@ -317,4 +371,5 @@ Change History
 | #38 | new: RistrettoElement and RistrettoScalar (#35) |
 | #40 | links the blinding context; SUITE_NAME and randomScalar; scalars are bigints, RistrettoScalar removed; ORDER, encodeScalar, decodeScalar, invertScalar; multiplyScalar runs its multiplication for a scalar that reduces to 0 (#39) |
 | #47 | values are bounded and scaled, never salted; ranges belong to the classes (#44) |
+| #51 | section BoundedInt: the integer of Z_ℓ, its constants, define without order; from(5n) in Scalars (#49) |
 -->

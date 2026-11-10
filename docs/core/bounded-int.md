@@ -391,6 +391,15 @@ the kilogram. In `Rough.from(4.5)`, 4.5 is a tie, and goes to 4.
 Its constructor is `protected`, and its instances are not frozen, so that a subclass can
 call it and add fields of its own.
 
+## The BoundedInt of the entry point
+
+The `BoundedInt` that `@criticaloptimisation/vc-proofs/core` exports is not the class of
+this page, but a subclass of it, specialized for the mathematics of the elliptic curve of
+the library. Its bounds and its `order` are its own, every class made from it inherits
+that order, and its `define` takes no `order`. The examples of `BoundedInt.from` above run
+on the class of this page. The specialized class is documented with the curve: see the
+list of pages of the [README](../../README.md#documentation).
+
 <!--
 Change History
 
@@ -398,4 +407,5 @@ Change History
 |-----|---------|
 | #42 | new: BoundedInt, its casts, conversions and subclasses (#41) |
 | #47 | decimal classes: scale, the exact bounds [min, max), order, error; quantities as decimals, numbers at 15 digits; from, fromValue, define; valueOf, toString, toLocaleString, rounding (#44) |
+| #51 | notice: ./core exports a specialized subclass (#49) |
 -->
