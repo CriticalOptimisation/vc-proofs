@@ -25,9 +25,10 @@ Mass.from(100.04).value; // 1000n: 100.0 kg
 Mass.from(100.05); // RangeError: not below Mass.max
 m + 1n; // TypeError: no implicit conversion, except to a string
 
-const days = BoundedInt.from(19_000); // BoundedInt: scale 0
+const days = BoundedInt.from(19_000n); // BoundedInt: scale 0
 days.value; // 19000n
-BoundedInt.from(-1); // RangeError: below BoundedInt.min
+BoundedInt.from(-1n); // RangeError: below BoundedInt.min
+BoundedInt.from(19_000); // TypeError: BoundedInt needs more than the 15 digits of a number
 ```
 
 ## Values and errors
@@ -87,29 +88,40 @@ converted exactly:
 
 The converse does not hold: 0.3 is a finite decimal in base 10, but an endless one in base
 2 (`0.0100110011…`). So the `number` written `0.3` is the decimal
-`0.299999999999999988897769753748434595763683319091796875`, exactly, and that is the value
-a class sees. A bound and a value written as the same `number` are the same decimal.
+`0.299999999999999988897769753748434595763683319091796875`, exactly. JavaScript displays
+it rounded to the fewest digits that read back as the same `number`, `0.3`; a class sees
+the exact value, and keeps its bounds and its values as exact decimals. A bound and a value
+written as the same `number` are the same decimal.
+
+A `number` holds about 15 significant digits reliably: beyond them, its exact decimal
+carries digits that its writer never meant. So a class whose values need more than 15
+digits takes no `number` (see [from](#from)).
 
 ### The class constants
 
 A class is described by its constants, which every member reads from the class of the
 call (`this` in a static member, `this.constructor` in an instance member):
 
-| Constant      | Meaning                                                                | On `BoundedInt`    |
-| ------------- | ---------------------------------------------------------------------- | ------------------ |
-| `scale`       | the integer `k` of the factor `10^k`: the step of the class is `10^-k` | `0`                |
-| `min`         | the lowest value, included, a quantity                                 | `0n`               |
-| `max`         | the value just above the highest, excluded, a quantity                 | a 253-bit `bigint` |
-| `integerOnly` | whether `from` accepts only integers, or rounds `x` to the step        | `true`             |
-| `order`       | the number of distinct values allowed, if any                          | absent: no limit   |
-| `error`       | the accuracy of the values, in their unit, a quantity                  | absent: ½ step     |
+| Constant      | Meaning                                                                    | On `BoundedInt`    |
+| ------------- | -------------------------------------------------------------------------- | ------------------ |
+| `scale`       | the integer `k` of the factor `10^k`: the step of the class is `10^-k`     | `0`                |
+| `min`         | the lowest value, included, a quantity                                     | `0n`               |
+| `max`         | the value just above the highest, excluded, a quantity                     | a 253-bit `bigint` |
+| `integerOnly` | whether `from` accepts only integers, or rounds `x` to the step            | `true`             |
+| `order`       | the most distinct values the class, and every class made from it, may hold | absent: no limit   |
+| `error`       | the accuracy of the values, in the unit of the values, a quantity          | absent: ½ step     |
 
 - **The scale is a power of ten.** `k` is an integer from `−308` to `323`, the powers of
   ten whose step `10^-k` a `number` can write. A step of `0.01` is `k = 2`, a step of 1000
   is `k = −3`. The integer of a value `x` counts steps: `q = x · 10^k`, rounded. The
   decimal that `q` stands for is `D(q) = q · 10^-k`.
-- **`integerOnly`** is `true` on `BoundedInt`, and, for a class that does not declare it,
-  `true` when its scale is 0 and `false` otherwise.
+- **`integerOnly`** restricts the values to integers, whatever the scale: `from` refuses a
+  value with a fractional part with a `TypeError`, where it would otherwise round it to the
+  step. With a positive scale, a class could hold fractions, but holds only the integers
+  among them: its integers `q` are multiples of `10^k`. With a negative scale, the integers
+  are rounded to the step: at the step 1000, `from(1500)` gives `2n`. `integerOnly` is
+  `true` on `BoundedInt`, and, for a class that does not declare it, `true` when its scale
+  is 0 and `false` otherwise.
 
 A class that declares none of the constants inherits those of its base. A class that
 declares one bound must declare both.
@@ -125,15 +137,27 @@ The bounds are kept exactly as they are given, whatever the scale: they need not
 the step. A value that is within them is scaled to the step and rounded; a value that is
 not is refused, even if it would round to an integer that a value within them gives.
 
-**The order.** A class may have an `order`: the number of distinct values it may hold, as
-for integers of a fixed size. An unsigned byte holds 256 values. With the rounding, its
-bounds are `[−0.5, 255.5)`: every `x` of that interval rounds to one of the 256 integers
-from 0 to 255, and 255.5, which would round to 256, is excluded. Its order is `256n`. The
-values of a class need not be integers: with a positive scale they are fractions, and the
-order counts them all. More distinct values than `order` is a `RangeError` when the class
-is made. Without an order, there is no limit. `BoundedInt` has none. `define` takes
-`order` as a `bigint`, or any form with a `bigint` `ORDER`; a class inherits the order of
-its base when it is left out.
+**The order.** A class with its bounds and its step holds a number of distinct values,
+`(max − min) / step`, as integers of a fixed size do. An unsigned byte holds 256 values:
+with the rounding, its bounds are `[−0.5, 255.5)` at the step 1, every `x` of that
+interval rounds to one of the integers from 0 to 255, and 255.5, which would round to 256,
+is excluded. The values need not be integers: with a positive scale they are fractions,
+and they count the same.
+
+The constant `order` is a limit on that number, and it is inherited: a class that declares
+it passes it to every class made from it, and each of them must hold at most `order`
+values, else a `RangeError` when it is made. `BoundedInt` declares none, so that an
+application can have several families of classes, each rooted on a subclass of
+`BoundedInt` with an order of its own:
+
+```ts
+const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5, step: 1, order: 256n });
+const Percent = Byte.define({ name: "Percent", min: -0.5, max: 100.5, step: 1 }); // order 256n
+Byte.define({ name: "Word", min: -0.5, max: 65535.5, step: 1 }); // RangeError: 65536 values
+```
+
+`define` takes `order` as a `bigint`, or any form with a `bigint` `ORDER`; a class
+inherits the order of its base when it is left out. Without an order, there is no limit.
 
 The constants of a class made by `define` are checked when it is made. A class written
 by hand, `class Days extends BoundedInt { static override min = 0n; static override max =
@@ -150,7 +174,9 @@ by hand, `class Days extends BoundedInt { static override min = 0n; static overr
 | `order` not above 0, or more distinct values than `order`      | `RangeError` |
 | `error` below 0                                                | `RangeError` |
 
-Constants changed after the first use of a class are not checked again: declare them once.
+The constants are `static readonly`: TypeScript refuses to assign them, and a class made by
+`define` is frozen. A class written by hand is checked once, at its first use, and its
+constants are read then: changing one afterwards, against TypeScript, has no effect.
 
 ### from
 
@@ -158,7 +184,9 @@ Constants changed after the first use of a class are not checked again: declare 
 on:
 
 1. **Type.** On a class with `integerOnly`, a value that is not an integer is a
-   `TypeError`.
+   `TypeError`. A `number` is a `TypeError` on a class whose values need more than 15
+   significant digits: the larger of `|min|` and `|max|`, in steps and rounded up, is
+   `10^15` or more. Pass a `bigint` or a decimal there.
 2. **Bounds.** `x` must satisfy `min ≤ x < max`, exactly, **before any rounding**.
 3. **Scaling.** `x` is multiplied by `10^k` exactly, and rounded to the nearest integer,
    ties to even (see [Rounding](#rounding)). This is the only rounding of `from`.
@@ -167,15 +195,28 @@ on:
 | ----------------------------------------------------------------------- | -------------------------------- |
 | a quantity in `[min, max)`                                              | a new instance                   |
 | a value that is not an integer, on a class with `integerOnly`           | `TypeError`: not an integer      |
+| a `number`, on a class whose values need more than 15 digits            | `TypeError`: more than 15 digits |
 | `NaN`, `Infinity`, `-Infinity`                                          | `TypeError`: not a finite number |
 | anything else: a string, `null`, `undefined`, an object, a `BoundedInt` | `TypeError`                      |
 | a quantity outside `[min, max)`                                         | `RangeError`                     |
 
-On `BoundedInt`, with a scale of 0, `from` keeps its integer exactly: a `bigint` as it is,
-and every `number` without a fractional part, so `from(2 ** 60).value` is `2n ** 60n`.
-`-0` gives `0n`. Outside its bounds, it throws a `RangeError`, as every class does:
-`from(-1n)` and `from(Number.MAX_VALUE)` are refused. The type of `x` is checked first:
-`from(-0.5)` is a `TypeError`.
+**Why 15 digits.** The exact decimal of a `number` is exact, but its writer meant fewer
+digits. The `number` written `1.005` is `1.00499999999999989…`. At the scale 2, it gives
+`100`, a correct rounding of 1.005; at the scale 15, `1005000000000000`, still what was
+meant, the `…89` rounding up. At the scale 16, it would give `10049999999999999` where
+`10050000000000000` was meant, and the default error of half a step would overstate the
+accuracy by far. A second rounding would not repair this, so a class that needs that many
+digits refuses the `number`. Below 15 digits, the error of the `number` is below half a
+step, and the default error holds. A value known less accurately belongs to a class of
+fewer values, scaled accordingly.
+
+On `BoundedInt`, with a scale of 0, `from` keeps its integer exactly: `from(2n ** 60n).value`
+is `2n ** 60n`. Its values need 76 digits, so it takes no `number`: `from(5)` is a
+`TypeError`, and `from(5n)` or `from([5n, 0])` is accepted. Outside its bounds, it throws
+a `RangeError`, as every class does: `from(-1n)` is refused. On a class of at most 15
+digits, such as `DayCount`, an integer `number` is kept exactly, `-0` gives `0n`, and, as
+`DayCount` has `integerOnly`, `DayCount.from(-0.5)` is a `TypeError`: the type is checked
+before the bounds.
 
 A `BoundedInt` is refused: a caller that has one already has its `value`.
 
@@ -194,8 +235,10 @@ to.
 
 ### The errors of a class
 
-A class carries the accuracy of its values, `error`, in their unit: a class constant like
-its scale, set when the class is made, never by a value. It is half a step when it is left
+A class carries the accuracy of its values, `error`, in the unit of the values: the unit in
+which `from` takes `x` and `define` takes the bounds, the kilogram for `Mass`, not steps of
+the class. It is a class constant like its scale, set when the class is made, never by a
+value. It is half a step when it is left
 out, the error of the rounding. It describes how the values of the class are obtained: a
 clock that reads exactly 12 is no more accurate than when it reads 12.3.
 
@@ -272,10 +315,10 @@ frozen subclass of the class it is called on:
 - `step` is the accuracy, a quantity above 0. The scale `k` is the smallest integer, from
   `−308` to `323`, with `10^-k ≤ step`, compared exactly: a step of `0.1` gives `k = 1`, a
   step of `0.025` gives `k = 2`, a step of 1000 gives `k = −3`. Without `step`, `k = 0`;
-- `error` is the accuracy of the values, in their unit, a quantity, 0 or more; half a step
-  when it is left out;
-- `order` is the number of distinct values allowed, a `bigint` or a form with a `bigint`
-  `ORDER`; that of the base when it is left out;
+- `error` is the accuracy of the values, in the unit of the values (the unit of `min` and
+  `max`), a quantity, 0 or more; half a step when it is left out;
+- `order` is the most distinct values the class and every class made from it may hold, a
+  `bigint` or a form with a `bigint` `ORDER`; that of the base when it is left out;
 - `integerOnly` is a boolean; when it is left out, it is `true` without `step`, and
   `false` with one.
 
