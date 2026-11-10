@@ -236,13 +236,15 @@ defined for every integer `n`, in any group.
 - **From the numbers of an application.** The group converts nothing: only the
   application knows how a value of its own, such as a day count, is bounded and scaled.
   That conversion belongs to [`BoundedInt`](bounded-int.md) and to its
-  subclasses. The group takes its `value`: `P.multiplyScalar(BoundedInt.from(5).value)`
-  is `P.multiplyScalar(5n)`, and `P.multiplyScalar(BoundedInt.from(5))` is a
+  subclasses. The group takes its `value`: `P.multiplyScalar(BoundedInt.from(5n).value)`
+  is `P.multiplyScalar(5n)`, and `P.multiplyScalar(BoundedInt.from(5n))` is a
   `TypeError`.
 - **Ranges.** Whether a linear combination of committed values can wrap around `ℓ`
   depends on the range of each value, not on the value itself. The group knows no range:
   ranges belong to the classes of [`BoundedInt`](bounded-int.md#the-class-constants),
-  and the linear combinations check them against `ORDER` (#31).
+  and the linear combinations check them against `ORDER` (#31). The `BoundedInt` of the
+  low-level entry point has the order `ℓ`, which every class made from it inherits: none
+  of them holds more than `ℓ` integers ([the range of a class](bounded-int.md#the-range-of-a-class)).
 
 ## Constant time
 

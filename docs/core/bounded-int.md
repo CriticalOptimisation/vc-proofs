@@ -7,9 +7,12 @@ the class carries the bounds.
 
 A class of bounded integers holds a quantity. Its **scale**, a power of ten, turns a value
 into an integer, and its **bounds**, `[min, max)`, delimit the values it accepts. Both are
-class-level constants, the same for every instance. `BoundedInt` itself has a scale of 0,
-and the bounds `[0, 32767.5)`: the 15-bit integers from 0 to 32767. Its subclasses, made by
-[`define`](#define) or written by hand, have their own.
+class-level constants, the same for every instance. `BoundedInt` itself is the integer of
+Z_ℓ, where `ℓ` is the order of the group ristretto255 (`RistrettoElement.ORDER`). It has a
+scale of 0 and the bounds `[−0.5, ℓ − 0.5)`: `ℓ` equal buckets of width 1, one for each
+integer from 0 to `ℓ − 1`. Its [order](#the-range-of-a-class) is `ℓ`, and every class made
+from it inherits that order. Its subclasses, made by [`define`](#define) or written by hand,
+have bounds of their own.
 
 ```ts
 import { BoundedInt } from "@criticaloptimisation/vc-proofs/core";
@@ -25,16 +28,19 @@ Mass.from(100.04).value; // 1000n: 100.0 kg
 Mass.from(100.05); // RangeError: not below Mass.max
 m + 1n; // TypeError: no implicit conversion, except to a string
 
-const days = BoundedInt.from(19_000); // BoundedInt: scale 0, [0, 32767.5)
+const days = BoundedInt.from(19_000n); // BoundedInt: scale 0, [−0.5, ℓ − 0.5)
 days.value; // 19000n
-BoundedInt.from(1.5).value; // 2n: rounded to the step, ties to even
-BoundedInt.from(-1); // RangeError: below BoundedInt.min
+BoundedInt.from([15n, -1]).value; // 2n: 1.5, rounded to the step, ties to even
+BoundedInt.from([-5n, -1]).value; // 0n: −0.5, a tie, goes to 0
+BoundedInt.from(-1n); // RangeError: below BoundedInt.min
+BoundedInt.from(5); // TypeError: BoundedInt needs 76 digits, more than a number holds
 ```
 
 ## Values and errors
 
 - **Immutable.** The integer is held in a private field, read through a getter with no
-  setter. No method changes an instance. The classes made by `define` are frozen.
+  setter. No method changes an instance. `BoundedInt` and the classes made by `define` are
+  frozen.
 - **No public constructor.** Instances come only from `from` and `fromValue`, on
   `BoundedInt` or on one of its subclasses.
 - **An integer, as it is.** The integer keeps its sign and its size. A value outside the
@@ -103,13 +109,13 @@ A class whose values need more than 15 digits takes no `number` (see [from](#fro
 A class is described by its constants, which every member reads from the class of the
 call (`this` in a static member, `this.constructor` in an instance member):
 
-| Constant | Meaning                                                                    | On `BoundedInt`  |
-| -------- | -------------------------------------------------------------------------- | ---------------- |
-| `scale`  | the integer `k` of the factor `10^k`: the step of the class is `10^-k`     | `0`              |
-| `min`    | the lowest value, included, a quantity                                     | `0n`             |
-| `max`    | the value just above the highest, excluded, a quantity                     | `32767.5`        |
-| `order`  | the most distinct values the class, and every class made from it, may hold | absent: no limit |
-| `error`  | the accuracy of the values, in the unit of the values, a quantity          | absent: ½ step   |
+| Constant | Meaning                                                                    | On `BoundedInt`                         |
+| -------- | -------------------------------------------------------------------------- | --------------------------------------- |
+| `scale`  | the integer `k` of the factor `10^k`: the step of the class is `10^-k`     | `0`                                     |
+| `min`    | the lowest value, included, a quantity                                     | `-0.5`                                  |
+| `max`    | the value just above the highest, excluded, a quantity                     | `ℓ − 0.5`, kept as `[10n * ℓ - 5n, -1]` |
+| `order`  | the most distinct values the class, and every class made from it, may hold | `ℓ`, `RistrettoElement.ORDER`           |
+| `error`  | the accuracy of the values, in the unit of the values, a quantity          | absent: ½ step                          |
 
 - **The scale is a power of ten.** `k` is an integer from `−308` to `323`, the powers of
   ten whose step `10^-k` a `number` can write. A step of `0.01` is `k = 2`, a step of 1000
@@ -138,18 +144,24 @@ and they count the same.
 
 The constant `order` is a limit on that number, and it is inherited: a class that declares
 it passes it to every class made from it, and each of them must hold at most `order`
-values, else a `RangeError` when it is made. `BoundedInt` declares none, so that an
-application can have several families of classes, each rooted on a subclass of
-`BoundedInt` with an order of its own:
+values, else a `RangeError` when it is made. `BoundedInt` declares the order `ℓ`, so no
+class made from it holds more than `ℓ` integers. `define` takes no `order`: the order of
+every class it makes is `ℓ`, inherited.
 
 ```ts
-const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5, step: 1, order: 256n });
-const Percent = Byte.define({ name: "Percent", min: -0.5, max: 100.5, step: 1 }); // order 256n
-Byte.define({ name: "Word", min: -0.5, max: 65535.5, step: 1 }); // RangeError: 65536 values
+const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 }); // 256 values, order ℓ
+const Percent = Byte.define({ name: "Percent", min: -0.5, max: 100.5 }); // order ℓ too
+BoundedInt.define({ name: "Full", min: 0n, max: ℓ }); // RangeError: ℓ + 1 values
+BoundedInt.define({ name: "Word", min: -0.5, max: 65535.5, order: 65536n }); // TypeError
 ```
 
-`define` takes `order` as a `bigint`, or any form with a `bigint` `ORDER`; a class
-inherits the order of its base when it is left out. Without an order, there is no limit.
+`{ min: 0n, max: ℓ }` holds `ℓ + 1` integers. `max` is excluded, but the values just below
+it, such as `ℓ − 0.1`, round to `ℓ`. The buckets of `BoundedInt`, `[−0.5, ℓ − 0.5)`, hold
+exactly `ℓ` integers: every value of `[i − 0.5, i + 0.5)` rounds to `i`.
+
+A class written by hand may still declare an `order` of its own, such as
+`static override order = 256n`. Nothing prevents it, and it is checked like any other
+constant. A consumer that expects the order `ℓ` may refuse such a class.
 
 The constants of a class made by `define` are checked when it is made. A class written
 by hand, `class Days extends BoundedInt { static override min = 0n; static override max =
@@ -198,12 +210,12 @@ would give `10049999999999999` where `10050000000000000` was meant. A second rou
 not repair this, so such a class refuses the `number`. A value known less accurately
 belongs to a class of fewer values, scaled accordingly.
 
-On `BoundedInt`, with a scale of 0 and the bounds `[0, 32767.5)`, `from(5)` is `5n`,
-`from(-0)` is `0n`, and `from(1.5)` is `2n`: a value finer than the step is rounded to it,
-ties to even. Outside its bounds, it throws a `RangeError`, as every class does:
-`from(-1)` and `from(32767.5)` are refused. A class of the integers `[0, 2^252)`, written
-by hand or made by `define`, needs 76 digits: it keeps a `bigint` exactly, and refuses a
-`number` with a `TypeError`.
+On `BoundedInt`, with a scale of 0 and the bounds `[−0.5, ℓ − 0.5)`, the values need 76
+digits: `BoundedInt` keeps a `bigint` exactly, and refuses a `number` with a `TypeError`.
+`from(5)` is a `TypeError`, and `from(5n)` is `5n`. `from([15n, -1])`, 1.5, is `2n`: a
+value finer than the step is rounded to it, ties to even. Outside its bounds, it throws a
+`RangeError`, as every class does: `from(-1n)` and `from([10n * ℓ - 5n, -1])`, `ℓ − 0.5`,
+are refused. A class of a narrower range made from it, such as `Mass`, takes a `number`.
 
 A `BoundedInt` is refused: a caller that has one already has its `value`.
 
@@ -293,8 +305,8 @@ the worst outcome. Since `[Symbol.toPrimitive]` comes first, JavaScript never ca
 
 ### define
 
-`BoundedInt.define({ name, min, max, step?, error?, order? })` makes a
-frozen subclass of the class it is called on:
+`BoundedInt.define({ name, min, max, step?, error? })` makes a frozen subclass of the
+class it is called on:
 
 - `name` is the name of the class, a non-empty string, used in the messages;
 - `min` and `max` are the bounds `[min, max)`, quantities, with `min < max`; the class
@@ -304,15 +316,17 @@ frozen subclass of the class it is called on:
   step of `0.025` gives `k = 2`, a step of 1000 gives `k = −3`. Without `step`, `k = 0`;
 - `error` is the accuracy of the values, in the unit of the values (the unit of `min` and
   `max`), a quantity, 0 or more; half a step when it is left out;
-- `order` is the most distinct values the class and every class made from it may hold, a
-  `bigint` or a form with a `bigint` `ORDER`; that of the base when it is left out.
+- `order` is not taken. The class inherits the order `ℓ` of `BoundedInt` (see
+  [the range of a class](#the-range-of-a-class)), and its subclasses inherit it from it, along
+  with this `define`. An `order` in `spec` is a `TypeError`.
 
-| `spec`                                                               | Error        |
-| -------------------------------------------------------------------- | ------------ |
-| `name` not a non-empty string; a quantity or `order` of another type | `TypeError`  |
-| `min ≥ max`; `step` not above 0                                      | `RangeError` |
-| a `step` below `10^-323`                                             | `RangeError` |
-| `error` below 0; more distinct values than `order`                   | `RangeError` |
+| `spec`                                                          | Error        |
+| --------------------------------------------------------------- | ------------ |
+| `name` not a non-empty string; a quantity of another type       | `TypeError`  |
+| `order` given                                                   | `TypeError`  |
+| `min ≥ max`; `step` not above 0                                 | `RangeError` |
+| a `step` below `10^-323`                                        | `RangeError` |
+| `error` below 0; more distinct values than `order`, that is `ℓ` | `RangeError` |
 
 ## Rounding
 
