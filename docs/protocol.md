@@ -232,7 +232,8 @@ requests, not seeing the request being handled.
   Turning a legal age in years into days is the verifier's business.
 - Open, with their owners: the epoch and range of the day count, the "today" a proof is
   made against and the tolerance around midnight (#9); the encoding inside the
-  commitment, including random padding bits against probing (#7, #9).
+  commitment (#7, #9). It needs no random padding bits: see
+  [Search of a committed value](threat-model.md#search-of-a-committed-value).
 
 ## Verifier request
 
@@ -620,4 +621,5 @@ Change History
 |-----|---------|
 | #28 | the public contract of vc-proofs (#27) |
 | #32 | the request hash: SHA-256 of the compact JWS, untagged (#29) |
+| #47 | the day count needs no random padding bits (#44) |
 -->

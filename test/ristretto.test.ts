@@ -34,21 +34,6 @@ const g = () => RistrettoElement.canonicalGenerator();
 const multiples = rfc.multiplesOfGenerator.encodings;
 
 describe("RistrettoElement: RFC 9496, Appendix A", () => {
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // A.1: %i·g by multiplyScalar
-  //   -> A.1: %i·g by multiplyScalar
-  // test.each(multiples.map((encoding, k) => [k, encoding] as const))(
-  //   "A.1: %i·g by multiplyScalar",
-  //   (k, encoding) => {
-  //     expect(
-  //       hex(
-  //         g()
-  //           .multiplyScalar(scalar(BigInt(k)))
-  //           .encode(),
-  //       ),
-  //     ).toBe(encoding);
-  //   },
-  // );
   test.each(multiples.map((encoding, k) => [k, encoding] as const))(
     "A.1: %i·g by multiplyScalar",
     (k, encoding) => {
@@ -93,26 +78,12 @@ describe("RistrettoElement: the group operations", () => {
     expect(hex(q().negate().add(p()).encode())).toBe(multiples[2]);
   });
 
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // equals tells elements apart, and holds for one element decoded twice
-  //   -> equals tells elements apart, and holds for one element decoded twice
-  // test("equals tells elements apart, and holds for one element decoded twice", () => {
-  //   expect(p().equals(p())).toBe(true);
-  //   expect(p().equals(q())).toBe(false);
-  //   expect(g().multiplyScalar(scalar(8n)).equals(p().add(q()))).toBe(true);
-  // });
   test("equals tells elements apart, and holds for one element decoded twice", () => {
     expect(p().equals(p())).toBe(true);
     expect(p().equals(q())).toBe(false);
     expect(g().multiplyScalar(8n).equals(p().add(q()))).toBe(true);
   });
 
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // 3·(5·g) = 15·g
-  //   -> 3·(5·g) = 15·g
-  // test("3·(5·g) = 15·g", () => {
-  //   expect(hex(p().multiplyScalar(scalar(3n)).encode())).toBe(multiples[15]);
-  // });
   test("3·(5·g) = 15·g", () => {
     expect(hex(p().multiplyScalar(3n).encode())).toBe(multiples[15]);
   });
@@ -138,15 +109,6 @@ describe("RistrettoElement: the identity", () => {
     expect(hex(RistrettoElement.identity().encode())).toBe(hex(zeros));
   });
 
-  // REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-  // 0·P, P − P and P + (−P) are the identity
-  //   -> 0·P, P − P and P + (−P) are the identity
-  // test("0·P, P − P and P + (−P) are the identity", () => {
-  //   const p = g().multiplyScalar(scalar(7n));
-  //   expect(p.multiplyScalar(scalar(0n)).isIdentity()).toBe(true);
-  //   expect(p.subtract(p).isIdentity()).toBe(true);
-  //   expect(p.add(p.negate()).isIdentity()).toBe(true);
-  // });
   test("0·P, P − P and P + (−P) are the identity", () => {
     const p = g().multiplyScalar(7n);
     expect(p.multiplyScalar(0n).isIdentity()).toBe(true);
@@ -236,98 +198,6 @@ describe("RistrettoElement.deriveGenerator", () => {
     await expect(RistrettoElement.deriveGenerator("abc" as never)).rejects.toThrow(TypeError);
   });
 });
-
-// REVIEW PLACEHOLDER (PR #40: scalars are bigints): the class RistrettoScalar is removed.
-// decode and encode: 7 round-trips, ℓ − 1 is canonical
-//   -> decodeScalar(encodeScalar(n)) is n mod ℓ, a bigint; encodeScalar(decodeScalar(bytes)) gives bytes back
-// decode refuses ℓ, a non-canonical encoding, with a TypeError
-//   -> decodeScalar refuses the encoding of %s, which is not canonical, with a TypeError
-// fromBigInt(−1n) is ℓ − 1, and fromBigInt reduces mod ℓ
-//   -> (−1)·g = (ℓ − 1)·g = −g: multiplyScalar reduces mod ℓ; encodeScalar(7n) is 07 00 … 00, and encodeScalar(-1n) the encoding of ℓ − 1
-// fromBigInt refuses |n| = 2^251 with a RangeError, and accepts 2^251 − 1
-//   -> multiplyScalar takes any integer: ±2^251, ±ℓ and 2^300 are reduced mod ℓ
-// fromUniformBytes reads 64 bytes little-endian and reduces mod ℓ
-//   -> (ℓ + 5)·g = 5·g, and the 512-bit scalars of test/ristretto-sodium.test.ts; encodeScalar reduces mod ℓ: n + ℓ and n − 2ℓ encode as n
-// the field arithmetic: 6 + 7, 6 − 7, 6 · 7, −6
-//   -> the bigint arithmetic agrees with the group: (6 + 7)·g, (6 − 7)·g, (2 · 7)·g, (−6)·g
-// a · a⁻¹ = 1
-//   -> invertScalar: a · invertScalar(a) ≡ 1 (mod ℓ), from 1 to ℓ − 1
-// invert of zero is a RangeError
-//   -> invertScalar(%s) is a RangeError: 0 has no inverse
-// random scalars differ, and are canonical
-//   -> randomScalar gives distinct bigints from 0 to ℓ − 1
-// encode returns a new array each time
-//   -> encodeScalar returns a new array each time
-// the scalar arithmetic agrees with the group: (a + b)·g = a·g + b·g
-//   -> the bigint arithmetic agrees with the group: (a + b)·g = a·g + b·g
-// describe("RistrettoScalar", () => {
-//   test("decode and encode: 7 round-trips, ℓ − 1 is canonical", () => {
-//     expect(hex(RistrettoScalar.decode(le32(7n)).encode())).toBe(hex(le32(7n)));
-//     expect(hex(RistrettoScalar.decode(le32(L - 1n)).encode())).toBe(hex(le32(L - 1n)));
-//   });
-//
-//   test("decode refuses ℓ, a non-canonical encoding, with a TypeError", () => {
-//     expect(() => RistrettoScalar.decode(le32(L))).toThrow(TypeError);
-//   });
-//
-//   test("fromBigInt(−1n) is ℓ − 1, and fromBigInt reduces mod ℓ", () => {
-//     expect(hex(scalar(-1n).encode())).toBe(hex(le32(L - 1n)));
-//     expect(scalar(-1n).add(scalar(1n)).isZero()).toBe(true);
-//   });
-//
-//   test("fromBigInt refuses |n| = 2^251 with a RangeError, and accepts 2^251 − 1", () => {
-//     expect(() => scalar(2n ** 251n)).toThrow(RangeError);
-//     expect(() => scalar(-(2n ** 251n))).toThrow(RangeError);
-//     expect(hex(scalar(2n ** 251n - 1n).encode())).toBe(hex(le32(2n ** 251n - 1n)));
-//   });
-//
-//   test("fromUniformBytes reads 64 bytes little-endian and reduces mod ℓ", () => {
-//     const bytes = new Uint8Array(64);
-//     bytes.set(le32(L + 5n));
-//     expect(hex(RistrettoScalar.fromUniformBytes(bytes).encode())).toBe(hex(le32(5n)));
-//   });
-//
-//   test("the field arithmetic: 6 + 7, 6 − 7, 6 · 7, −6", () => {
-//     expect(scalar(6n).add(scalar(7n)).equals(scalar(13n))).toBe(true);
-//     expect(scalar(6n).subtract(scalar(7n)).equals(scalar(-1n))).toBe(true);
-//     expect(scalar(6n).multiply(scalar(7n)).equals(scalar(42n))).toBe(true);
-//     expect(scalar(6n).negate().equals(scalar(-6n))).toBe(true);
-//   });
-//
-//   test("a · a⁻¹ = 1", () => {
-//     for (const a of [scalar(2n), scalar(-12345n), RistrettoScalar.random()]) {
-//       expect(a.multiply(a.invert()).equals(scalar(1n))).toBe(true);
-//     }
-//   });
-//
-//   test("invert of zero is a RangeError", () => {
-//     expect(() => scalar(0n).invert()).toThrow(RangeError);
-//   });
-//
-//   test("random scalars differ, and are canonical", () => {
-//     const a = RistrettoScalar.random();
-//     const b = RistrettoScalar.random();
-//     expect(a.equals(b)).toBe(false);
-//     expect(hex(RistrettoScalar.decode(a.encode()).encode())).toBe(hex(a.encode()));
-//   });
-//
-//   test("encode returns a new array each time", () => {
-//     const seven = scalar(7n);
-//     seven.encode().fill(0xff);
-//     expect(hex(seven.encode())).toBe(hex(le32(7n)));
-//   });
-//
-//   test("the scalar arithmetic agrees with the group: (a + b)·g = a·g + b·g", () => {
-//     const a = scalar(5n);
-//     const b = scalar(-3n);
-//     expect(
-//       g()
-//         .multiplyScalar(a.add(b))
-//         .equals(g().multiplyScalar(a).add(g().multiplyScalar(b))),
-//     ).toBe(true);
-//     expect(hex(g().multiplyScalar(a.add(b)).encode())).toBe(multiples[2]);
-//   });
-// });
 
 describe("Scalars are bigints", () => {
   test("RistrettoElement has no Scalar, and the entry point no RistrettoScalar", async () => {
@@ -530,7 +400,7 @@ describe("The scalar members of RistrettoElement", () => {
     ["a string", "5"],
     ["null", null],
     ["undefined", undefined],
-    ["a BoundedInt", BoundedInt.from(5)],
+    ["a BoundedInt", BoundedInt.from(5n)],
     ["an element", g()],
   ])(
     "encodeScalar and invertScalar refuse %s, which is not a bigint, with a TypeError",
@@ -543,10 +413,16 @@ describe("The scalar members of RistrettoElement", () => {
   );
 
   test("a BoundedInt passes its value: multiplyScalar(x.value) takes it, multiplyScalar(x) is a TypeError", () => {
-    expect(hex(g().multiplyScalar(BoundedInt.from(5).value).encode())).toBe(multiples[5]);
-    expect(g().multiplyScalar(BoundedInt.from(-1).value).equals(g().negate())).toBe(true);
-    expect(hex(RistrettoElement.encodeScalar(BoundedInt.from(-1).value))).toBe(hex(le32(L - 1n)));
-    expect(() => g().multiplyScalar(BoundedInt.from(5) as never)).toThrow(TypeError);
+    expect(hex(g().multiplyScalar(BoundedInt.from(5n).value).encode())).toBe(multiples[5]);
+    // A class of the scalars, [0, ℓ) (#44): −1 is the scalar ℓ − 1.
+    const Scalars = BoundedInt.define({ name: "Scalars", min: 0n, max: L });
+    expect(
+      g()
+        .multiplyScalar(Scalars.from(L - 1n).value)
+        .equals(g().negate()),
+    ).toBe(true);
+    expect(hex(RistrettoElement.encodeScalar(Scalars.from(L - 1n).value))).toBe(hex(le32(L - 1n)));
+    expect(() => g().multiplyScalar(BoundedInt.from(5n) as never)).toThrow(TypeError);
   });
 
   test("the scalar parameters are bigints, and so are the scalars returned", () => {
@@ -567,3 +443,4 @@ describe("The scalar members of RistrettoElement", () => {
 // |--------|---------------------------------------------------------------|
 // | #38    | new: both classes against RFC 9496 and the vectors of h (#35) |
 // | #40    | scalars are bigints: the tests of RistrettoScalar become placeholders; ORDER, encodeScalar, decodeScalar, invertScalar; the value of a BoundedInt (#39) |
+// | #47    | a BoundedInt passes its value: ℓ − 1 in place of −1; placeholders of #40 removed (#44) |
