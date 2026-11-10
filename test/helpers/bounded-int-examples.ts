@@ -96,9 +96,6 @@ export const examples: readonly Example[] = [
   row("Volume.from(2500)", (c) => c.Volume.from(2500), 2n, 2000, "2000"),
   row("Volume.from(3500)", (c) => c.Volume.from(3500), 4n, 4000, "4000"),
   row("DayCount.from(20000)", (c) => c.DayCount.from(20000), 20000n, 20000, "20000"),
-  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly)
-  // the row DayCount.from(1.5), a TypeError -> (removed: integerOnly is gone)
-  // refused("DayCount.from(1.5)", (c) => c.DayCount.from(1.5), TypeError),
   row("Rough.from(2.3)", (c) => c.Rough.from(2.3), 23n, 2, "2"),
   row("Rough.from(4.5)", (c) => c.Rough.from(4.5), 45n, 4, "4"),
 ];
@@ -107,4 +104,4 @@ export const examples: readonly Example[] = [
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #47    | new: the classes and the examples of the page (#44)           |
-// | #51    | imports the generic BoundedInt of bounded-int.ts (#49)        |
+// | #51    | imports the generic BoundedInt of bounded-int.ts; placeholders of #47 removed (#49) |
