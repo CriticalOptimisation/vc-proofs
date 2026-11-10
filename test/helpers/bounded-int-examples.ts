@@ -24,30 +24,29 @@ export function classes(): ExampleClasses {
     Mass: BoundedInt.define({ name: "Mass", min: 0, max: 100.05, step: 0.1 }),
     Reading: BoundedInt.define({ name: "Reading", min: -7.99, max: 15.995, step: 0.01 }),
     Volume: BoundedInt.define({ name: "Volume", min: 0, max: 1000500, step: 1000 }),
-    DayCount: BoundedInt.define({ name: "DayCount", min: 0, max: 365251 }),
+    DayCount: BoundedInt.define({ name: "DayCount", min: -0.5, max: 365250.5 }),
     Rough: BoundedInt.define({ name: "Rough", min: 0, max: 100.05, step: 0.1, error: 0.5 }),
   };
   return made;
 }
 
 /**
- * The constants each class of the page must have: scale, min, max, integerOnly, and the
- * integers its values round to, from the lowest to the highest.
+ * The constants each class of the page must have: scale, min, max, and the integers its
+ * values round to, from the lowest to the highest.
  */
 export const constants: readonly (readonly [
   keyof ExampleClasses,
   number,
   number,
   number,
-  boolean,
   bigint,
   bigint,
 ])[] = [
-  ["Mass", 1, 0, 100.05, false, 0n, 1000n],
-  ["Reading", 2, -7.99, 15.995, false, -799n, 1599n],
-  ["Volume", -3, 0, 1000500, false, 0n, 1000n],
-  ["DayCount", 0, 0, 365251, true, 0n, 365250n],
-  ["Rough", 1, 0, 100.05, false, 0n, 1000n],
+  ["Mass", 1, 0, 100.05, 0n, 1000n],
+  ["Reading", 2, -7.99, 15.995, -799n, 1599n],
+  ["Volume", -3, 0, 1000500, 0n, 1000n],
+  ["DayCount", 0, -0.5, 365250.5, 0n, 365250n],
+  ["Rough", 1, 0, 100.05, 0n, 1000n],
 ];
 
 /** A row of the table: the call as the page writes it, and what it gives. */
@@ -97,7 +96,9 @@ export const examples: readonly Example[] = [
   row("Volume.from(2500)", (c) => c.Volume.from(2500), 2n, 2000, "2000"),
   row("Volume.from(3500)", (c) => c.Volume.from(3500), 4n, 4000, "4000"),
   row("DayCount.from(20000)", (c) => c.DayCount.from(20000), 20000n, 20000, "20000"),
-  refused("DayCount.from(1.5)", (c) => c.DayCount.from(1.5), TypeError),
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly)
+  // the row DayCount.from(1.5), a TypeError -> (removed: integerOnly is gone)
+  // refused("DayCount.from(1.5)", (c) => c.DayCount.from(1.5), TypeError),
   row("Rough.from(2.3)", (c) => c.Rough.from(2.3), 23n, 2, "2"),
   row("Rough.from(4.5)", (c) => c.Rough.from(4.5), 45n, 4, "4"),
 ];

@@ -52,14 +52,28 @@ describe("BoundedInt: the exact decimal of a number", () => {
   //   );
   //   expect(C.from(0.1).valueOf()).toBe(0.1);
   // });
-  test("the bound 0.1 is 0.1000000000000000055511151231257827021181583404541015625, exactly", () => {
-    // The values just below the bound round, at the scale 55, to the integer of its decimal.
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // the bound 0.1 is 0.1000000000000000055511151231257827021181583404541015625, exactly"
+  //   -> the bound 0.1 is the decimal 0.1: a number is rounded to 15 significant digits
+  // test("the bound 0.1 is 0.1000000000000000055511151231257827021181583404541015625, exactly", () => {
+  //   // The values just below the bound round, at the scale 55, to the integer of its decimal.
+  //   const C = BoundedInt.define({ name: "C", min: 0, max: 0.1, step: [1n, -55] });
+  //   const q = 1000000000000000055511151231257827021181583404541015625n;
+  //   expect(C.fromValue(q).toString()).toBe(
+  //     "0.1000000000000000055511151231257827021181583404541015625",
+  //   );
+  //   expect(() => C.fromValue(q + 1n)).toThrow(RangeError);
+  //   expect(() => C.from(0.05)).toThrow(TypeError);
+  // });
+  test("the bound 0.1 is the decimal 0.1: a number is rounded to 15 significant digits", () => {
     const C = BoundedInt.define({ name: "C", min: 0, max: 0.1, step: [1n, -55] });
-    const q = 1000000000000000055511151231257827021181583404541015625n;
-    expect(C.fromValue(q).toString()).toBe(
-      "0.1000000000000000055511151231257827021181583404541015625",
+    // The values just below 0.1 round, at the scale 55, to 10^54: no value of the gap above.
+    expect(C.fromValue(10n ** 54n).toString()).toBe(`0.1${"0".repeat(54)}`);
+    expect(() => C.fromValue(10n ** 54n + 1n)).toThrow(RangeError);
+    // The decimal in the gap between 0.1 and the binary value of the number 0.1 is refused.
+    expect(() => C.from([1000000000000000055511151231257827021181583404541015625n, -55])).toThrow(
+      RangeError,
     );
-    expect(() => C.fromValue(q + 1n)).toThrow(RangeError);
     expect(() => C.from(0.05)).toThrow(TypeError);
   });
 
@@ -71,11 +85,24 @@ describe("BoundedInt: the exact decimal of a number", () => {
   //   expect(C.from(Number.MAX_VALUE).value).toBe(BigInt(Number.MAX_VALUE));
   //   expect(C.from(2 ** 1023).value).toBe(2n ** 1023n);
   // });
-  test("the bounds Number.MAX_VALUE and 2^1023 are their exact integers", () => {
-    for (const max of [Number.MAX_VALUE, 2 ** 1023]) {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // the bounds Number.MAX_VALUE and 2^1023 are their exact integers"
+  //   -> the bounds Number.MAX_VALUE and 2^1023 are rounded to 15 significant digits
+  // test("the bounds Number.MAX_VALUE and 2^1023 are their exact integers", () => {
+  //   for (const max of [Number.MAX_VALUE, 2 ** 1023]) {
+  //     const C = BoundedInt.define({ name: "C", min: 0, max });
+  //     expect(C.fromValue(BigInt(max) - 1n).value).toBe(BigInt(max) - 1n);
+  //     expect(() => C.fromValue(BigInt(max))).toThrow(RangeError);
+  //   }
+  // });
+  test("the bounds Number.MAX_VALUE and 2^1023 are rounded to 15 significant digits", () => {
+    for (const [max, q] of [
+      [Number.MAX_VALUE, 179769313486232n * 10n ** 294n],
+      [2 ** 1023, 898846567431158n * 10n ** 293n],
+    ] as const) {
       const C = BoundedInt.define({ name: "C", min: 0, max });
-      expect(C.fromValue(BigInt(max) - 1n).value).toBe(BigInt(max) - 1n);
-      expect(() => C.fromValue(BigInt(max))).toThrow(RangeError);
+      expect(C.fromValue(q).value).toBe(q);
+      expect(() => C.fromValue(q + 1n)).toThrow(RangeError);
     }
   });
 
@@ -88,14 +115,28 @@ describe("BoundedInt: the exact decimal of a number", () => {
   //   expect(C.from(x).value).toBe((2n ** 53n - 1n) * 5n ** 60n);
   //   expect(BoundedInt.from(2 ** 53 - 1).value).toBe(9007199254740991n);
   // });
-  test("a mantissa of 53 ones: the bound (2^53 − 1) · 2^-60 is (2^53 − 1) · 5^60 · 10^-60, exactly", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // a mantissa of 53 ones: the bound (2^53 − 1) · 2^-60
+  //   -> a mantissa of 53 ones: the bound (2^53 − 1) · 2^-60, 0.00781249999999999913…, is 0.0078125 at 15 digits
+  // test("a mantissa of 53 ones: the bound (2^53 − 1) · 2^-60 is (2^53 − 1) · 5^60 · 10^-60, exactly", () => {
+  //   const C = BoundedInt.define({
+  //     name: "C",
+  //     min: 0,
+  //     max: (2 ** 53 - 1) * 2 ** -60,
+  //     step: [1n, -60],
+  //   });
+  //   const q = (2n ** 53n - 1n) * 5n ** 60n;
+  //   expect(C.fromValue(q).value).toBe(q);
+  //   expect(() => C.fromValue(q + 1n)).toThrow(RangeError);
+  // });
+  test("a mantissa of 53 ones: the bound (2^53 − 1) · 2^-60, 0.00781249999999999913…, is 0.0078125 at 15 digits", () => {
     const C = BoundedInt.define({
       name: "C",
       min: 0,
       max: (2 ** 53 - 1) * 2 ** -60,
       step: [1n, -60],
     });
-    const q = (2n ** 53n - 1n) * 5n ** 60n;
+    const q = 78125n * 10n ** 53n;
     expect(C.fromValue(q).value).toBe(q);
     expect(() => C.fromValue(q + 1n)).toThrow(RangeError);
   });
@@ -132,8 +173,14 @@ describe("BoundedInt classes: negative zero, NaN, infinities and subnormals", ()
     }
   });
 
-  test("a subnormal is not an integer: BoundedInt.from(Number.MIN_VALUE) is a TypeError", () => {
-    expect(() => BoundedInt.from(Number.MIN_VALUE)).toThrow(TypeError);
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // a subnormal is not an integer: BoundedInt.from(Number.MIN_VALUE) is a TypeError"
+  //   -> BoundedInt rounds a subnormal: from(Number.MIN_VALUE) is 0n
+  // test("a subnormal is not an integer: BoundedInt.from(Number.MIN_VALUE) is a TypeError", () => {
+  //   expect(() => BoundedInt.from(Number.MIN_VALUE)).toThrow(TypeError);
+  // });
+  test("BoundedInt rounds a subnormal: from(Number.MIN_VALUE) is 0n", () => {
+    expect(BoundedInt.from(Number.MIN_VALUE).value).toBe(0n);
   });
 
   // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
@@ -236,14 +283,27 @@ describe("BoundedInt classes: a class written by hand is checked once", () => {
     expect(Fixed.from(5).value).toBe(5n);
   });
 
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // a subclass of a class made by define is checked on its own, and inherits its constants"
+  //   -> (the same, with a scale of its own in place of integerOnly)
+  // test("a subclass of a class made by define is checked on its own, and inherits its constants", () => {
+  //   const Mass = BoundedInt.define({ name: "Mass", min: 0, max: 100.05, step: 0.1 });
+  //   class Whole extends Mass {
+  //     static override integerOnly = true;
+  //   }
+  //   expect(Whole.scale).toBe(1);
+  //   expect(Whole.from(2).value).toBe(20n);
+  //   expect(() => Whole.from(2.3)).toThrow(TypeError);
+  //   expect(Mass.from(2.3).value).toBe(23n);
+  // });
   test("a subclass of a class made by define is checked on its own, and inherits its constants", () => {
     const Mass = BoundedInt.define({ name: "Mass", min: 0, max: 100.05, step: 0.1 });
-    class Whole extends Mass {
-      static override integerOnly = true;
+    class Kilograms extends Mass {
+      static override scale = 0;
     }
-    expect(Whole.scale).toBe(1);
-    expect(Whole.from(2).value).toBe(20n);
-    expect(() => Whole.from(2.3)).toThrow(TypeError);
+    expect([Kilograms.min, Kilograms.max]).toEqual([0, 100.05]);
+    expect(Kilograms.from(2.3).value).toBe(2n);
+    expect(() => Kilograms.from(100.05)).toThrow(RangeError);
     expect(Mass.from(2.3).value).toBe(23n);
   });
 });
@@ -289,16 +349,19 @@ describe("BoundedInt classes: the error decides the digits shown, at every scale
   });
 });
 
-describe("BoundedInt.define: integerOnly with a step", () => {
-  test("a class of integers counted in thousands", () => {
-    const C = BoundedInt.define({ name: "C", min: 0, max: 10500, step: 1000, integerOnly: true });
-    expect(C.integerOnly).toBe(true);
-    expect(C.from(1500).value).toBe(2n);
-    expect(() => C.from(1.5)).toThrow(TypeError);
-    const D = BoundedInt.define({ name: "D", min: 0, max: 10, integerOnly: false });
-    expect(D.from(1.5).value).toBe(2n);
-  });
-});
+// REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+// BoundedInt.define: integerOnly with a step > a class of integers counted in thousands
+//   -> (removed: integerOnly is gone)
+// describe("BoundedInt.define: integerOnly with a step", () => {
+//   test("a class of integers counted in thousands", () => {
+//     const C = BoundedInt.define({ name: "C", min: 0, max: 10500, step: 1000, integerOnly: true });
+//     expect(C.integerOnly).toBe(true);
+//     expect(C.from(1500).value).toBe(2n);
+//     expect(() => C.from(1.5)).toThrow(TypeError);
+//     const D = BoundedInt.define({ name: "D", min: 0, max: 10, integerOnly: false });
+//     expect(D.from(1.5).value).toBe(2n);
+//   });
+// });
 
 // REVIEW PLACEHOLDER (#44, review of PR #47: the bounds [min, max), kept exactly;
 // no defineRaw, end or per-value errors; every quantity an exact decimal)

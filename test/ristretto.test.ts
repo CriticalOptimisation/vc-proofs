@@ -414,15 +414,14 @@ describe("The scalar members of RistrettoElement", () => {
 
   test("a BoundedInt passes its value: multiplyScalar(x.value) takes it, multiplyScalar(x) is a TypeError", () => {
     expect(hex(g().multiplyScalar(BoundedInt.from(5n).value).encode())).toBe(multiples[5]);
-    // The range of BoundedInt is [0, ℓ) (#44): −1 is the scalar ℓ − 1.
+    // A class of the scalars, [0, ℓ) (#44): −1 is the scalar ℓ − 1.
+    const Scalars = BoundedInt.define({ name: "Scalars", min: 0n, max: L });
     expect(
       g()
-        .multiplyScalar(BoundedInt.from(L - 1n).value)
+        .multiplyScalar(Scalars.from(L - 1n).value)
         .equals(g().negate()),
     ).toBe(true);
-    expect(hex(RistrettoElement.encodeScalar(BoundedInt.from(L - 1n).value))).toBe(
-      hex(le32(L - 1n)),
-    );
+    expect(hex(RistrettoElement.encodeScalar(Scalars.from(L - 1n).value))).toBe(hex(le32(L - 1n)));
     expect(() => g().multiplyScalar(BoundedInt.from(5n) as never)).toThrow(TypeError);
   });
 

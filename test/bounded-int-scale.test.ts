@@ -13,17 +13,31 @@ import { classes, constants, examples } from "./helpers/bounded-int-examples.js"
 const L = RistrettoElement.ORDER;
 
 describe("BoundedInt.define: the class constants", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // "%s has scale %s, the bounds [%s, %s), integerOnly %s, and the integers %s to %s"
+  //   -> %s has scale %s, the bounds [%s, %s), and the integers %s to %s
+  // test.each(constants)(
+  //   "%s has scale %s, the bounds [%s, %s), integerOnly %s, and the integers %s to %s",
+  //   (name, scale, min, max, integerOnly, low, high) => {
+  //     const C = classes()[name];
+  //     expect([C.scale, C.min, C.max, C.integerOnly, C.name]).toEqual([
+  //       scale,
+  //       min,
+  //       max,
+  //       integerOnly,
+  //       name,
+  //     ]);
+  //     expect(C.fromValue(low).value).toBe(low);
+  //     expect(C.fromValue(high).value).toBe(high);
+  //     expect(() => C.fromValue(low - 1n)).toThrow(RangeError);
+  //     expect(() => C.fromValue(high + 1n)).toThrow(RangeError);
+  //   },
+  // );
   test.each(constants)(
-    "%s has scale %s, the bounds [%s, %s), integerOnly %s, and the integers %s to %s",
-    (name, scale, min, max, integerOnly, low, high) => {
+    "%s has scale %s, the bounds [%s, %s), and the integers %s to %s",
+    (name, scale, min, max, low, high) => {
       const C = classes()[name];
-      expect([C.scale, C.min, C.max, C.integerOnly, C.name]).toEqual([
-        scale,
-        min,
-        max,
-        integerOnly,
-        name,
-      ]);
+      expect([C.scale, C.min, C.max, C.name]).toEqual([scale, min, max, name]);
       expect(C.fromValue(low).value).toBe(low);
       expect(C.fromValue(high).value).toBe(high);
       expect(() => C.fromValue(low - 1n)).toThrow(RangeError);
@@ -42,15 +56,26 @@ describe("BoundedInt.define: the class constants", () => {
     expect(BoundedInt.define({ name: "Fine", min: 0, max: 1, step: 0.025 }).scale).toBe(2);
   });
 
-  test("BoundedInt has scale 0, integers only, the bounds [0, ℓ) with ℓ written in the class, no order and no error", () => {
-    expect([BoundedInt.scale, BoundedInt.min, BoundedInt.max, BoundedInt.integerOnly]).toEqual([
-      0,
-      0n,
-      L,
-      true,
-    ]);
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // BoundedInt has scale 0, integers only, the bounds [0, ℓ) with ℓ written in the class, no order and no error"
+  //   -> BoundedInt has scale 0 and the bounds [0, 32767.5): the 15-bit integers 0 … 32767; no order and no error
+  // test("BoundedInt has scale 0, integers only, the bounds [0, ℓ) with ℓ written in the class, no order and no error", () => {
+  //   expect([BoundedInt.scale, BoundedInt.min, BoundedInt.max, BoundedInt.integerOnly]).toEqual([
+  //     0,
+  //     0n,
+  //     L,
+  //     true,
+  //   ]);
+  //   expect(BoundedInt.order).toBeUndefined();
+  //   expect(BoundedInt.error).toBeUndefined();
+  // });
+  test("BoundedInt has scale 0 and the bounds [0, 32767.5): the 15-bit integers 0 … 32767; no order and no error", () => {
+    expect([BoundedInt.scale, BoundedInt.min, BoundedInt.max]).toEqual([0, 0n, 32767.5]);
     expect(BoundedInt.order).toBeUndefined();
     expect(BoundedInt.error).toBeUndefined();
+    expect("integerOnly" in BoundedInt).toBe(false);
+    expect(BoundedInt.fromValue(32767n).value).toBe(32767n);
+    expect(() => BoundedInt.fromValue(32768n)).toThrow(RangeError);
   });
 
   // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
@@ -63,13 +88,24 @@ describe("BoundedInt.define: the class constants", () => {
   //   expect(() => Plain.from(-1)).toThrow(RangeError);
   //   expect(() => Plain.from(-1)).toThrow(/^Plain\.from: /);
   // });
-  test("a class that declares no constant has those of BoundedInt, and takes no number", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // a class that declares no constant has those of BoundedInt, and takes no number"
+  //   -> a class that declares no constant has those of BoundedInt
+  // test("a class that declares no constant has those of BoundedInt, and takes no number", () => {
+  //   class Plain extends BoundedInt {}
+  //   expect([Plain.scale, Plain.min, Plain.max, Plain.integerOnly]).toEqual([0, 0n, L, true]);
+  //   expect(Plain.from(L - 1n).value).toBe(L - 1n);
+  //   expect(() => Plain.from(-1n)).toThrow(RangeError);
+  //   expect(() => Plain.from(-1n)).toThrow(/^Plain\.from: /);
+  //   expect(() => Plain.from(1)).toThrow(TypeError);
+  // });
+  test("a class that declares no constant has those of BoundedInt", () => {
     class Plain extends BoundedInt {}
-    expect([Plain.scale, Plain.min, Plain.max, Plain.integerOnly]).toEqual([0, 0n, L, true]);
-    expect(Plain.from(L - 1n).value).toBe(L - 1n);
-    expect(() => Plain.from(-1n)).toThrow(RangeError);
-    expect(() => Plain.from(-1n)).toThrow(/^Plain\.from: /);
-    expect(() => Plain.from(1)).toThrow(TypeError);
+    expect([Plain.scale, Plain.min, Plain.max]).toEqual([0, 0n, 32767.5]);
+    expect(Plain.from(32767).value).toBe(32767n);
+    expect(Plain.from(0.4).value).toBe(0n);
+    expect(() => Plain.from(-1)).toThrow(RangeError);
+    expect(() => Plain.from(-1)).toThrow(/^Plain\.from: /);
   });
 });
 
@@ -131,14 +167,28 @@ describe("BoundedInt classes: one rounding, ties to even", () => {
 });
 
 describe("BoundedInt classes: the bounds [min, max), exact, before any rounding", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // min is accepted and max refused; just below max is accepted"
+  //   -> (the same; the numbers 100.04999999999998 and -7.990000000000001 become decimals: at 15 digits, they are 100.05 and -7.99)
+  // test("min is accepted and max refused; just below max is accepted", () => {
+  //   const { Mass, Reading } = classes();
+  //   expect(Mass.from(0).value).toBe(0n);
+  //   expect(() => Mass.from(100.05)).toThrow(RangeError);
+  //   expect(() => Mass.from(100.05)).toThrow(/^Mass\.from: .*Mass\.max/);
+  //   expect(Mass.from(100.04999999999998).value).toBe(1000n);
+  //   expect(Reading.from(-7.99).value).toBe(-799n);
+  //   expect(() => Reading.from(-7.990000000000001)).toThrow(RangeError);
+  // });
   test("min is accepted and max refused; just below max is accepted", () => {
     const { Mass, Reading } = classes();
     expect(Mass.from(0).value).toBe(0n);
     expect(() => Mass.from(100.05)).toThrow(RangeError);
     expect(() => Mass.from(100.05)).toThrow(/^Mass\.from: .*Mass\.max/);
-    expect(Mass.from(100.04999999999998).value).toBe(1000n);
+    expect(Mass.from([10004999n, -5]).value).toBe(1000n);
+    // At 15 digits, the number written 100.04999999999998 is 100.05: refused.
+    expect(() => Mass.from(100.04999999999998)).toThrow(RangeError);
     expect(Reading.from(-7.99).value).toBe(-799n);
-    expect(() => Reading.from(-7.990000000000001)).toThrow(RangeError);
+    expect(() => Reading.from([-7990000000000001n, -15])).toThrow(RangeError);
   });
 
   test("a value beyond the bounds is refused, even when it would round into them", () => {
@@ -150,12 +200,24 @@ describe("BoundedInt classes: the bounds [min, max), exact, before any rounding"
     expect(() => Load.from(123455n)).toThrow(RangeError);
   });
 
-  test("BoundedInt accepts 0 and ℓ − 1, and refuses −1, ℓ and 2^300", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // BoundedInt accepts 0 and ℓ − 1, and refuses −1, ℓ and 2^300"
+  //   -> BoundedInt accepts 0 and 32767, and refuses −1, 32767.5, 32768 and 2^300
+  // test("BoundedInt accepts 0 and ℓ − 1, and refuses −1, ℓ and 2^300", () => {
+  //   expect(BoundedInt.from(0n).value).toBe(0n);
+  //   expect(BoundedInt.fromValue(L - 1n).value).toBe(L - 1n);
+  //   expect(() => BoundedInt.from(-1n)).toThrow(RangeError);
+  //   expect(() => BoundedInt.from(L)).toThrow(RangeError);
+  //   expect(() => BoundedInt.fromValue(L)).toThrow(/^BoundedInt\.fromValue: /);
+  //   expect(() => BoundedInt.from(2n ** 300n)).toThrow(RangeError);
+  // });
+  test("BoundedInt accepts 0 and 32767, and refuses −1, 32767.5, 32768 and 2^300", () => {
     expect(BoundedInt.from(0n).value).toBe(0n);
-    expect(BoundedInt.fromValue(L - 1n).value).toBe(L - 1n);
+    expect(BoundedInt.from(32767).value).toBe(32767n);
+    expect(BoundedInt.from(32767.4).value).toBe(32767n);
     expect(() => BoundedInt.from(-1n)).toThrow(RangeError);
-    expect(() => BoundedInt.from(L)).toThrow(RangeError);
-    expect(() => BoundedInt.fromValue(L)).toThrow(/^BoundedInt\.fromValue: /);
+    expect(() => BoundedInt.from(32767.5)).toThrow(RangeError);
+    expect(() => BoundedInt.fromValue(32768n)).toThrow(/^BoundedInt\.fromValue: /);
     expect(() => BoundedInt.from(2n ** 300n)).toThrow(RangeError);
   });
 
@@ -182,12 +244,22 @@ describe("BoundedInt classes: the order, the number of distinct values", () => {
     ).toThrow(RangeError);
   });
 
-  test("a signed byte is [−128.5, 127.5): 256 values; with integers only, [−128, 128)", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // a signed byte is [−128.5, 127.5): 256 values; with integers only, [−128, 128)"
+  //   -> a signed byte is [−128.5, 127.5): 256 values; [−128, 128) rounds to 257, one too many
+  // test("a signed byte is [−128.5, 127.5): 256 values; with integers only, [−128, 128)", () => {
+  //   const Signed = BoundedInt.define({ name: "S", min: -128.5, max: 127.5, step: 1, order: 256n });
+  //   expect([Signed.fromValue(-128n).value, Signed.fromValue(127n).value]).toEqual([-128n, 127n]);
+  //   const Ints = BoundedInt.define({ name: "I", min: -128, max: 128, order: 256n });
+  //   expect(Ints.from(127).value).toBe(127n);
+  //   expect(() => BoundedInt.define({ name: "J", min: -128, max: 129, order: 256n })).toThrow(
+  //     RangeError,
+  //   );
+  // });
+  test("a signed byte is [−128.5, 127.5): 256 values; [−128, 128) rounds to 257, one too many", () => {
     const Signed = BoundedInt.define({ name: "S", min: -128.5, max: 127.5, step: 1, order: 256n });
     expect([Signed.fromValue(-128n).value, Signed.fromValue(127n).value]).toEqual([-128n, 127n]);
-    const Ints = BoundedInt.define({ name: "I", min: -128, max: 128, order: 256n });
-    expect(Ints.from(127).value).toBe(127n);
-    expect(() => BoundedInt.define({ name: "J", min: -128, max: 129, order: 256n })).toThrow(
+    expect(() => BoundedInt.define({ name: "J", min: -128, max: 128, order: 256n })).toThrow(
       RangeError,
     );
   });
@@ -203,13 +275,25 @@ describe("BoundedInt classes: the order, the number of distinct values", () => {
     expect(Fine.from(2.55).value).toBe(255n);
   });
 
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // the order is a bigint or a form with ORDER, and is inherited"
+  //   -> (the same, with the bounds at half steps: [−0.5, 10.5) holds 11 values)
+  // test("the order is a bigint or a form with ORDER, and is inherited", () => {
+  //   const Group = { ORDER: 11n };
+  //   const A = BoundedInt.define({ name: "A", min: 0, max: 11, order: Group });
+  //   expect(A.order).toBe(11n);
+  //   const B = A.define({ name: "B", min: 0, max: 11 });
+  //   expect(B.order).toBe(11n);
+  //   expect(() => A.define({ name: "C", min: 0, max: 12 })).toThrow(RangeError);
+  //   expect(BoundedInt.define({ name: "D", min: 0, max: 1, order: RistrettoElement }).order).toBe(L);
+  // });
   test("the order is a bigint or a form with ORDER, and is inherited", () => {
     const Group = { ORDER: 11n };
-    const A = BoundedInt.define({ name: "A", min: 0, max: 11, order: Group });
+    const A = BoundedInt.define({ name: "A", min: -0.5, max: 10.5, order: Group });
     expect(A.order).toBe(11n);
-    const B = A.define({ name: "B", min: 0, max: 11 });
+    const B = A.define({ name: "B", min: -0.5, max: 10.5 });
     expect(B.order).toBe(11n);
-    expect(() => A.define({ name: "C", min: 0, max: 12 })).toThrow(RangeError);
+    expect(() => A.define({ name: "C", min: -0.5, max: 11.5 })).toThrow(RangeError);
     expect(BoundedInt.define({ name: "D", min: 0, max: 1, order: RistrettoElement }).order).toBe(L);
   });
 });
@@ -230,11 +314,20 @@ describe("BoundedInt classes: an order roots a family of classes", () => {
 });
 
 describe("BoundedInt classes: the errors, relative to max − min", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // half a step by default: Mass's error is 0.05 kg over 100.05 kg"
+  //   -> (the same; BoundedInt's error is 0.5 over 32767.5)
+  // test("half a step by default: Mass's error is 0.05 kg over 100.05 kg", () => {
+  //   const { Mass, DayCount } = classes();
+  //   expect(Mass.errorBound).toBeCloseTo(0.05 / 100.05, 15);
+  //   expect(DayCount.errorBound).toBeCloseTo(0.5 / 365251, 15);
+  //   expect(Math.abs(BoundedInt.errorBound / (0.5 / Number(L)) - 1)).toBeLessThan(1e-12);
+  // });
   test("half a step by default: Mass's error is 0.05 kg over 100.05 kg", () => {
     const { Mass, DayCount } = classes();
     expect(Mass.errorBound).toBeCloseTo(0.05 / 100.05, 15);
     expect(DayCount.errorBound).toBeCloseTo(0.5 / 365251, 15);
-    expect(Math.abs(BoundedInt.errorBound / (0.5 / Number(L)) - 1)).toBeLessThan(1e-12);
+    expect(BoundedInt.errorBound).toBeCloseTo(0.5 / 32767.5, 15);
   });
 
   test("define takes the error in the unit of the values: Rough is known to 0.5 kg", () => {
@@ -337,6 +430,18 @@ describe("BoundedInt classes: the checks of a class written by hand", () => {
     expect(Fine.fromValue(5n).valueOf()).toBe(5e-23);
   });
 
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // a class with its own valid constants works as one made by define"
+  //   -> (the same; Days.from(1.5) rounds to 2n)
+  // test("a class with its own valid constants works as one made by define", () => {
+  //   class Days extends BoundedInt {
+  //     static override min = 0n;
+  //     static override max = 365251n;
+  //   }
+  //   expect(Days.from(20000).value).toBe(20000n);
+  //   expect(() => Days.from(365251)).toThrow(RangeError);
+  //   expect(() => Days.from(1.5)).toThrow(TypeError);
+  // });
   test("a class with its own valid constants works as one made by define", () => {
     class Days extends BoundedInt {
       static override min = 0n;
@@ -344,11 +449,36 @@ describe("BoundedInt classes: the checks of a class written by hand", () => {
     }
     expect(Days.from(20000).value).toBe(20000n);
     expect(() => Days.from(365251)).toThrow(RangeError);
-    expect(() => Days.from(1.5)).toThrow(TypeError);
+    expect(Days.from(1.5).value).toBe(2n);
   });
 });
 
 describe("BoundedInt.define: the refusals", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // define with %s throws, where a valid spec makes a class"
+  //   -> (the same, without the row of integerOnly)
+  // test.each([
+  //   ["no name", { min: 0, max: 1 }, TypeError],
+  //   ["an empty name", { name: "", min: 0, max: 1 }, TypeError],
+  //   ["min = max", { name: "X", min: 1, max: 1 }, RangeError],
+  //   ["min > max", { name: "X", min: 2, max: 1 }, RangeError],
+  //   ["a string min", { name: "X", min: "0", max: 1 }, TypeError],
+  //   ["an infinite max", { name: "X", min: 0, max: Infinity, step: 1 }, TypeError],
+  //   ["a step of 0", { name: "X", min: 0, max: 1, step: 0 }, RangeError],
+  //   ["a negative step", { name: "X", min: 0, max: 1, step: -0.1 }, RangeError],
+  //   ["a step below 1e-323", { name: "X", min: 0, max: 1, step: 5e-324 }, RangeError],
+  //   ["more values than order", { name: "X", min: 0, max: 257, order: 256n }, RangeError],
+  //   ["an order that is a number", { name: "X", min: 0, max: 1, order: 256 }, TypeError],
+  //   ["a negative error", { name: "X", min: 0, max: 1, error: -1 }, RangeError],
+  //   [
+  //     "an integerOnly that is not a boolean",
+  //     { name: "X", min: 0, max: 1, integerOnly: 1 },
+  //     TypeError,
+  //   ],
+  // ] as const)("define with %s throws, where a valid spec makes a class", (_, spec, error) => {
+  //   expect(BoundedInt.define({ name: "Valid", min: 0, max: 1 }).max).toBe(1);
+  //   expect(() => BoundedInt.define(spec as never)).toThrow(error);
+  // });
   test.each([
     ["no name", { min: 0, max: 1 }, TypeError],
     ["an empty name", { name: "", min: 0, max: 1 }, TypeError],
@@ -362,11 +492,6 @@ describe("BoundedInt.define: the refusals", () => {
     ["more values than order", { name: "X", min: 0, max: 257, order: 256n }, RangeError],
     ["an order that is a number", { name: "X", min: 0, max: 1, order: 256 }, TypeError],
     ["a negative error", { name: "X", min: 0, max: 1, error: -1 }, RangeError],
-    [
-      "an integerOnly that is not a boolean",
-      { name: "X", min: 0, max: 1, integerOnly: 1 },
-      TypeError,
-    ],
   ] as const)("define with %s throws, where a valid spec makes a class", (_, spec, error) => {
     expect(BoundedInt.define({ name: "Valid", min: 0, max: 1 }).max).toBe(1);
     expect(() => BoundedInt.define(spec as never)).toThrow(error);
@@ -424,9 +549,18 @@ describe("BoundedInt classes: a number only where 15 digits are enough", () => {
     expect(Far.from(10n ** 15n + 1n).value).toBe(10n ** 15n + 1n);
   });
 
-  test("BoundedInt needs 76 digits: it takes no number", () => {
-    expect(() => BoundedInt.from(5)).toThrow(TypeError);
-    expect(BoundedInt.from(5n).value).toBe(5n);
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // BoundedInt needs 76 digits: it takes no number"
+  //   -> BoundedInt, [0, 32767.5), takes a number; a class of 76 digits does not
+  // test("BoundedInt needs 76 digits: it takes no number", () => {
+  //   expect(() => BoundedInt.from(5)).toThrow(TypeError);
+  //   expect(BoundedInt.from(5n).value).toBe(5n);
+  // });
+  test("BoundedInt, [0, 32767.5), takes a number; a class of 76 digits does not", () => {
+    expect(BoundedInt.from(5).value).toBe(5n);
+    const Unsigned = BoundedInt.define({ name: "Unsigned", min: 0n, max: L });
+    expect(() => Unsigned.from(5)).toThrow(TypeError);
+    expect(Unsigned.from(5n).value).toBe(5n);
   });
 });
 

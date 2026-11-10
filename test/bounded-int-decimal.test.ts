@@ -35,14 +35,27 @@ describe("BoundedInt: the bounds are exact decimals, checked before any rounding
     expect(C.from([5223n, -4]).value).toBe(522n);
   });
 
-  test("a bound and a value written as the same number are the same decimal", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // a bound and a value written as the same number are the same decimal"
+  //   -> a bound and a value written as the same number are the same decimal, of 15 digits
+  // test("a bound and a value written as the same number are the same decimal", () => {
+  //   const Reading = BoundedInt.define({ name: "Reading", min: -7.99, max: 15.99, step: 0.01 });
+  //   expect(Reading.from(-7.99).value).toBe(-799n);
+  //   expect(() => Reading.from(15.99)).toThrow(RangeError);
+  //   expect(Reading.from(15.98).value).toBe(1598n);
+  //   // As decimals, 15.99 is below the number 15.99: 15.9900000000000002131…
+  //   const Exact = BoundedInt.define({ name: "Exact", min: 0n, max: 15.99, step: [1n, -2] });
+  //   expect(Exact.from([1599n, -2]).value).toBe(1599n);
+  // });
+  test("a bound and a value written as the same number are the same decimal, of 15 digits", () => {
     const Reading = BoundedInt.define({ name: "Reading", min: -7.99, max: 15.99, step: 0.01 });
     expect(Reading.from(-7.99).value).toBe(-799n);
     expect(() => Reading.from(15.99)).toThrow(RangeError);
     expect(Reading.from(15.98).value).toBe(1598n);
-    // As decimals, 15.99 is below the number 15.99: 15.9900000000000002131…
+    // At 15 digits, the number 15.99 is the decimal 15.99: [1599n, -2] is not below it.
     const Exact = BoundedInt.define({ name: "Exact", min: 0n, max: 15.99, step: [1n, -2] });
-    expect(Exact.from([1599n, -2]).value).toBe(1599n);
+    expect(() => Exact.from([1599n, -2])).toThrow(RangeError);
+    expect(Exact.from([1598n, -2]).value).toBe(1598n);
   });
 });
 
@@ -76,24 +89,49 @@ describe("BoundedInt: the quantities", () => {
   //   expect(Reading.from(-0.125).value).toBe(-12n);
   //   expect(Reading.from(1.005).value).toBe(100n);
   // });
-  test("a number is converted at once to the exact decimal of its binary value, on a class of at most 15 digits", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // a number is converted at once to the exact decimal of its binary value, on a class of at most 15 digits"
+  //   -> a number is converted at once to a decimal of 15 significant digits, on a class of at most 15 digits
+  // test("a number is converted at once to the exact decimal of its binary value, on a class of at most 15 digits", () => {
+  //   const Int = BoundedInt.define({ name: "Int", min: 0, max: 1e14 });
+  //   expect(Int.from(5).value).toBe(5n);
+  //   expect(Int.from(2 ** 40).value).toBe(2n ** 40n);
+  //   expect(() => Int.from(0.5)).toThrow(TypeError);
+  //   const Reading = BoundedInt.define({ name: "R", min: -8, max: 16, step: 0.01 });
+  //   // 0.125 is exact in binary: a tie, to even. 1.005 is 1.00499999999999989…: no tie.
+  //   expect(Reading.from(0.125).value).toBe(12n);
+  //   expect(Reading.from(-0.125).value).toBe(-12n);
+  //   expect(Reading.from(1.005).value).toBe(100n);
+  // });
+  test("a number is converted at once to a decimal of 15 significant digits, on a class of at most 15 digits", () => {
     const Int = BoundedInt.define({ name: "Int", min: 0, max: 1e14 });
     expect(Int.from(5).value).toBe(5n);
     expect(Int.from(2 ** 40).value).toBe(2n ** 40n);
-    expect(() => Int.from(0.5)).toThrow(TypeError);
+    expect(Int.from(0.5).value).toBe(0n);
     const Reading = BoundedInt.define({ name: "R", min: -8, max: 16, step: 0.01 });
-    // 0.125 is exact in binary: a tie, to even. 1.005 is 1.00499999999999989…: no tie.
+    // 0.125 and 1.005 are ties at 15 digits: they go to the even integer.
     expect(Reading.from(0.125).value).toBe(12n);
     expect(Reading.from(-0.125).value).toBe(-12n);
     expect(Reading.from(1.005).value).toBe(100n);
+    expect(Reading.from(1.015).value).toBe(102n);
   });
 
-  test("on a class with integerOnly, a decimal that is not an integer is a TypeError", () => {
-    expect(() => BoundedInt.from([15n, -1])).toThrow(TypeError);
-    expect(BoundedInt.from([150n, -1]).value).toBe(15n);
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // on a class with integerOnly, a decimal that is not an integer is a TypeError"
+  //   -> a decimal finer than the step is rounded to it, ties to even (integerOnly is gone)
+  // test("on a class with integerOnly, a decimal that is not an integer is a TypeError", () => {
+  //   expect(() => BoundedInt.from([15n, -1])).toThrow(TypeError);
+  //   expect(BoundedInt.from([150n, -1]).value).toBe(15n);
+  //   expect(BoundedInt.from([7n, 2]).value).toBe(700n);
+  //   // The type comes first: −10^-400 is not an integer.
+  //   expect(() => BoundedInt.from([-1n, -400])).toThrow(TypeError);
+  // });
+  test("a decimal finer than the step is rounded to it, ties to even", () => {
+    expect(BoundedInt.from([15n, -1]).value).toBe(2n);
+    expect(BoundedInt.from([25n, -1]).value).toBe(2n);
     expect(BoundedInt.from([7n, 2]).value).toBe(700n);
-    // The type comes first: −10^-400 is not an integer.
-    expect(() => BoundedInt.from([-1n, -400])).toThrow(TypeError);
+    expect(BoundedInt.from([1n, -400]).value).toBe(0n);
+    expect(() => BoundedInt.from([-1n, -400])).toThrow(RangeError);
   });
 
   test("the step gives the smallest scale k with 10^-k ≤ step, compared exactly", () => {
@@ -168,9 +206,17 @@ describe("BoundedInt: toString() and toLocaleString() write the exact decimal", 
     );
   });
 
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // the digits of a large integer are all written"
+  //   -> (the same, on a class of the integers [0, ℓ))
+  // test("the digits of a large integer are all written", () => {
+  //   expect(BoundedInt.from(10n ** 21n).toString()).toBe(`1${"0".repeat(21)}`);
+  //   expect(`<${BoundedInt.from(L - 1n) as unknown as string}>`).toBe(`<${String(L - 1n)}>`);
+  // });
   test("the digits of a large integer are all written", () => {
-    expect(BoundedInt.from(10n ** 21n).toString()).toBe(`1${"0".repeat(21)}`);
-    expect(`<${BoundedInt.from(L - 1n) as unknown as string}>`).toBe(`<${String(L - 1n)}>`);
+    const Unsigned = BoundedInt.define({ name: "Unsigned", min: 0n, max: L });
+    expect(Unsigned.from(10n ** 21n).toString()).toBe(`1${"0".repeat(21)}`);
+    expect(`<${Unsigned.from(L - 1n) as unknown as string}>`).toBe(`<${String(L - 1n)}>`);
   });
 
   test("toString() does not go through valueOf(): a subclass that overrides valueOf() keeps its string", () => {

@@ -20,7 +20,7 @@ function section(title: string): string {
 }
 
 /** The class constants, which have a table of their own (#44). */
-const CONSTANTS = ["scale", "min", "max", "integerOnly", "order", "error"];
+const CONSTANTS = ["scale", "min", "max", "order", "error"];
 
 /** The public members of the class: static, prototype, and well-known symbols. */
 function members(): string[] {
@@ -66,13 +66,27 @@ describe("docs/core/bounded-int.md, section The class constants", () => {
   const text = () =>
     page.slice(page.indexOf("\n### The class constants\n"), page.indexOf("\n### from\n"));
 
-  test("the table names scale, min, max, integerOnly, order and error, and BoundedInt has the constants it shows", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // the table names scale, min, max, integerOnly, order and error, and BoundedInt has the constants it shows"
+  //   -> the table names scale, min, max, order and error, and BoundedInt has the constants it shows
+  // test("the table names scale, min, max, integerOnly, order and error, and BoundedInt has the constants it shows", () => {
+  //   for (const name of CONSTANTS) expect(text()).toMatch(new RegExp(`\\| \`${name}\` +\\|`));
+  //   expect(text()).toMatch(/\| `scale` .*\| `0` +\|/);
+  //   expect(text()).toMatch(/\| `min` .*\| `0n` +\|/);
+  //   expect(text()).toMatch(/\| `integerOnly` .*\| `true` +\|/);
+  //   expect(text()).toMatch(/\| `order` .*\| absent: no limit +\|/);
+  //   expect([BoundedInt.scale, BoundedInt.min, BoundedInt.integerOnly]).toEqual([0, 0n, true]);
+  //   expect(BoundedInt.order).toBeUndefined();
+  //   expect(BoundedInt.error).toBeUndefined();
+  // });
+  test("the table names scale, min, max, order and error, and BoundedInt has the constants it shows", () => {
     for (const name of CONSTANTS) expect(text()).toMatch(new RegExp(`\\| \`${name}\` +\\|`));
+    expect(text()).not.toContain("integerOnly");
     expect(text()).toMatch(/\| `scale` .*\| `0` +\|/);
     expect(text()).toMatch(/\| `min` .*\| `0n` +\|/);
-    expect(text()).toMatch(/\| `integerOnly` .*\| `true` +\|/);
+    expect(text()).toMatch(/\| `max` .*\| `32767.5` +\|/);
     expect(text()).toMatch(/\| `order` .*\| absent: no limit +\|/);
-    expect([BoundedInt.scale, BoundedInt.min, BoundedInt.integerOnly]).toEqual([0, 0n, true]);
+    expect([BoundedInt.scale, BoundedInt.min, BoundedInt.max]).toEqual([0, 0n, 32767.5]);
     expect(BoundedInt.order).toBeUndefined();
     expect(BoundedInt.error).toBeUndefined();
   });
