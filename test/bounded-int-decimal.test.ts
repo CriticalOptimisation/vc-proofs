@@ -63,10 +63,24 @@ describe("BoundedInt: the quantities", () => {
     },
   );
 
-  test("a number is converted at once to the exact decimal of its binary value", () => {
-    expect(BoundedInt.from(5).value).toBe(5n);
-    expect(BoundedInt.from(2 ** 60).value).toBe(2n ** 60n);
-    expect(() => BoundedInt.from(0.5)).toThrow(TypeError);
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // a number is converted at once to the exact decimal of its binary value
+  //   -> a number is converted at once to the exact decimal of its binary value, on a class of at most 15 digits
+  // test("a number is converted at once to the exact decimal of its binary value", () => {
+  //   expect(BoundedInt.from(5).value).toBe(5n);
+  //   expect(BoundedInt.from(2 ** 60).value).toBe(2n ** 60n);
+  //   expect(() => BoundedInt.from(0.5)).toThrow(TypeError);
+  //   const Reading = BoundedInt.define({ name: "R", min: -8, max: 16, step: 0.01 });
+  //   // 0.125 is exact in binary: a tie, to even. 1.005 is 1.00499999999999989…: no tie.
+  //   expect(Reading.from(0.125).value).toBe(12n);
+  //   expect(Reading.from(-0.125).value).toBe(-12n);
+  //   expect(Reading.from(1.005).value).toBe(100n);
+  // });
+  test("a number is converted at once to the exact decimal of its binary value, on a class of at most 15 digits", () => {
+    const Int = BoundedInt.define({ name: "Int", min: 0, max: 1e14 });
+    expect(Int.from(5).value).toBe(5n);
+    expect(Int.from(2 ** 40).value).toBe(2n ** 40n);
+    expect(() => Int.from(0.5)).toThrow(TypeError);
     const Reading = BoundedInt.define({ name: "R", min: -8, max: 16, step: 0.01 });
     // 0.125 is exact in binary: a tie, to even. 1.005 is 1.00499999999999989…: no tie.
     expect(Reading.from(0.125).value).toBe(12n);

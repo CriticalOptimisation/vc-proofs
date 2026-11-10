@@ -16,9 +16,24 @@ class Signed extends BoundedInt {
   static override max = (L + 1n) / 2n;
 }
 
+/** A class of the integers of at most 15 digits, which takes a `number` (#44). */
+class Safe extends BoundedInt {
+  static override min = -(10n ** 15n - 1n);
+  static override max = 10n ** 15n - 1n;
+}
+
 describe("BoundedInt.from: the edges of the casts", () => {
-  test("from(-0) holds 0n, and its valueOf() is 0", () => {
-    const zero = BoundedInt.from(-0);
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // from(-0) holds 0n, and its valueOf() is 0
+  //   -> on a class of 15 digits, from(-0) holds 0n, and its valueOf() is 0
+  // test("from(-0) holds 0n, and its valueOf() is 0", () => {
+  //   const zero = BoundedInt.from(-0);
+  //   expect(zero.value).toBe(0n);
+  //   expect(Object.is(zero.valueOf(), 0)).toBe(true);
+  //   expect(zero.toString()).toBe("0");
+  // });
+  test("on a class of 15 digits, from(-0) holds 0n, and its valueOf() is 0", () => {
+    const zero = Safe.from(-0);
     expect(zero.value).toBe(0n);
     expect(Object.is(zero.valueOf(), 0)).toBe(true);
     expect(zero.toString()).toBe("0");
@@ -53,27 +68,52 @@ describe("BoundedInt.from: the edges of the casts", () => {
   //     expect(BoundedInt.from(input).value).toBe(expected);
   //   },
   // );
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // from(%s), just beyond the safe integers, is exact
+  //   -> from(%s), just beyond the safe integers, is a TypeError: more than 15 digits; its bigint is exact
+  // test.each([
+  //   // 2^53 + 1 is not a number: the addition already rounds it, ties to even, to 2^53.
+  //   ["Number.MAX_SAFE_INTEGER + 2, which is 2 ** 53", Number.MAX_SAFE_INTEGER + 2, 2n ** 53n],
+  //   [
+  //     "Number.MAX_SAFE_INTEGER + 3, which is 2 ** 53 + 2",
+  //     Number.MAX_SAFE_INTEGER + 3,
+  //     2n ** 53n + 2n,
+  //   ],
+  //   // 2^53 + 3 is not a number either: it is a tie, and ties to even give 2^53 + 4.
+  //   [
+  //     "Number.MAX_SAFE_INTEGER + 4, which is 2 ** 53 + 4",
+  //     Number.MAX_SAFE_INTEGER + 4,
+  //     2n ** 53n + 4n,
+  //   ],
+  // ] as const)("from(%s), just beyond the safe integers, is exact", (_, input, expected) => {
+  //   expect(BoundedInt.from(input).value).toBe(expected);
+  // });
   test.each([
     // 2^53 + 1 is not a number: the addition already rounds it, ties to even, to 2^53.
     ["Number.MAX_SAFE_INTEGER + 2, which is 2 ** 53", Number.MAX_SAFE_INTEGER + 2, 2n ** 53n],
-    [
-      "Number.MAX_SAFE_INTEGER + 3, which is 2 ** 53 + 2",
-      Number.MAX_SAFE_INTEGER + 3,
-      2n ** 53n + 2n,
-    ],
     // 2^53 + 3 is not a number either: it is a tie, and ties to even give 2^53 + 4.
     [
       "Number.MAX_SAFE_INTEGER + 4, which is 2 ** 53 + 4",
       Number.MAX_SAFE_INTEGER + 4,
       2n ** 53n + 4n,
     ],
-  ] as const)("from(%s), just beyond the safe integers, is exact", (_, input, expected) => {
-    expect(BoundedInt.from(input).value).toBe(expected);
-  });
+    ["Number.MIN_SAFE_INTEGER, on Signed", Number.MIN_SAFE_INTEGER, -(2n ** 53n - 1n)],
+    ["Number.MIN_SAFE_INTEGER - 1, on Signed", Number.MIN_SAFE_INTEGER - 1, -(2n ** 53n)],
+  ] as const)(
+    "from(%s), just beyond the safe integers, is a TypeError: more than 15 digits; its bigint is exact",
+    (_, input, expected) => {
+      const C = input < 0 ? Signed : BoundedInt;
+      expect(() => C.from(input)).toThrow(TypeError);
+      expect(C.from(expected).value).toBe(expected);
+    },
+  );
 
-  test("on a class with negative integers, from(Number.MIN_SAFE_INTEGER - 1), which is -(2 ** 53), is exact", () => {
-    expect(Signed.from(Number.MIN_SAFE_INTEGER - 1).value).toBe(-(2n ** 53n));
-  });
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // on a class with negative integers, from(Number.MIN_SAFE_INTEGER - 1), which is -(2 ** 53), is exact
+  //   -> from(%s), just beyond the safe integers, is a TypeError… (the row Number.MIN_SAFE_INTEGER - 1, on Signed)
+  // test("on a class with negative integers, from(Number.MIN_SAFE_INTEGER - 1), which is -(2 ** 53), is exact", () => {
+  //   expect(Signed.from(Number.MIN_SAFE_INTEGER - 1).value).toBe(-(2n ** 53n));
+  // });
 
   // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ))
   // from(Number.MIN_SAFE_INTEGER) is exact
@@ -81,9 +121,12 @@ describe("BoundedInt.from: the edges of the casts", () => {
   // test("from(Number.MIN_SAFE_INTEGER) is exact", () => {
   //   expect(BoundedInt.from(Number.MIN_SAFE_INTEGER).value).toBe(-(2n ** 53n - 1n));
   // });
-  test("on a class with negative integers, from(Number.MIN_SAFE_INTEGER) is exact", () => {
-    expect(Signed.from(Number.MIN_SAFE_INTEGER).value).toBe(-(2n ** 53n - 1n));
-  });
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // on a class with negative integers, from(Number.MIN_SAFE_INTEGER) is exact
+  //   -> from(%s), just beyond the safe integers, is a TypeError… (the row Number.MIN_SAFE_INTEGER, on Signed)
+  // test("on a class with negative integers, from(Number.MIN_SAFE_INTEGER) is exact", () => {
+  //   expect(Signed.from(Number.MIN_SAFE_INTEGER).value).toBe(-(2n ** 53n - 1n));
+  // });
 
   test.each([
     ["Number.EPSILON", Number.EPSILON],
@@ -95,8 +138,16 @@ describe("BoundedInt.from: the edges of the casts", () => {
     expect(() => BoundedInt.from(input)).toThrow(/^BoundedInt\.from: /);
   });
 
-  test("from(2 ** 53 + 0.5), which is 2 ** 53, an integer, is 2n ** 53n", () => {
-    expect(BoundedInt.from(2 ** 53 + 0.5).value).toBe(2n ** 53n);
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // from(2 ** 53 + 0.5), which is 2 ** 53, an integer, is 2n ** 53n
+  //   -> on a class of 15 digits, from(2 ** 49 + 0.5) is a TypeError: not an integer
+  // test("from(2 ** 53 + 0.5), which is 2 ** 53, an integer, is 2n ** 53n", () => {
+  //   expect(BoundedInt.from(2 ** 53 + 0.5).value).toBe(2n ** 53n);
+  // });
+  test("on a class of 15 digits, from(2 ** 49 + 0.5) is a TypeError: not an integer", () => {
+    expect(() => Safe.from(2 ** 49 + 0.5)).toThrow(TypeError);
+    expect(() => Safe.from(2 ** 49 + 0.5)).toThrow(/must be an integer/);
+    expect(Safe.from(2 ** 49).value).toBe(2n ** 49n);
   });
 
   test.each([
@@ -171,9 +222,26 @@ describe("BoundedInt: valueOf at the edges of a number", () => {
   //   expect(() => BoundedInt.from(n).valueOf()).toThrow(RangeError);
   //   expect(() => BoundedInt.from(-n).valueOf()).toThrow(RangeError);
   // });
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // from(%s), outside [0, ℓ), throws a RangeError that names from, before any valueOf()
+  //   -> from(%s), outside [0, ℓ), throws a RangeError that names from, before any valueOf() (±Number.MAX_VALUE: a TypeError, a number)
+  // test.each([
+  //   ["Number.MAX_VALUE", Number.MAX_VALUE],
+  //   ["-Number.MAX_VALUE", -Number.MAX_VALUE],
+  //   ["2^1024", 2n ** 1024n],
+  //   ["-(2^1024)", -(2n ** 1024n)],
+  //   ["2^1024 − 2^970 − 1", 2n ** 1024n - 2n ** 970n - 1n],
+  //   ["2^1024 − 2^970", 2n ** 1024n - 2n ** 970n],
+  //   ["ℓ", L],
+  //   ["-1n", -1n],
+  // ] as const)(
+  //   "from(%s), outside [0, ℓ), throws a RangeError that names from, before any valueOf()",
+  //   (_, n) => {
+  //     expect(() => BoundedInt.from(n)).toThrow(RangeError);
+  //     expect(() => BoundedInt.from(n)).toThrow(/^BoundedInt\.from: /);
+  //   },
+  // );
   test.each([
-    ["Number.MAX_VALUE", Number.MAX_VALUE],
-    ["-Number.MAX_VALUE", -Number.MAX_VALUE],
     ["2^1024", 2n ** 1024n],
     ["-(2^1024)", -(2n ** 1024n)],
     ["2^1024 − 2^970 − 1", 2n ** 1024n - 2n ** 970n - 1n],
@@ -181,10 +249,12 @@ describe("BoundedInt: valueOf at the edges of a number", () => {
     ["ℓ", L],
     ["-1n", -1n],
   ] as const)(
-    "from(%s), outside [0, ℓ), throws a RangeError that names from, before any valueOf()",
+    "from(%s), outside [0, ℓ), throws a RangeError that names from, before any valueOf() (±Number.MAX_VALUE: a TypeError, a number)",
     (_, n) => {
       expect(() => BoundedInt.from(n)).toThrow(RangeError);
       expect(() => BoundedInt.from(n)).toThrow(/^BoundedInt\.from: /);
+      expect(() => BoundedInt.from(Number.MAX_VALUE)).toThrow(TypeError);
+      expect(() => BoundedInt.from(-Number.MAX_VALUE)).toThrow(TypeError);
     },
   );
 
@@ -207,17 +277,17 @@ describe("BoundedInt: valueOf at the edges of a number", () => {
 
 describe("BoundedInt: conversions not covered by the preliminary tests", () => {
   test.each([
-    ["x == 5", () => (BoundedInt.from(5) as unknown as number) == 5],
-    ["x - 1", () => (BoundedInt.from(5) as unknown as number) - 1],
-    ["BigInt(x)", () => BigInt(BoundedInt.from(5) as unknown as number)],
-    ["x > 3", () => (BoundedInt.from(5) as unknown as number) > 3],
+    ["x == 5", () => (BoundedInt.from(5n) as unknown as number) == 5],
+    ["x - 1", () => (BoundedInt.from(5n) as unknown as number) - 1],
+    ["BigInt(x)", () => BigInt(BoundedInt.from(5n) as unknown as number)],
+    ["x > 3", () => (BoundedInt.from(5n) as unknown as number) > 3],
   ] as const)("%s throws a TypeError", (_, use) => {
     expect(use).toThrow(TypeError);
     expect(use).toThrow(/x\.valueOf\(\)/);
   });
 
   test("JSON.stringify gives {}", () => {
-    expect(JSON.stringify(BoundedInt.from(5))).toBe("{}");
+    expect(JSON.stringify(BoundedInt.from(5n))).toBe("{}");
   });
 });
 
@@ -240,7 +310,7 @@ describe("BoundedInt: subclasses at the edges", () => {
   test("the messages of a RangeError of from and of an implicit conversion name the subclass", () => {
     expect(() => Days.from(2n ** 1024n)).toThrow(RangeError);
     expect(() => Days.from(2n ** 1024n)).toThrow(/^Days\.from: /);
-    expect(() => (Days.from(1) as unknown as bigint) + 1n).toThrow(/^Days: /);
+    expect(() => (Days.from(1n) as unknown as bigint) + 1n).toThrow(/^Days: /);
   });
 
   test("a subclass that overrides toString: the string conversion follows it", () => {
@@ -249,14 +319,14 @@ describe("BoundedInt: subclasses at the edges", () => {
         return `${String(this.valueOf())} d`;
       }
     }
-    const a = Labelled.from(3);
+    const a = Labelled.from(3n);
     expect(`<${a as unknown as string}>`).toBe("<3 d>");
     expect(String(a)).toBe("3 d");
     expect(() => (a as unknown as bigint) + 1n).toThrow(TypeError);
   });
 
   test("a subclass's from refuses a BoundedInt of the base class", () => {
-    expect(() => Days.from(BoundedInt.from(1) as never)).toThrow(TypeError);
+    expect(() => Days.from(BoundedInt.from(1n) as never)).toThrow(TypeError);
   });
 });
 

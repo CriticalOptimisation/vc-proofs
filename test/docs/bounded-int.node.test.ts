@@ -84,7 +84,8 @@ describe("docs/core/bounded-int.md, section The class constants", () => {
     expect(range).toContain("`min ≤ x < max`");
     expect(range).toContain("`x = max` is a `RangeError`");
     expect(range).toContain("`[−0.5, 255.5)`");
-    expect(range).toContain("Its order is `256n`");
+    expect(range).toContain("order: 256n");
+    expect(range).toContain("The constant `order` is a limit on that number, and it is inherited");
     expect(text()).toMatch(
       /\| `order` not above 0, or more distinct values than `order` +\| `RangeError` \|/,
     );

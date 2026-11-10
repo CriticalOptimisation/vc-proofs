@@ -8,9 +8,17 @@
 import { describe, expect, test } from "vitest";
 import { BoundedInt } from "../src/core/index.js";
 
-/** A class with the scale `k`, the bounds `±10^60`, and no `integerOnly`. */
+/**
+ * A class with the scale `k`, the bounds `±(10^15 − 1)` steps, the most that takes a
+ * `number`, and no `integerOnly`.
+ */
 const wide = (k: number) =>
-  BoundedInt.define({ name: `Wide${String(k)}`, min: [-1n, 60], max: [1n, 60], step: [1n, -k] });
+  BoundedInt.define({
+    name: `Wide${String(k)}`,
+    min: [-(10n ** 15n - 1n), -k],
+    max: [10n ** 15n - 1n, -k],
+    step: [1n, -k],
+  });
 
 describe("BoundedInt.define: the ends of the scales", () => {
   test("the step 10^-323 gives the scale 323, and a finer one is refused", () => {
@@ -34,35 +42,83 @@ describe("BoundedInt.define: the ends of the scales", () => {
 });
 
 describe("BoundedInt: the exact decimal of a number", () => {
-  test("0.1 is 0.1000000000000000055511151231257827021181583404541015625, exactly", () => {
-    const C = BoundedInt.define({ name: "C", min: 0, max: 1, step: [1n, -55] });
-    expect(C.from(0.1).toString()).toBe(
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // 0.1 is 0.1000000000000000055511151231257827021181583404541015625, exactly
+  //   -> the bound 0.1 is 0.1000000000000000055511151231257827021181583404541015625, exactly
+  // test("0.1 is 0.1000000000000000055511151231257827021181583404541015625, exactly", () => {
+  //   const C = BoundedInt.define({ name: "C", min: 0, max: 1, step: [1n, -55] });
+  //   expect(C.from(0.1).toString()).toBe(
+  //     "0.1000000000000000055511151231257827021181583404541015625",
+  //   );
+  //   expect(C.from(0.1).valueOf()).toBe(0.1);
+  // });
+  test("the bound 0.1 is 0.1000000000000000055511151231257827021181583404541015625, exactly", () => {
+    // The values just below the bound round, at the scale 55, to the integer of its decimal.
+    const C = BoundedInt.define({ name: "C", min: 0, max: 0.1, step: [1n, -55] });
+    const q = 1000000000000000055511151231257827021181583404541015625n;
+    expect(C.fromValue(q).toString()).toBe(
       "0.1000000000000000055511151231257827021181583404541015625",
     );
-    expect(C.from(0.1).valueOf()).toBe(0.1);
+    expect(() => C.fromValue(q + 1n)).toThrow(RangeError);
+    expect(() => C.from(0.05)).toThrow(TypeError);
   });
 
-  test("Number.MAX_VALUE and 2^1023 are their exact integers", () => {
-    const C = BoundedInt.define({ name: "C", min: 0, max: [1n, 400] });
-    expect(C.from(Number.MAX_VALUE).value).toBe(BigInt(Number.MAX_VALUE));
-    expect(C.from(2 ** 1023).value).toBe(2n ** 1023n);
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // Number.MAX_VALUE and 2^1023 are their exact integers
+  //   -> the bounds Number.MAX_VALUE and 2^1023 are their exact integers
+  // test("Number.MAX_VALUE and 2^1023 are their exact integers", () => {
+  //   const C = BoundedInt.define({ name: "C", min: 0, max: [1n, 400] });
+  //   expect(C.from(Number.MAX_VALUE).value).toBe(BigInt(Number.MAX_VALUE));
+  //   expect(C.from(2 ** 1023).value).toBe(2n ** 1023n);
+  // });
+  test("the bounds Number.MAX_VALUE and 2^1023 are their exact integers", () => {
+    for (const max of [Number.MAX_VALUE, 2 ** 1023]) {
+      const C = BoundedInt.define({ name: "C", min: 0, max });
+      expect(C.fromValue(BigInt(max) - 1n).value).toBe(BigInt(max) - 1n);
+      expect(() => C.fromValue(BigInt(max))).toThrow(RangeError);
+    }
   });
 
-  test("a mantissa of 53 ones: 2^53 − 1, and (2^53 − 1) · 2^-60, exactly", () => {
-    const C = BoundedInt.define({ name: "C", min: 0, max: 1, step: [1n, -60] });
-    const x = (2 ** 53 - 1) * 2 ** -60;
-    expect(C.from(x).value).toBe((2n ** 53n - 1n) * 5n ** 60n);
-    expect(BoundedInt.from(2 ** 53 - 1).value).toBe(9007199254740991n);
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // a mantissa of 53 ones: 2^53 − 1, and (2^53 − 1) · 2^-60, exactly
+  //   -> a mantissa of 53 ones: the bound (2^53 − 1) · 2^-60 is (2^53 − 1) · 5^60 · 10^-60, exactly
+  // test("a mantissa of 53 ones: 2^53 − 1, and (2^53 − 1) · 2^-60, exactly", () => {
+  //   const C = BoundedInt.define({ name: "C", min: 0, max: 1, step: [1n, -60] });
+  //   const x = (2 ** 53 - 1) * 2 ** -60;
+  //   expect(C.from(x).value).toBe((2n ** 53n - 1n) * 5n ** 60n);
+  //   expect(BoundedInt.from(2 ** 53 - 1).value).toBe(9007199254740991n);
+  // });
+  test("a mantissa of 53 ones: the bound (2^53 − 1) · 2^-60 is (2^53 − 1) · 5^60 · 10^-60, exactly", () => {
+    const C = BoundedInt.define({
+      name: "C",
+      min: 0,
+      max: (2 ** 53 - 1) * 2 ** -60,
+      step: [1n, -60],
+    });
+    const q = (2n ** 53n - 1n) * 5n ** 60n;
+    expect(C.fromValue(q).value).toBe(q);
+    expect(() => C.fromValue(q + 1n)).toThrow(RangeError);
   });
 });
 
 describe("BoundedInt classes: negative zero, NaN, infinities and subnormals", () => {
-  test("from(-0) holds 0n on every class, and valueOf() is +0", () => {
-    for (const C of [BoundedInt, wide(2), wide(-3)]) {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // from(-0) holds 0n on every class, and valueOf() is +0
+  //   -> from(-0) holds 0n on every class that takes a number, and valueOf() is +0
+  // test("from(-0) holds 0n on every class, and valueOf() is +0", () => {
+  //   for (const C of [BoundedInt, wide(2), wide(-3)]) {
+  //     const x = C.from(-0);
+  //     expect(x.value).toBe(0n);
+  //     expect(Object.is(x.valueOf(), 0)).toBe(true);
+  //   }
+  // });
+  test("from(-0) holds 0n on every class that takes a number, and valueOf() is +0", () => {
+    for (const C of [wide(0), wide(2), wide(-3)]) {
       const x = C.from(-0);
       expect(x.value).toBe(0n);
       expect(Object.is(x.valueOf(), 0)).toBe(true);
     }
+    expect(BoundedInt.from([0n, 0]).value).toBe(0n);
   });
 
   test.each([
@@ -80,10 +136,18 @@ describe("BoundedInt classes: negative zero, NaN, infinities and subnormals", ()
     expect(() => BoundedInt.from(Number.MIN_VALUE)).toThrow(TypeError);
   });
 
-  test("at the scale 323, the smallest subnormal rounds to 0n and the largest to its integer", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // at the scale 323, the smallest subnormal rounds to 0n and the largest to its integer
+  //   -> at the scale 323, the smallest subnormal rounds to 0n, and 1e-310 to 10^13
+  // test("at the scale 323, the smallest subnormal rounds to 0n and the largest to its integer", () => {
+  //   const C = wide(323);
+  //   expect(C.from(Number.MIN_VALUE).value).toBe(0n);
+  //   expect(C.from(2.225073858507201e-308).value).toBe(2225073858507201n);
+  // });
+  test("at the scale 323, the smallest subnormal rounds to 0n, and 1e-310 to 10^13", () => {
     const C = wide(323);
     expect(C.from(Number.MIN_VALUE).value).toBe(0n);
-    expect(C.from(2.225073858507201e-308).value).toBe(2225073858507201n);
+    expect(C.from(1e-310).value).toBe(10n ** 13n);
   });
 });
 
@@ -94,7 +158,8 @@ describe("BoundedInt classes: negative ties go to the even integer, at every sca
     return below % 2n === 0n ? below : below + 1n;
   };
 
-  const scales = Array.from({ length: 45 }, (_, i) => i - 22);
+  // From the scale 22, the tie 3 · 5^22 / 2 needs 16 digits, more than a number holds.
+  const scales = Array.from({ length: 44 }, (_, i) => i - 22);
 
   test.each(scales)("at the scale %s, the ties -a/2 round to even, as their opposites", (k) => {
     const C = wide(k);
