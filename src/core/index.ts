@@ -8,13 +8,14 @@
  * `@noble/curves` for the arithmetic of ristretto255, which `ristretto.ts` wraps in the
  * class `RistrettoElement`, whose scalars are `bigint`s (docs/core/ristretto255.md).
  * `BoundedInt` (docs/core/bounded-int.md) wraps an integer in a class, for the bounds of
- * a value.
+ * a value: the one exported here is the integer of Z_ℓ, of `ristretto.ts`, whose order
+ * `ℓ` every class made from it inherits. The generic class of `bounded-int.ts`, which it
+ * extends, is not exported.
  */
 export { BlindingContext } from "./blinding-context.js";
 export type { Group } from "./blinding-context.js";
-export { BoundedInt } from "./bounded-int.js";
 export { requestHash } from "./request-hash.js";
-export { RistrettoElement } from "./ristretto.js";
+export { BoundedInt, RistrettoElement } from "./ristretto.js";
 
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
