@@ -109,3 +109,4 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
 // |--------|---------------------------------------------------------------|
 // | #38    | new: the page names every public member (#35)                 |
 // | #40    | scalars are bigints: no section RistrettoScalar; ORDER, encodeScalar, decodeScalar, invertScalar; BoundedInt; randomScalar needs ℓ; multiplyScalar of 0 (#39) |
+// | #51    | BoundedInt.from(5n); the order ℓ in Ranges (#49)              |

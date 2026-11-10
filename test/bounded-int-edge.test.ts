@@ -197,3 +197,4 @@ describe("BoundedInt: subclasses at the edges", () => {
 // |--------|---------------------------------------------------------------|
 // | #42    | new: the edge cases of BoundedInt (#41)                       |
 // | #47    | the range [0, ℓ): negative integers on Signed, ±Number.MAX_VALUE and ℓ refused by from (#44) |
+// | #51    | the generic BoundedInt of bounded-int.ts; placeholders of #47 removed (#49) |

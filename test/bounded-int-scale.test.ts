@@ -412,3 +412,4 @@ describe("BoundedInt classes: a number only where 15 digits are enough", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #47    | new: the preliminary tests of the decimal classes; the bounds [min, max), kept exactly; the order and the error of a class (#44) |
+// | #51    | the generic BoundedInt of bounded-int.ts; the frozen classes extend that of ./core; placeholders of #47 removed (#49) |

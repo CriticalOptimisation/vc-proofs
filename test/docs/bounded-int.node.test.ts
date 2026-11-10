@@ -245,3 +245,4 @@ describe("docs/core/bounded-int.md, section Examples", () => {
 // |--------|---------------------------------------------------------------|
 // | #42    | new: the page names every public member of BoundedInt (#41)   |
 // | #47    | the new members; the constants and the examples tables; The range of a class; a self-contained page (#44) |
+// | #51    | the constants of the integer of Z_ℓ; The range of a class with the order ℓ; define takes no order; members of the generic base (#49) |

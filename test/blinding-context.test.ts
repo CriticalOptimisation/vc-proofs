@@ -436,3 +436,4 @@ describe("BlindingContext over another group", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #40    | new: the preliminary tests of BlindingContext, its group, bigint scalars, a BoundedInt's value (#39) |
+// | #51    | Scalars: [−0.5, ℓ − 0.5), the order ℓ of ./core (#49)         |

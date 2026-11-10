@@ -94,4 +94,5 @@ Change History
 | #40 | links The blinding context; setTimeout; scalars are bigints (#39) |
 | #42 | links Bounded integers (#41) |
 | #47 | Bounded integers: classes with a decimal scale and exact bounds [min, max) (#44) |
+| #51 | BoundedInt is the integer of Z_ℓ (#49) |
 -->

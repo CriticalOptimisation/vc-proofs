@@ -25,3 +25,4 @@ export { BoundedInt, RistrettoElement } from "./ristretto.js";
 // | #38    | export RistrettoElement and RistrettoScalar, not generator (#35) |
 // | #40    | export BlindingContext and the type Group; no RistrettoScalar (#39) |
 // | #42    | export BoundedInt (#41)                                       |
+// | #51    | export BoundedInt from ristretto.ts, not the generic class (#49) |

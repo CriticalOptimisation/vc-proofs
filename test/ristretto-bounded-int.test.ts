@@ -172,3 +172,8 @@ describe("BoundedInt of ./core: edge cases", () => {
     );
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #51    | new: the BoundedInt of Z_ℓ, its define without order, and its edge cases (#49) |

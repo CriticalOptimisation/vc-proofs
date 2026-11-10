@@ -412,4 +412,5 @@ Change History
 |-----|---------|
 | #42 | new: BoundedInt, its casts, conversions and subclasses (#41) |
 | #47 | decimal classes: scale, the exact bounds [min, max), order, error; quantities as decimals, numbers at 15 digits; from, fromValue, define; valueOf, toString, toLocaleString, rounding (#44) |
+| #51 | BoundedInt of ./core: the integer of Z_ℓ, [−0.5, ℓ − 0.5), order ℓ inherited, frozen, no number; define takes no order (#49) |
 -->

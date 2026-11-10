@@ -161,3 +161,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #40    | ./core exports BlindingContext, and no RistrettoScalar (#39)   |
 // | #42    | ./core exports BoundedInt, and declares it (#41)              |
 // | #47    | ./core declares the constants, min and end included, and new members of BoundedInt (#44) |
+// | #51    | ./core exports BoundedInt from ristretto.ts and declares it (#49) |

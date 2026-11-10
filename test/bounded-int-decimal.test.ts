@@ -189,3 +189,4 @@ describe("BoundedInt: toString() and toLocaleString() write the exact decimal", 
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #47    | new: the exact decimals: exact bounds, quantities, the exact toString() and toLocaleString() (#44) |
+// | #51    | the generic BoundedInt of bounded-int.ts; placeholders of #47 removed (#49) |

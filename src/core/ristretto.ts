@@ -530,3 +530,4 @@ function hex(bytes: Uint8Array): string {
 // |--------|---------------------------------------------------------------|
 // | #38    | new: the two classes; the derivation of generator.ts (#35)    |
 // | #40    | SUITE_NAME, randomScalar, ORDER, encodeScalar, decodeScalar, invertScalar; bigint scalars, RistrettoScalar removed; multiplyScalar multiplies even for a scalar that reduces to 0 (#39) |
+// | #51    | BoundedInt, the integer of Z_ℓ: [−0.5, ℓ − 0.5), order ℓ; define without order; RistrettoBoundedIntSpec (#49) |
