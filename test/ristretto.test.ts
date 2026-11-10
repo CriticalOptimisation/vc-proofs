@@ -414,15 +414,15 @@ describe("The scalar members of RistrettoElement", () => {
 
   test("a BoundedInt passes its value: multiplyScalar(x.value) takes it, multiplyScalar(x) is a TypeError", () => {
     expect(hex(g().multiplyScalar(BoundedInt.from(5n).value).encode())).toBe(multiples[5]);
-    // A class of the scalars, the buckets [−0.5, ℓ − 0.5) (#49): −1 is the scalar ℓ − 1.
-    // { min: 0n, max: L } holds ℓ + 1 integers, more than the order ℓ of BoundedInt.
-    const Scalars = BoundedInt.define({ name: "Scalars", min: -0.5, max: [10n * L - 5n, -1] });
+    // BoundedInt is the integer of Z_ℓ (#49): −1 is the scalar ℓ − 1.
     expect(
       g()
-        .multiplyScalar(Scalars.from(L - 1n).value)
+        .multiplyScalar(BoundedInt.from(L - 1n).value)
         .equals(g().negate()),
     ).toBe(true);
-    expect(hex(RistrettoElement.encodeScalar(Scalars.from(L - 1n).value))).toBe(hex(le32(L - 1n)));
+    expect(hex(RistrettoElement.encodeScalar(BoundedInt.from(L - 1n).value))).toBe(
+      hex(le32(L - 1n)),
+    );
     expect(() => g().multiplyScalar(BoundedInt.from(5n) as never)).toThrow(TypeError);
   });
 
@@ -445,4 +445,4 @@ describe("The scalar members of RistrettoElement", () => {
 // | #38    | new: both classes against RFC 9496 and the vectors of h (#35) |
 // | #40    | scalars are bigints: the tests of RistrettoScalar become placeholders; ORDER, encodeScalar, decodeScalar, invertScalar; the value of a BoundedInt (#39) |
 // | #47    | a BoundedInt passes its value: ℓ − 1 in place of −1; placeholders of #40 removed (#44) |
-// | #51    | Scalars: [−0.5, ℓ − 0.5), the order ℓ of ./core (#49)         |
+// | #51    | ℓ − 1 through BoundedInt itself, the integer of Z_ℓ (#49)     |

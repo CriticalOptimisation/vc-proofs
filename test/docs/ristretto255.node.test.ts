@@ -95,12 +95,12 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
   // });
   test("Scalars sends an integer of the application through BoundedInt, whose value the group takes; BoundedInt has the order ℓ", () => {
     expect(members(RistrettoElement)).toContain("static encodeScalar");
-    expect(section("Scalars")).toMatch(/\(bounded-int\.md\)/);
+    expect(section("Scalars")).toMatch(/\(#boundedint\)/);
     expect(section("Scalars")).toMatch(/`P\.multiplyScalar\(BoundedInt\.from\(5n\)\.value\)`/);
     expect(section("Scalars")).toMatch(
       /The `BoundedInt` of the\s+low-level entry point has the order `ℓ`/,
     );
-    expect(section("Scalars")).toMatch(/\(bounded-int\.md#the-range-of-a-class\)/);
+    expect(section("Scalars")).toMatch(/\(see \[BoundedInt\]\(#boundedint\)\)/);
   });
 });
 
@@ -109,4 +109,4 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
 // |--------|---------------------------------------------------------------|
 // | #38    | new: the page names every public member (#35)                 |
 // | #40    | scalars are bigints: no section RistrettoScalar; ORDER, encodeScalar, decodeScalar, invertScalar; BoundedInt; randomScalar needs ℓ; multiplyScalar of 0 (#39) |
-// | #51    | BoundedInt.from(5n); the order ℓ in Ranges (#49)              |
+// | #51    | BoundedInt.from(5n); the links to the section BoundedInt (#49) |

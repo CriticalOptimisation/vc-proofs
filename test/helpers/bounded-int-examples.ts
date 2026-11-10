@@ -5,7 +5,7 @@
  * classes are made on first use, so that a missing `define` fails each test that needs
  * it, not the import.
  */
-import { BoundedInt } from "../../src/core/index.js";
+import { BoundedInt } from "../../src/core/bounded-int.js";
 
 /** The classes of the examples, made by `define`. */
 export interface ExampleClasses {
@@ -107,3 +107,4 @@ export const examples: readonly Example[] = [
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #47    | new: the classes and the examples of the page (#44)           |
+// | #51    | imports the generic BoundedInt of bounded-int.ts (#49)        |

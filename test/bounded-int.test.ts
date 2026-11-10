@@ -7,10 +7,6 @@
  * conversions throw, except to a string; `valueOf()` is an ordinary method that returns
  * the nearest `number`, and gives back every integer `number` that `from` took. The same
  * file runs in Node.js and in every headless browser.
- *
- * The tests run on the generic class of `src/core/bounded-int.ts`, the base of the
- * `BoundedInt` that `./core` exports (#49): its bounds, its numbers and its families of
- * orders are those of the base.
  */
 import { describe, expect, expectTypeOf, test } from "vitest";
 import { BoundedInt } from "../src/core/bounded-int.js";
@@ -45,6 +41,35 @@ class Safe extends BoundedInt {
 }
 
 describe("BoundedInt.from: the casts", () => {
+  // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ); negative integers need a class of their own)
+  // from(%s).value is the bigint of the integer
+  //   -> from(%s).value is the bigint of the integer (the positive rows)
+  //   -> on a class with negative integers, from(%s).value is the bigint of the integer
+  // test.each([
+  //   ["5n", 5n, 5n],
+  //   ["5", 5, 5n],
+  //   ["-7", -7, -7n],
+  //   ["0", 0, 0n],
+  //   ["Number.MAX_SAFE_INTEGER", Number.MAX_SAFE_INTEGER, 2n ** 53n - 1n],
+  //   ["-Number.MAX_SAFE_INTEGER", -Number.MAX_SAFE_INTEGER, -(2n ** 53n - 1n)],
+  // ] as const)("from(%s).value is the bigint of the integer", (_, input, expected) => {
+  //   const value = BoundedInt.from(input).value;
+  //   expect(typeof value).toBe("bigint");
+  //   expect(value).toBe(expected);
+  // });
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // from(%s).value is the bigint of the integer
+  //   -> on a class of 15 digits, from(%s).value is the bigint of the integer
+  // test.each([
+  //   ["5n", 5n, 5n],
+  //   ["5", 5, 5n],
+  //   ["0", 0, 0n],
+  //   ["Number.MAX_SAFE_INTEGER", Number.MAX_SAFE_INTEGER, 2n ** 53n - 1n],
+  // ] as const)("from(%s).value is the bigint of the integer", (_, input, expected) => {
+  //   const value = BoundedInt.from(input).value;
+  //   expect(typeof value).toBe("bigint");
+  //   expect(value).toBe(expected);
+  // });
   test.each([
     ["5n", 5n, 5n],
     ["5", 5, 5n],
@@ -61,10 +86,48 @@ describe("BoundedInt.from: the casts", () => {
     },
   );
 
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // on a class with negative integers, from(%s).value is the bigint of the integer
+  //   -> on a class with negative integers, from(-1n).value is -1n; its numbers are on a class of 15 digits
+  // test.each([
+  //   ["-7", -7, -7n],
+  //   ["-1n", -1n, -1n],
+  //   ["-Number.MAX_SAFE_INTEGER", -Number.MAX_SAFE_INTEGER, -(2n ** 53n - 1n)],
+  // ] as const)(
+  //   "on a class with negative integers, from(%s).value is the bigint of the integer",
+  //   (_, input, expected) => {
+  //     expect(Signed.from(input).value).toBe(expected);
+  //   },
+  // );
   test("on a class with negative integers, from(-1n).value is -1n; its numbers are on a class of 15 digits", () => {
     expect(Signed.from(-1n).value).toBe(-1n);
   });
 
+  // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ))
+  // from(%s) keeps the integer as it is: no reduction mod ℓ
+  //   -> from(%s), within [0, ℓ), keeps the integer as it is
+  //   -> "BoundedInt.from: the refusals" / from(%s), outside [0, ℓ), throws a RangeError that
+  //      names from: no reduction mod ℓ
+  //   -> on a class with negative integers, from(%s).value is the bigint of the integer (-1n)
+  // test.each([
+  //   ["-1n", -1n],
+  //   ["ℓ", L],
+  //   ["ℓ + 1", L + 1n],
+  //   ["2^300", 2n ** 300n],
+  //   ["-(2^300)", -(2n ** 300n)],
+  // ] as const)("from(%s) keeps the integer as it is: no reduction mod ℓ", (_, input) => {
+  //   expect(BoundedInt.from(input).value).toBe(input);
+  // });
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // within [0, ℓ), keeps the integer as it is"
+  //   -> on a class of the integers [0, ℓ), from(%s) keeps the integer as it is
+  // test.each([
+  //   ["0n", 0n],
+  //   ["ℓ − 1", L - 1n],
+  //   ["2^252", 2n ** 252n],
+  // ] as const)("from(%s), within [0, ℓ), keeps the integer as it is", (_, input) => {
+  //   expect(BoundedInt.from(input).value).toBe(input);
+  // });
   test.each([
     ["0n", 0n],
     ["ℓ − 1", L - 1n],
@@ -76,6 +139,59 @@ describe("BoundedInt.from: the casts", () => {
     },
   );
 
+  // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ))
+  // from(%s), an integer number beyond 2^53 − 1, is the exact bigint of that number
+  //   -> from(%s), an integer number beyond 2^53 − 1 and below ℓ, is the exact bigint of
+  //      that number
+  //   -> "BoundedInt.from: the refusals" / from(%s), outside [0, ℓ), throws a RangeError that
+  //      names from: no reduction mod ℓ (1e300, ±Number.MAX_VALUE)
+  //   -> on a class with negative integers, from(%s), an integer number beyond 2^53 − 1, is
+  //      the exact bigint of that number (-(2 ** 60))
+  // test.each([
+  //   ["2 ** 60", 2 ** 60, 2n ** 60n],
+  //   ["-(2 ** 60)", -(2 ** 60), -(2n ** 60n)],
+  //   ["Number.MAX_SAFE_INTEGER + 1", Number.MAX_SAFE_INTEGER + 1, 2n ** 53n],
+  //   ["2 ** 60 + 2 ** 8", 2 ** 60 + 2 ** 8, 2n ** 60n + 2n ** 8n],
+  //   ["1e300", 1e300, BigInt(1e300)],
+  //   ["Number.MAX_VALUE", Number.MAX_VALUE, MAX],
+  //   ["-Number.MAX_VALUE", -Number.MAX_VALUE, -MAX],
+  // ] as const)(
+  //   "from(%s), an integer number beyond 2^53 − 1, is the exact bigint of that number",
+  //   (_, input, expected) => {
+  //     expect(BoundedInt.from(input).value).toBe(expected);
+  //   },
+  // );
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // from(%s), an integer number beyond 2^53 − 1 and below ℓ, is the exact bigint of that number
+  //   -> from(%s), a number on BoundedInt, which needs 76 digits, is a TypeError; its bigint is kept exactly
+  // test.each([
+  //   ["2 ** 60", 2 ** 60, 2n ** 60n],
+  //   ["Number.MAX_SAFE_INTEGER + 1", Number.MAX_SAFE_INTEGER + 1, 2n ** 53n],
+  //   ["2 ** 60 + 2 ** 8", 2 ** 60 + 2 ** 8, 2n ** 60n + 2n ** 8n],
+  //   ["2 ** 252", 2 ** 252, 2n ** 252n],
+  // ] as const)(
+  //   "from(%s), an integer number beyond 2^53 − 1 and below ℓ, is the exact bigint of that number",
+  //   (_, input, expected) => {
+  //     expect(BoundedInt.from(input).value).toBe(expected);
+  //   },
+  // );
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // a number on BoundedInt, which needs 76 digits, is a TypeError; its bigint is kept exactly"
+  //   -> from(%s), a number on a class of 76 digits, is a TypeError; its bigint is kept exactly
+  // test.each([
+  //   ["5", 5, 5n],
+  //   ["2 ** 60", 2 ** 60, 2n ** 60n],
+  //   ["Number.MAX_SAFE_INTEGER + 1", Number.MAX_SAFE_INTEGER + 1, 2n ** 53n],
+  //   ["2 ** 60 + 2 ** 8", 2 ** 60 + 2 ** 8, 2n ** 60n + 2n ** 8n],
+  //   ["2 ** 252", 2 ** 252, 2n ** 252n],
+  // ] as const)(
+  //   "from(%s), a number on BoundedInt, which needs 76 digits, is a TypeError; its bigint is kept exactly",
+  //   (_, input, expected) => {
+  //     expect(() => BoundedInt.from(input)).toThrow(TypeError);
+  //     expect(() => BoundedInt.from(input)).toThrow(/^BoundedInt\.from: /);
+  //     expect(BoundedInt.from(expected).value).toBe(expected);
+  //   },
+  // );
   test.each([
     ["5", 5, 5n],
     ["2 ** 60", 2 ** 60, 2n ** 60n],
@@ -91,6 +207,18 @@ describe("BoundedInt.from: the casts", () => {
     },
   );
 
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // on a class with negative integers, from(%s), an integer number beyond 2^53 − 1, is the exact bigint of that number
+  //   -> on a class with negative integers, from(%s), a number, is a TypeError; its bigint is kept exactly
+  // test.each([
+  //   ["-(2 ** 60)", -(2 ** 60), -(2n ** 60n)],
+  //   ["-(2 ** 251)", -(2 ** 251), -(2n ** 251n)],
+  // ] as const)(
+  //   "on a class with negative integers, from(%s), an integer number beyond 2^53 − 1, is the exact bigint of that number",
+  //   (_, input, expected) => {
+  //     expect(Signed.from(input).value).toBe(expected);
+  //   },
+  // );
   test.each([
     ["-(2 ** 60)", -(2 ** 60), -(2n ** 60n)],
     ["-(2 ** 251)", -(2 ** 251), -(2n ** 251n)],
@@ -104,6 +232,23 @@ describe("BoundedInt.from: the casts", () => {
 });
 
 describe("BoundedInt.from: the refusals", () => {
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // throws a TypeError that names from"
+  //   -> from(%s) throws a TypeError that names from (1.5 is no longer refused: it rounds)
+  // test.each([
+  //   ["1.5", 1.5],
+  //   ["NaN", NaN],
+  //   ["Infinity", Infinity],
+  //   ["-Infinity", -Infinity],
+  //   ['"5"', "5"],
+  //   ["null", null],
+  //   ["undefined", undefined],
+  //   ["{}", {}],
+  //   ["a BoundedInt", BoundedInt.from(5n)],
+  // ] as const)("from(%s) throws a TypeError that names from", (_, input) => {
+  //   expect(() => BoundedInt.from(input as never)).toThrow(TypeError);
+  //   expect(() => BoundedInt.from(input as never)).toThrow(/from/);
+  // });
   test.each([
     ["NaN", NaN],
     ["Infinity", Infinity],
@@ -124,6 +269,47 @@ describe("BoundedInt.from: the refusals", () => {
     expect(BoundedInt.from(0.4).value).toBe(0n);
   });
 
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // from(%s), outside [0, ℓ), throws a RangeError that names from: no reduction mod ℓ
+  //   -> from(%s), outside [0, ℓ), throws a RangeError that names from: no reduction mod ℓ (the numbers are a TypeError before)
+  // test.each([
+  //   ["-1n", -1n],
+  //   ["-7", -7],
+  //   ["ℓ", L],
+  //   ["ℓ + 1", L + 1n],
+  //   ["2^300", 2n ** 300n],
+  //   ["-(2^300)", -(2n ** 300n)],
+  //   ["2 ** 253", 2 ** 253],
+  //   ["1e300", 1e300],
+  //   ["Number.MAX_VALUE", Number.MAX_VALUE],
+  //   ["-Number.MAX_VALUE", -Number.MAX_VALUE],
+  // ] as const)(
+  //   "from(%s), outside [0, ℓ), throws a RangeError that names from: no reduction mod ℓ",
+  //   (_, input) => {
+  //     expect(() => BoundedInt.from(input)).toThrow(RangeError);
+  //     expect(() => BoundedInt.from(input)).toThrow(/^BoundedInt\.from: /);
+  //   },
+  // );
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // outside [0, ℓ), throws a RangeError that names from: no reduction mod ℓ (the numbers are a TypeError before)"
+  //   -> on a class of the integers [0, ℓ), from(%s) throws a RangeError…; BoundedInt.from(%s), outside [0, 32767.5), throws a RangeError
+  // test.each([
+  //   ["-1n", -1n],
+  //   ["ℓ", L],
+  //   ["ℓ + 1", L + 1n],
+  //   ["2^300", 2n ** 300n],
+  //   ["-(2^300)", -(2n ** 300n)],
+  //   ["2^253", 2n ** 253n],
+  // ] as const)(
+  //   "from(%s), outside [0, ℓ), throws a RangeError that names from: no reduction mod ℓ (the numbers are a TypeError before)",
+  //   (_, input) => {
+  //     expect(() => BoundedInt.from(input)).toThrow(RangeError);
+  //     expect(() => BoundedInt.from(input)).toThrow(/^BoundedInt\.from: /);
+  //     for (const number of [-7, 2 ** 253, 1e300, Number.MAX_VALUE, -Number.MAX_VALUE]) {
+  //       expect(() => BoundedInt.from(number)).toThrow(TypeError);
+  //     }
+  //   },
+  // );
   test.each([
     ["-1n", -1n],
     ["ℓ", L],
@@ -175,6 +361,42 @@ describe("BoundedInt: the instance", () => {
     expect(a.value).toBe(5n);
   });
 
+  // REVIEW PLACEHOLDER (#44: every class has a range, BoundedInt too)
+  // no bounds yet: no min, max, minValue or maxValue, on the class or an instance
+  //   -> the bounds are min and end, on the class: [0n, ℓ) on BoundedInt; no max, minValue or
+  //      maxValue, and none on an instance
+  // test("no bounds yet: no min, max, minValue or maxValue, on the class or an instance", () => {
+  //   for (const name of ["min", "max", "minValue", "maxValue"]) {
+  //     expect(name in BoundedInt).toBe(false);
+  //     expect(name in x()).toBe(false);
+  //   }
+  // });
+  // REVIEW PLACEHOLDER (#44, review of PR #47: exact decimals; toString() does not go through valueOf(); the bounds [min, max))
+  // the bounds are min and end, on the class: [0n, ℓ) on BoundedInt; no max, minValue or maxValue, and none on an instance
+  //   -> the bounds are min and max, on the class: [0n, ℓ) on BoundedInt; no end, minValue or maxValue, and none on an instance
+  // test("the bounds are min and end, on the class: [0n, ℓ) on BoundedInt; no max, minValue or maxValue, and none on an instance", () => {
+  //   expect(BoundedInt.min).toBe(0n);
+  //   expect(BoundedInt.end).toBe(L);
+  //   for (const name of ["min", "end", "max", "minValue", "maxValue"]) {
+  //     expect(name in x()).toBe(false);
+  //   }
+  //   for (const name of ["max", "minValue", "maxValue"]) {
+  //     expect(name in BoundedInt).toBe(false);
+  //   }
+  // });
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // the bounds are min and max, on the class: [0n, ℓ) on BoundedInt
+  //   -> the bounds are min and max, on the class: [0n, 32767.5) on BoundedInt; no end, minValue or maxValue, and none on an instance
+  // test("the bounds are min and max, on the class: [0n, ℓ) on BoundedInt; no end, minValue or maxValue, and none on an instance", () => {
+  //   expect(BoundedInt.min).toBe(0n);
+  //   expect(BoundedInt.max).toBe(L);
+  //   for (const name of ["min", "end", "max", "minValue", "maxValue"]) {
+  //     expect(name in x()).toBe(false);
+  //   }
+  //   for (const name of ["end", "minValue", "maxValue"]) {
+  //     expect(name in BoundedInt).toBe(false);
+  //   }
+  // });
   test("the bounds are min and max, on the class: [0n, 32767.5) on BoundedInt; no end, minValue or maxValue, and none on an instance", () => {
     expect(BoundedInt.min).toBe(0n);
     expect(BoundedInt.max).toBe(32767.5);
@@ -207,6 +429,34 @@ describe("BoundedInt: the instance", () => {
 });
 
 describe("BoundedInt: valueOf and toString", () => {
+  // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ))
+  // from(%s).valueOf() is the number %s
+  //   -> from(%s).valueOf() is the number %s (−7n moves to Signed; 10^300 becomes ℓ − 1)
+  //   -> on a class with negative integers, from(%s).valueOf() is the number %s
+  // test.each([
+  //   [5n, 5],
+  //   [-7n, -7],
+  //   [0n, 0],
+  //   [10n ** 300n, 1e300],
+  //   [2n ** 53n + 1n, 2 ** 53],
+  // ] as const)("from(%s).valueOf() is the number %s", (input, expected) => {
+  //   const result = BoundedInt.from(input).valueOf();
+  //   expect(typeof result).toBe("number");
+  //   expect(result).toBe(expected);
+  // });
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // .valueOf() is the number %s", (input, expected)
+  //   -> on a class of the integers [0, ℓ), from(%s).valueOf() is the number %s
+  // test.each([
+  //   [5n, 5],
+  //   [0n, 0],
+  //   [L - 1n, Number(L - 1n)],
+  //   [2n ** 53n + 1n, 2 ** 53],
+  // ] as const)("from(%s).valueOf() is the number %s", (input, expected) => {
+  //   const result = BoundedInt.from(input).valueOf();
+  //   expect(typeof result).toBe("number");
+  //   expect(result).toBe(expected);
+  // });
   test.each([
     [5n, 5],
     [0n, 0],
@@ -231,12 +481,86 @@ describe("BoundedInt: valueOf and toString", () => {
     },
   );
 
+  // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ); valueOf() is finite on it)
+  // valueOf() of %s, beyond the range of a number, throws a RangeError
+  //   -> "BoundedInt.from: the refusals" / from(%s), outside [0, ℓ), throws a RangeError that
+  //      names from: no reduction mod ℓ
+  //   -> test/bounded-int-scale-edge.test.ts / valueOf() and toString() throw a RangeError
+  //      that names valueOf where the number is ±Infinity, at the scale −300
+  // valueOf() of ±Number.MAX_VALUE, as bigints, is ±Number.MAX_VALUE
+  //   -> from(%s).valueOf() is the number %s (ℓ − 1)
+  // valueOf() of %s, beyond ±Number.MAX_VALUE but rounded to it, is ±Number.MAX_VALUE
+  //   -> from(%s).valueOf() is the number %s (ℓ − 1)
+  // valueOf() of %s, where the number would be ±Infinity, throws a RangeError
+  //   -> test/bounded-int-scale-edge.test.ts / valueOf() and toString() throw a RangeError
+  //      that names valueOf where the number is ±Infinity, at the scale −300
+  // test.each([
+  //   ["2^1100", 2n ** 1100n],
+  //   ["-(2^1100)", -(2n ** 1100n)],
+  // ] as const)("valueOf() of %s, beyond the range of a number, throws a RangeError", (_, input) => {
+  //   expect(() => BoundedInt.from(input).valueOf()).toThrow(RangeError);
+  // });
+  //
+  // test("valueOf() of ±Number.MAX_VALUE, as bigints, is ±Number.MAX_VALUE", () => {
+  //   expect(BoundedInt.from(MAX).valueOf()).toBe(Number.MAX_VALUE);
+  //   expect(BoundedInt.from(-MAX).valueOf()).toBe(-Number.MAX_VALUE);
+  // });
+  //
+  // test.each([
+  //   ["Number.MAX_VALUE + 1", MAX + 1n, Number.MAX_VALUE],
+  //   ["-Number.MAX_VALUE - 1", -MAX - 1n, -Number.MAX_VALUE],
+  // ] as const)(
+  //   "valueOf() of %s, beyond ±Number.MAX_VALUE but rounded to it, is ±Number.MAX_VALUE",
+  //   (_, input, expected) => {
+  //     expect(BoundedInt.from(input).valueOf()).toBe(expected);
+  //   },
+  // );
+  //
+  // test.each([
+  //   ["2^1024 − 2^970", 2n ** 1024n - 2n ** 970n],
+  //   ["-(2^1024 − 2^970)", -(2n ** 1024n - 2n ** 970n)],
+  // ] as const)(
+  //   "valueOf() of %s, where the number would be ±Infinity, throws a RangeError",
+  //   (_, input) => {
+  //     expect(() => BoundedInt.from(input).valueOf()).toThrow(RangeError);
+  //   },
+  // );
   test("integers beyond ±Number.MAX_VALUE are outside [0, ℓ): from refuses them before any valueOf()", () => {
     for (const input of [MAX, MAX + 1n, 2n ** 1100n, -MAX, -(2n ** 1100n)]) {
       expect(() => BoundedInt.from(input)).toThrow(RangeError);
     }
   });
 
+  // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ))
+  // from(%s).toString() is the string of valueOf(): %s
+  //   -> from(%s).toString() is the string of valueOf(): %s (−7n moves to Signed)
+  //   -> on a class with negative integers, toString() of -7n is "-7"
+  // test.each([
+  //   [5n, "5"],
+  //   [-7n, "-7"],
+  //   [10n ** 21n, "1e+21"],
+  // ] as const)("from(%s).toString() is the string of valueOf(): %s", (input, expected) => {
+  //   expect(BoundedInt.from(input).toString()).toBe(expected);
+  // });
+  // REVIEW PLACEHOLDER (#44, review of PR #47: exact decimals; toString() does not go through valueOf(); the bounds [min, max))
+  // from(%s).toString() is the string of valueOf(): %s
+  //   -> from(%s).toString() is the exact decimal: %s
+  // test.each([
+  //   [5n, "5"],
+  //   [10n ** 21n, "1e+21"],
+  // ] as const)("from(%s).toString() is the string of valueOf(): %s", (input, expected) => {
+  //   expect(BoundedInt.from(input).toString()).toBe(expected);
+  // });
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // .toString() is the exact decimal: %s"
+  //   -> on a class of the integers [0, ℓ), from(%s).toString() is the exact decimal: %s
+  // test.each([
+  //   [5n, "5"],
+  //   [10n ** 21n, "1000000000000000000000"],
+  //   [2n ** 53n + 1n, "9007199254740993"],
+  // ] as const)("from(%s).toString() is the exact decimal: %s", (input, expected) => {
+  //   expect(BoundedInt.from(input).toString()).toBe(expected);
+  // });
   test.each([
     [5n, "5"],
     [10n ** 21n, "1000000000000000000000"],
@@ -254,6 +578,53 @@ describe("BoundedInt: valueOf and toString", () => {
 });
 
 describe("BoundedInt: valueOf gives back every integer number that from took", () => {
+  // REVIEW PLACEHOLDER (#44: the range of BoundedInt is [0, ℓ))
+  // from(%s).valueOf() gives the number back
+  //   -> from(%s).valueOf() gives the number back (the rows below ℓ: 2 ** 252 in place of
+  //      1e300, 2 ** 1023 and Number.MAX_VALUE)
+  //   -> on a class with negative integers, from(%s).valueOf() gives the number back
+  // test.each([
+  //   ["0", 0],
+  //   ["-7", -7],
+  //   ["Number.MAX_SAFE_INTEGER", Number.MAX_SAFE_INTEGER],
+  //   ["2 ** 53", 2 ** 53],
+  //   ["-(2 ** 53 + 2)", -(2 ** 53 + 2)],
+  //   ["-(2 ** 60)", -(2 ** 60)],
+  //   ["2 ** 60 + 2 ** 8", 2 ** 60 + 2 ** 8],
+  //   ["1e300", 1e300],
+  //   ["2 ** 1023", 2 ** 1023],
+  //   ["Number.MAX_VALUE", Number.MAX_VALUE],
+  //   ["-Number.MAX_VALUE", -Number.MAX_VALUE],
+  // ] as const)("from(%s).valueOf() gives the number back", (_, n) => {
+  //   expect(BoundedInt.from(n).valueOf()).toBe(n);
+  // });
+  // REVIEW PLACEHOLDER (#44, review of PR #47: a number only on a class of at most 15 digits)
+  // from(%s).valueOf() gives the number back
+  //   -> on a class of 15 digits, from(%s).valueOf() gives the number back
+  // on a class with negative integers, from(%s).valueOf() gives the number back
+  //   -> on a class of 15 digits, from(%s).valueOf() gives the number back (the numbers of
+  //      more digits are a TypeError: see "from(%s), a number on BoundedInt, …")
+  // test.each([
+  //   ["0", 0],
+  //   ["Number.MAX_SAFE_INTEGER", Number.MAX_SAFE_INTEGER],
+  //   ["2 ** 53", 2 ** 53],
+  //   ["2 ** 60 + 2 ** 8", 2 ** 60 + 2 ** 8],
+  //   ["2 ** 252", 2 ** 252],
+  // ] as const)("from(%s).valueOf() gives the number back", (_, n) => {
+  //   expect(BoundedInt.from(n).valueOf()).toBe(n);
+  // });
+  //
+  // test.each([
+  //   ["-7", -7],
+  //   ["-(2 ** 53 + 2)", -(2 ** 53 + 2)],
+  //   ["-(2 ** 60)", -(2 ** 60)],
+  //   ["-(2 ** 251)", -(2 ** 251)],
+  // ] as const)(
+  //   "on a class with negative integers, from(%s).valueOf() gives the number back",
+  //   (_, n) => {
+  //     expect(Signed.from(n).valueOf()).toBe(n);
+  //   },
+  // );
   test.each([
     ["0", 0],
     ["-7", -7],
@@ -264,6 +635,13 @@ describe("BoundedInt: valueOf gives back every integer number that from took", (
     expect(Safe.from(n).valueOf()).toBe(n);
   });
 
+  // REVIEW PLACEHOLDER (#44, review of PR #47: no integerOnly; BoundedInt is [0, 32767.5); numbers rounded to 15 digits)
+  // beyond 15 digits, a bigint gives the nearest number
+  //   -> (the same, on Unsigned)
+  // test("beyond 15 digits, a bigint gives the nearest number: 2n ** 60n + 2n ** 8n gives 2 ** 60 + 2 ** 8", () => {
+  //   expect(BoundedInt.from(2n ** 60n + 2n ** 8n).valueOf()).toBe(2 ** 60 + 2 ** 8);
+  //   expect(Signed.from(-(2n ** 251n)).valueOf()).toBe(-(2 ** 251));
+  // });
   test("beyond 15 digits, a bigint gives the nearest number: 2n ** 60n + 2n ** 8n gives 2 ** 60 + 2 ** 8", () => {
     expect(Unsigned.from(2n ** 60n + 2n ** 8n).valueOf()).toBe(2 ** 60 + 2 ** 8);
     expect(Signed.from(-(2n ** 251n)).valueOf()).toBe(-(2 ** 251));
@@ -322,6 +700,13 @@ describe("BoundedInt: subclasses", () => {
     expect(s.unit).toBe("1/256");
   });
 
+  // REVIEW PLACEHOLDER (#44, review of PR #47: exact decimals; toString() does not go through valueOf(); the bounds [min, max))
+  // toString and the string conversion follow the subclass's valueOf
+  //   -> toString and the string conversion do not follow the subclass's valueOf: they write the integer's decimal
+  // test("toString and the string conversion follow the subclass's valueOf", () => {
+  //   expect(Scaled.from(3).toString()).toBe("3");
+  //   expect(`<${Scaled.from(3) as unknown as string}>`).toBe("<3>");
+  // });
   test("toString and the string conversion do not follow the subclass's valueOf: they write the integer's decimal", () => {
     expect(Scaled.from(3).toString()).toBe("768");
     expect(`<${Scaled.from(3) as unknown as string}>`).toBe("<768>");
@@ -339,4 +724,4 @@ describe("BoundedInt: subclasses", () => {
 // |--------|---------------------------------------------------------------|
 // | #42    | new: the casts, refusals and conversions of BoundedInt (#41)  |
 // | #47    | the range [0, ℓ): negative casts on Signed; −1, ℓ and beyond refused by from; the bounds min and end (#44) |
-// | #51    | the generic BoundedInt of bounded-int.ts; placeholders of #47 removed (#49) |
+// | #51    | imports the generic BoundedInt of bounded-int.ts (#49)        |

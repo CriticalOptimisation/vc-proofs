@@ -242,22 +242,17 @@ describe("BlindingContext: commitments", () => {
   test("a BoundedInt passes its value: blind(x.value) commits to x, and blind(x) and isOpeningOf(x, …) reject with a TypeError", async () => {
     const context = ageCheckContext();
     const x = BoundedInt.from(20000n);
-    // The blinding factors are the scalars, the buckets [−0.5, ℓ − 0.5) (#49): a class of
-    // their own. { min: 0n, max: ℓ } holds ℓ + 1 integers, more than the order ℓ.
-    const Scalars = BoundedInt.define({
-      name: "Scalars",
-      min: -0.5,
-      max: [10n * RistrettoElement.ORDER - 5n, -1],
-    });
     const { commitment, blinding } = await context.blind(x.value);
     expect(commitment.equals(pedersen(20000n, blinding, await context.h()))).toBe(true);
-    expect(await context.isOpeningOf(x.value, Scalars.from(blinding).value, commitment)).toBe(true);
+    expect(await context.isOpeningOf(x.value, BoundedInt.from(blinding).value, commitment)).toBe(
+      true,
+    );
     await expect(context.blind(x as never)).rejects.toBeInstanceOf(TypeError);
     await expect(context.isOpeningOf(x as never, blinding, commitment)).rejects.toBeInstanceOf(
       TypeError,
     );
     await expect(
-      context.isOpeningOf(20000n, Scalars.from(blinding) as never, commitment),
+      context.isOpeningOf(20000n, BoundedInt.from(blinding) as never, commitment),
     ).rejects.toBeInstanceOf(TypeError);
   });
 
@@ -436,4 +431,4 @@ describe("BlindingContext over another group", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #40    | new: the preliminary tests of BlindingContext, its group, bigint scalars, a BoundedInt's value (#39) |
-// | #51    | Scalars: [−0.5, ℓ − 0.5), the order ℓ of ./core (#49)         |
+// | #51    | the blinding factor through BoundedInt itself, the integer of Z_ℓ (#49) |

@@ -12,7 +12,7 @@
  * - `expand_message_xmd` runs on WebCrypto (`crypto.subtle.digest("SHA-512")`), so
  *   `hashToGroup` and `deriveGenerator` are asynchronous. `MAP` (RFC 9496, Section
  *   4.3.4) is written here, since noble does not export it.
- * - `BoundedInt`, the integer of Z_ℓ (docs/core/bounded-int.md), extends the generic
+ * - `BoundedInt`, the integer of Z_ℓ (docs/core/ristretto255.md), extends the generic
  *   class of `bounded-int.ts` with the bounds `[−0.5, ℓ − 0.5)` and the order `ℓ`, which
  *   every class made from it inherits: its `define` takes no `order`.
  *
@@ -325,7 +325,7 @@ export type RistrettoBoundedIntSpec = Omit<BoundedIntSpec, "order"> & { readonly
  * The integer of Z_ℓ: scale 0, the bounds `[−0.5, ℓ − 0.5)`, `ℓ` equal buckets, one for
  * each integer from 0 to `ℓ − 1`, and the order `ℓ`, which every class made from it
  * inherits. Its values need 76 digits, so it takes no `number`; a class of a narrower
- * range made from it does. Frozen. See docs/core/bounded-int.md.
+ * range made from it does. Frozen. See docs/core/ristretto255.md, *BoundedInt*.
  */
 export class BoundedInt extends GenericBoundedInt {
   /** `−0.5`: the bucket of 0 is `[−0.5, 0.5)`. */

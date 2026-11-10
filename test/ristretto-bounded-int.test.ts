@@ -110,6 +110,14 @@ describe("BoundedInt of ./core and the generic class", () => {
     expect(GenericBoundedInt.order).toBeUndefined();
   });
 
+  test("a class made by its define is a frozen subclass of it, whose prototype chain reaches the generic class", () => {
+    const Mass = BoundedInt.define({ name: "Mass", min: 0, max: 100.05, step: 0.1 });
+    expect(Object.isFrozen(Mass)).toBe(true);
+    expect(Object.getPrototypeOf(Mass)).toBe(BoundedInt);
+    expect(Object.getPrototypeOf(BoundedInt)).toBe(GenericBoundedInt);
+    expect(Mass.from(0)).toBeInstanceOf(Mass);
+  });
+
   test("a class written by hand may redeclare the order: nothing prevents it", () => {
     class Byte extends BoundedInt {
       static override readonly min = -0.5;
