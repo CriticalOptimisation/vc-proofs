@@ -121,3 +121,54 @@ describe("BoundedInt of ./core and the generic class", () => {
     expect(BoundedInt.order).toBe(L);
   });
 });
+
+describe("BoundedInt of ./core: edge cases", () => {
+  test("define accepts order: undefined, as if left out: the class inherits ℓ", () => {
+    // The type refuses it (exactOptionalPropertyTypes); a caller in JavaScript may pass it.
+    const spec = { name: "Byte", min: -0.5, max: 255.5, order: undefined };
+    const Byte = BoundedInt.define(spec as never);
+    expect(Byte.order).toBe(L);
+    expect(Byte.from(255).value).toBe(255n);
+  });
+
+  test.each([
+    ["null", null],
+    ["a string", "Byte"],
+    ["a bigint", 256n],
+  ] as const)("define on %s keeps the TypeError of the generic define", (_, spec) => {
+    expect(() => BoundedInt.define(spec as never)).toThrow(TypeError);
+    expect(() => BoundedInt.define(spec as never)).toThrow(
+      /^BoundedInt\.define: spec must be an object$/,
+    );
+  });
+
+  test("valueOf() and toString() of ℓ − 1: the nearest number, and the 76 exact digits", () => {
+    const top = BoundedInt.fromValue(L - 1n);
+    expect(top.toString()).toBe((L - 1n).toString());
+    expect(top.toString()).toHaveLength(76);
+    expect(top.valueOf()).toBe(Number(L - 1n));
+  });
+
+  test("errorBound is ½ / ℓ: half a step over the ℓ steps of [−0.5, ℓ − 0.5)", () => {
+    const expected = 0.5 / Number(L);
+    expect(Math.abs(BoundedInt.errorBound - expected) / expected).toBeLessThan(1e-15);
+    expect(BoundedInt.quadraticError).toBe(BoundedInt.errorBound);
+    expect(BoundedInt.termError).toBe(BoundedInt.errorBound);
+  });
+
+  test("the ties near the top round to even: ℓ − 1.5 gives ℓ − 1, ℓ − 2.5 gives ℓ − 3 (ℓ is odd)", () => {
+    expect(L % 2n).toBe(1n);
+    expect(BoundedInt.from([10n * L - 15n, -1]).value).toBe(L - 1n);
+    expect(BoundedInt.from([10n * L - 25n, -1]).value).toBe(L - 3n);
+  });
+
+  test("at 400 digits: just below max gives ℓ − 1, just below min is refused", () => {
+    const tiny = 10n ** 399n;
+    expect(BoundedInt.from([(10n * L - 5n) * tiny - 1n, -400]).value).toBe(L - 1n);
+    expect(BoundedInt.from([-5n * tiny, -400]).value).toBe(0n);
+    expect(() => BoundedInt.from([-5n * tiny - 1n, -400])).toThrow(RangeError);
+    expect(() => BoundedInt.from([-5n * tiny - 1n, -400])).toThrow(
+      /^BoundedInt\.from: x is below BoundedInt\.min$/,
+    );
+  });
+});
