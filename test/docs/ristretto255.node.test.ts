@@ -38,13 +38,6 @@ function members(cls: { readonly prototype: unknown }): string[] {
   return [...statics.map((name) => `static ${name}`), ...instance];
 }
 
-// REVIEW PLACEHOLDER (PR #40: scalars are bigints)
-// docs/core/ristretto255.md, section %s: the classes RistrettoElement and RistrettoScalar
-//   -> docs/core/ristretto255.md, section %s: the class RistrettoElement only; and docs/core/ristretto255.md documents scalars as bigints
-// const classes = [
-//   ["RistrettoElement", RistrettoElement],
-//   ["RistrettoScalar", RistrettoScalar],
-// ] as const;
 const classes = [["RistrettoElement", RistrettoElement]] as const;
 
 describe.each(classes)("docs/core/ristretto255.md, section %s", (title, cls) => {
@@ -92,10 +85,22 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
     expect(text).not.toMatch(/returns the identity before/);
   });
 
-  test("Scalars sends a number of the application through BoundedInt, whose value the group takes", () => {
+  // REVIEW PLACEHOLDER (#49: the BoundedInt of ./core takes no number)
+  // Scalars sends a number of the application through BoundedInt, whose value the group takes
+  //   -> Scalars sends an integer of the application through BoundedInt, whose value the group takes; BoundedInt has the order ℓ
+  // test("Scalars sends a number of the application through BoundedInt, whose value the group takes", () => {
+  //   expect(members(RistrettoElement)).toContain("static encodeScalar");
+  //   expect(section("Scalars")).toMatch(/\(bounded-int\.md\)/);
+  //   expect(section("Scalars")).toMatch(/`P\.multiplyScalar\(BoundedInt\.from\(5\)\.value\)`/);
+  // });
+  test("Scalars sends an integer of the application through BoundedInt, whose value the group takes; BoundedInt has the order ℓ", () => {
     expect(members(RistrettoElement)).toContain("static encodeScalar");
     expect(section("Scalars")).toMatch(/\(bounded-int\.md\)/);
-    expect(section("Scalars")).toMatch(/`P\.multiplyScalar\(BoundedInt\.from\(5\)\.value\)`/);
+    expect(section("Scalars")).toMatch(/`P\.multiplyScalar\(BoundedInt\.from\(5n\)\.value\)`/);
+    expect(section("Scalars")).toMatch(
+      /The `BoundedInt` of the\s+low-level entry point has the order `ℓ`/,
+    );
+    expect(section("Scalars")).toMatch(/\(bounded-int\.md#the-range-of-a-class\)/);
   });
 });
 

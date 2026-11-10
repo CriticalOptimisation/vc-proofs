@@ -242,8 +242,13 @@ describe("BlindingContext: commitments", () => {
   test("a BoundedInt passes its value: blind(x.value) commits to x, and blind(x) and isOpeningOf(x, …) reject with a TypeError", async () => {
     const context = ageCheckContext();
     const x = BoundedInt.from(20000n);
-    // The blinding factors are the scalars [0, ℓ), a class of their own (#44).
-    const Scalars = BoundedInt.define({ name: "Scalars", min: 0n, max: RistrettoElement.ORDER });
+    // The blinding factors are the scalars, the buckets [−0.5, ℓ − 0.5) (#49): a class of
+    // their own. { min: 0n, max: ℓ } holds ℓ + 1 integers, more than the order ℓ.
+    const Scalars = BoundedInt.define({
+      name: "Scalars",
+      min: -0.5,
+      max: [10n * RistrettoElement.ORDER - 5n, -1],
+    });
     const { commitment, blinding } = await context.blind(x.value);
     expect(commitment.equals(pedersen(20000n, blinding, await context.h()))).toBe(true);
     expect(await context.isOpeningOf(x.value, Scalars.from(blinding).value, commitment)).toBe(true);
