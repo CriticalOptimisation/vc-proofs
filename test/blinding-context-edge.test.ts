@@ -62,7 +62,7 @@ const Scalar = ageCheckContext().boundedInt();
 /** A class of values made from it. */
 const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
 /** An opening built by hand, with the integers of its value and of its blinding factor. */
-function opening(commitment: RistrettoElement, m: bigint, r: bigint): Blinded {
+function opening(commitment: RistrettoElement, m: bigint, r: bigint): Blinded<RistrettoElement> {
   return { commitment, value: Days.fromValue(m), blinding: Scalar.fromValue(r) };
 }
 /** A class of `n` integers `0 … n − 1`, on the generic class, which does not count them. */
@@ -215,7 +215,9 @@ describe("BlindingContext: an invalid context", () => {
   test("rejects with the RangeError before it looks at the arguments", async () => {
     const context = invalidContext();
     await expect(context.blind(1 as unknown as GenericBoundedInt)).rejects.toThrow(RangeError);
-    await expect(context.isOpeningOf(null as unknown as Blinded)).rejects.toThrow(RangeError);
+    await expect(context.isOpeningOf(null as unknown as Blinded<RistrettoElement>)).rejects.toThrow(
+      RangeError,
+    );
     // A class that does not fit the group: the RangeError of the validation, not its own.
     await expect(context.blind(wide("Wide", L + 1n).fromValue(1n))).rejects.toThrow(
       /not the generator derived from message/,
@@ -273,8 +275,8 @@ describe("BlindingContext: commitments and openings", () => {
 
   test("a Blinded and a Committed are plain structures of the entry point's types", async () => {
     const context = ageCheckContext();
-    const blinded: Blinded = await context.blind(Days.from(20000n));
-    const committed: Committed = { commitment: blinded.commitment, type: Days };
+    const blinded: Blinded<RistrettoElement> = await context.blind(Days.from(20000n));
+    const committed: Committed<RistrettoElement> = { commitment: blinded.commitment, type: Days };
     expect(Object.getPrototypeOf(blinded)).toBe(Object.prototype);
     expect(committed.type).toBe(blinded.value.constructor);
     expectTypeOf(blinded.commitment).toEqualTypeOf<RistrettoElement>();
@@ -410,16 +412,18 @@ describe("BlindingContext: commitments and openings", () => {
     ["a bigint", 1n],
     ["a string", "opening"],
   ])("isOpeningOf of %s, not an object, rejects with a TypeError", async (_name, value) => {
-    await expect(ageCheckContext().isOpeningOf(value as Blinded)).rejects.toThrow(
+    await expect(ageCheckContext().isOpeningOf(value as Blinded<RistrettoElement>)).rejects.toThrow(
       /^BlindingContext\.isOpeningOf: opening must be an object$/,
     );
   });
 
   test("isOpeningOf of an object without its parts rejects with a TypeError, the value checked first", async () => {
     const context = ageCheckContext();
-    await expect(context.isOpeningOf({} as Blinded)).rejects.toThrow(/opening\.value must be/);
+    await expect(context.isOpeningOf({} as Blinded<RistrettoElement>)).rejects.toThrow(
+      /opening\.value must be/,
+    );
     const { value } = opening(g(), 1n, 1n);
-    await expect(context.isOpeningOf({ value } as Blinded)).rejects.toThrow(
+    await expect(context.isOpeningOf({ value } as Blinded<RistrettoElement>)).rejects.toThrow(
       /opening\.blinding must be/,
     );
   });
@@ -706,10 +710,12 @@ describe("BlindingContext: the queues of blindings", () => {
   });
 
   test("the seams refuse what is not a context", async () => {
-    expect(() => seams.queuedBlindings({} as BlindingContext)).toThrow(TypeError);
-    await expect(seams.blindWith({} as BlindingContext, 1n, () => 1n)).rejects.toThrow(TypeError);
+    expect(() => seams.queuedBlindings({} as BlindingContext<RistrettoElement>)).toThrow(TypeError);
     await expect(
-      seams.blindValueWith({} as BlindingContext, Days.from(1n), () => 1n),
+      seams.blindWith({} as BlindingContext<RistrettoElement>, 1n, () => 1n),
+    ).rejects.toThrow(TypeError);
+    await expect(
+      seams.blindValueWith({} as BlindingContext<RistrettoElement>, Days.from(1n), () => 1n),
     ).rejects.toThrow(/^blindValueWith: context must be a BlindingContext$/);
   });
 });
@@ -911,25 +917,33 @@ describe("BlindingContext over a group of its own", () => {
   //   expectTypeOf(other.group).toEqualTypeOf<Group<RistrettoElement>>();
   //   expect((await other.h()).equals(RistrettoElement.decode(await hOf(group)))).toBe(true);
   // });
-  test("the types are inferred from the group, default to ristretto255, and values and blinding factors are bounded integers", async () => {
+  test("the types are inferred from the group, with no default, and values and blinding factors are bounded integers", async () => {
     // Checked by tsc, which type-checks the tests; at run time these are no-ops.
     expectTypeOf(RistrettoElement).toExtend<Group<RistrettoElement>>();
     expectTypeOf<ReturnType<typeof RistrettoElement.randomScalar>>().toEqualTypeOf<bigint>();
     expectTypeOf<Parameters<RistrettoElement["multiplyScalar"]>[0]>().toEqualTypeOf<bigint>();
+    type Context = BlindingContext<RistrettoElement>;
+    type Opening = Blinded<RistrettoElement>;
+    // No default: the parameter is inferred from the group, never assumed.
+    // @ts-expect-error -- BlindingContext needs the type of its elements
+    expectTypeOf<BlindingContext>();
+    // @ts-expect-error -- Blinded needs the type of its elements
+    expectTypeOf<Blinded>();
+    // @ts-expect-error -- Committed needs the type of its elements
+    expectTypeOf<Committed>();
     const age = ageCheckContext();
-    // `BlindingContext` alone is `BlindingContext<RistrettoElement>`.
-    expectTypeOf(age).toEqualTypeOf<BlindingContext>();
+    expectTypeOf(age).toEqualTypeOf<Context>();
     expectTypeOf(age.h()).toEqualTypeOf<Promise<RistrettoElement>>();
-    expectTypeOf<Parameters<BlindingContext["blind"]>[0]>().toEqualTypeOf<GenericBoundedInt>();
-    expectTypeOf<Awaited<ReturnType<BlindingContext["blind"]>>>().toEqualTypeOf<Blinded>();
-    expectTypeOf<Blinded["blinding"]>().toEqualTypeOf<GenericBoundedInt>();
-    expectTypeOf<Parameters<BlindingContext["isOpeningOf"]>[0]>().toEqualTypeOf<Blinded>();
+    expectTypeOf<Parameters<Context["blind"]>[0]>().toEqualTypeOf<GenericBoundedInt>();
+    expectTypeOf<Awaited<ReturnType<Context["blind"]>>>().toEqualTypeOf<Opening>();
+    expectTypeOf<Opening["blinding"]>().toEqualTypeOf<GenericBoundedInt>();
+    expectTypeOf<Parameters<Context["isOpeningOf"]>[0]>().toEqualTypeOf<Opening>();
     expectTypeOf(age.boundedInt()).toEqualTypeOf<typeof GenericBoundedInt>();
     // The group is required: fromEncoded takes exactly three parameters, none optional.
     expectTypeOf<Parameters<typeof BlindingContext.fromEncoded>["length"]>().toEqualTypeOf<3>();
     const group = plainGroup();
     const other = BlindingContext.fromEncoded(await hOf(group), message(), group);
-    expectTypeOf(other).toEqualTypeOf<BlindingContext>();
+    expectTypeOf(other).toEqualTypeOf<Context>();
     expectTypeOf(other.group).toEqualTypeOf<Group<RistrettoElement>>();
     expect((await other.h()).equals(RistrettoElement.decode(await hOf(group)))).toBe(true);
   });

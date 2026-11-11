@@ -106,6 +106,11 @@ describe("after the build", { timeout: 120_000 }, () => {
       /static fromEncoded<E extends \w+>\(h: Uint8Array, message: Uint8Array, group: Group<E>\): BlindingContext<E>;/,
     );
     expect(context).not.toMatch(/group\?:/);
+    // blinding-context.ts names no group of its own, not even as a type default.
+    expect(context).not.toMatch(/from "\.\/ristretto\.js"|import\("\.\/ristretto\.js"\)/);
+    expect(readFileSync(`${root}dist/core/blinding-context.js`, "utf8")).not.toContain(
+      "./ristretto.js",
+    );
     expect(context).toMatch(/readonly ORDER: bigint;/);
   });
 
@@ -182,4 +187,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #47    | ./core declares the constants, min and end included, and new members of BoundedInt (#44) |
 // | #51    | ./core exports BoundedInt from ristretto.ts and declares it (#49) |
 // | #53    | declarations without order, RistrettoBoundedIntSpec or define override; low, high, define<T> (#52) |
-// | #55    | ./core exports no BoundedInt; the types Committed, Blinded, Group; a required group (#48) |
+// | #55    | ./core exports no BoundedInt; the types Committed, Blinded, Group; a required group; blinding-context.ts names no ristretto255 (#48) |

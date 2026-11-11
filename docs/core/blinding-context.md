@@ -307,12 +307,12 @@ of the value is `value.constructor`, so a `Blinded` does not repeat it. The `Com
 a `Blinded` `b` is `{ commitment: b.commitment, type: b.value.constructor }`.
 
 ```ts
-interface Committed<E = RistrettoElement> {
+interface Committed<E> {
   readonly commitment: E;
   readonly type: typeof BoundedInt; // the class of the value
 }
 
-interface Blinded<E = RistrettoElement> {
+interface Blinded<E> {
   readonly commitment: E;
   readonly value: BoundedInt; // its class is value.constructor
   readonly blinding: BoundedInt; // of the class of the group, 1 … ℓ − 1
@@ -333,10 +333,10 @@ opening.value.constructor === Days; // true
 await context.isOpeningOf(opening); // true
 
 // What the verifier holds: the commitment and the class of the claim.
-const committed: Committed = { commitment: opening.commitment, type: Days };
+const committed: Committed<RistrettoElement> = { commitment: opening.commitment, type: Days };
 
 // What a wallet rebuilds from the bytes of the issuer.
-const received: Blinded = {
+const received: Blinded<RistrettoElement> = {
   commitment: RistrettoElement.decode(commitmentBytes),
   value: Days.fromValue(days),
   blinding: Scalar.fromValue(RistrettoElement.decodeScalar(blindingBytes)),
@@ -373,12 +373,12 @@ for anything else. The context checks that `ORDER` is a `bigint` above 1, since 
 its class from it; it trusts the other members of its group, and its arithmetic.
 
 **In TypeScript**, a group is the interface `Group<E>`, of elements `E`, and the class
-is `BlindingContext<E>`, whose parameter defaults to `RistrettoElement`, as the
-parameters of `Committed<E>` and `Blinded<E>` do: a default of the type checker only,
-which the code erases. The parameter is inferred from the group given to `fromEncoded`,
-so a caller never writes it: `h()` of
-a ristretto255 context is a `Promise<RistrettoElement>`, not an `any`, and the
-`commitment` of `blind` is a `RistrettoElement`. It exists only for the type checker:
+is `BlindingContext<E>`. The parameter has no default, nor do those of `Committed<E>`
+and `Blinded<E>`: the context names no group of its own. It is inferred from the group
+given to `fromEncoded`, so a caller never writes it for a context: `h()` of a
+ristretto255 context is a `Promise<RistrettoElement>`, not an `any`, and the
+`commitment` of `blind` is a `RistrettoElement`. A caller that names one of these types
+writes its parameter: `Blinded<RistrettoElement>`. It exists only for the type checker:
 there is one class at run time, and the group in its field does all the work. A class
 held in a variable cannot be called with `new` when its constructor is private, as the
 constructor of `RistrettoElement` is; the context uses only the static members of its

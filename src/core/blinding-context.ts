@@ -8,9 +8,10 @@
  *   yields `h`, or anything computed from `h`, awaits `#ready` first, so each one
  *   rejects with the `RangeError` of the validation when it failed.
  * - Every piece of arithmetic goes through the group held in `#group`, which the caller
- *   gives to `fromEncoded`: there is no default group, so this file imports nothing of
- *   ristretto.ts at run time (docs/core/blinding-context.md, *The group*). The type
- *   parameters, and their default `RistrettoElement`, exist for the type checker only.
+ *   gives to `fromEncoded`: there is no default group, and this file imports nothing of
+ *   ristretto.ts (docs/core/blinding-context.md, *The group*). The type parameter `E`,
+ *   the elements of the group, has no default: it is inferred from the group given to
+ *   `fromEncoded`, and exists for the type checker only.
  * - The values and the blinding factors are bounded integers (bounded-int.ts). Each group
  *   has one class of integers `0 … ORDER − 1`, `<SUITE_NAME>Scalar`, made at the first
  *   context over it and kept in a `WeakMap` (*The class of a group*). A value is checked
@@ -21,15 +22,14 @@
  * The functions exported below the class are for the tests, not for the entry point.
  */
 import { BoundedInt as GenericBoundedInt } from "./bounded-int.js";
-import type { RistrettoElement } from "./ristretto.js";
 
 /** The length at which the queue of blindings stops filling. */
 const QUEUE_LENGTH = 10;
 
 /**
- * What a context needs of the elements of its group. Written with `this`, so that
- * `RistrettoElement` can be the default of the parameter it constrains. The scalars of
- * every group are `bigint`s (docs/core/ristretto255.md, *Scalars*).
+ * What a context needs of the elements of its group. Written with `this`, so that a class
+ * whose methods take and return its own instances, such as `RistrettoElement`, satisfies
+ * it. The scalars of every group are `bigint`s (docs/core/ristretto255.md, *Scalars*).
  */
 interface GroupElement {
   encode(): Uint8Array;
@@ -71,7 +71,7 @@ interface Pair<E> {
  * What a verifier has: a commitment, and the class of the value it commits to. A plain
  * structure (docs/core/blinding-context.md, *Committed and Blinded*).
  */
-export interface Committed<E = RistrettoElement> {
+export interface Committed<E extends GroupElement> {
   readonly commitment: E;
   /** The class of the value. */
   readonly type: typeof GenericBoundedInt;
@@ -82,7 +82,7 @@ export interface Committed<E = RistrettoElement> {
  * blinding factor of the class of the group. A plain structure, which anyone may build;
  * `blind` returns a frozen one.
  */
-export interface Blinded<E = RistrettoElement> {
+export interface Blinded<E extends GroupElement> {
   readonly commitment: E;
   /** The value; its class is `value.constructor`. */
   readonly value: GenericBoundedInt;
@@ -199,7 +199,7 @@ let internals: <E extends GroupElement>(
  * elements of its group, inferred from the group given to `fromEncoded`; the values and
  * the blinding factors are bounded integers. See docs/core/blinding-context.md.
  */
-export class BlindingContext<E extends GroupElement = RistrettoElement> {
+export class BlindingContext<E extends GroupElement> {
   readonly #group: Group<E>;
   /** The class of the integers of the group, shared by its contexts. */
   readonly #scalar: typeof GenericBoundedInt;
