@@ -523,3 +523,4 @@ export function queuedBlindings<E extends GroupElement>(context: BlindingContext
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #40    | new: BlindingContext, its group, validation, queue and seams; bigint scalars (#39) |
+// | #55    | ORDER; the group is required; boundedInt(); blind and isOpeningOf of bounded integers; Committed, Blinded; blindValueWith (#48) |

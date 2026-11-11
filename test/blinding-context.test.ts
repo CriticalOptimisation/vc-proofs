@@ -665,3 +665,4 @@ describe("BlindingContext over another group", () => {
 // |--------|---------------------------------------------------------------|
 // | #40    | new: the preliminary tests of BlindingContext, its group, bigint scalars, a BoundedInt's value (#39) |
 // | #51    | the blinding factor through BoundedInt itself, the integer of Z_ℓ (#49) |
+// | #55    | Committed and Blinded, ORDER, blind of a bounded integer, boundedInt(), a required group (#48) |

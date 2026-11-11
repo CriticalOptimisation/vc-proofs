@@ -263,4 +263,5 @@ Change History
 | #37 | the derivation of h: construction, parameters, trust argument, vectors (#34) |
 | #38 | h as the factory RistrettoElement.deriveGenerator (#35) |
 | #40 | runtime use: the check of BlindingContext (#39) |
+| #55 | runtime use: fromEncoded names its group, RistrettoElement (#48) |
 -->

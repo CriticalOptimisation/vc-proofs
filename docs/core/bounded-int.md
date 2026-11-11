@@ -419,4 +419,5 @@ Change History
 | #47 | decimal classes: scale, the exact bounds [min, max), order, error; quantities as decimals, numbers at 15 digits; from, fromValue, define; valueOf, toString, toLocaleString, rounding (#44) |
 | #51 | notice: ./core exports a specialized subclass (#49) |
 | #53 | no order: a class holds no more values than its parent, unless its parent is BoundedInt; static low and high; define typed as its class, other keys ignored (#52) |
+| #55 | notice: ./core gives the subclass through the boundedInt() of a blinding context (#48) |
 -->

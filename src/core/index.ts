@@ -29,3 +29,4 @@ export { RistrettoElement } from "./ristretto.js";
 // | #42    | export BoundedInt (#41)                                       |
 // | #51    | export BoundedInt from ristretto.ts, not the generic class (#49) |
 // | #53    | header: the BoundedInt of Z_ℓ holds at most ℓ integers, as every class made from it (#52) |
+// | #55    | export the types Blinded and Committed; no BoundedInt (#48) |

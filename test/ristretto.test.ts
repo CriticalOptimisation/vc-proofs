@@ -455,3 +455,4 @@ describe("The scalar members of RistrettoElement", () => {
 // | #40    | scalars are bigints: the tests of RistrettoScalar become placeholders; ORDER, encodeScalar, decodeScalar, invertScalar; the value of a BoundedInt (#39) |
 // | #47    | a BoundedInt passes its value: ℓ − 1 in place of −1; placeholders of #40 removed (#44) |
 // | #51    | ℓ − 1 through BoundedInt itself, the integer of Z_ℓ (#49)     |
+// | #55    | a bounded integer of the constants of Z_ℓ, on the generic class (#48) |

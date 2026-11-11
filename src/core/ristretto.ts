@@ -483,3 +483,4 @@ function hex(bytes: Uint8Array): string {
 // | #40    | SUITE_NAME, randomScalar, ORDER, encodeScalar, decodeScalar, invertScalar; bigint scalars, RistrettoScalar removed; multiplyScalar multiplies even for a scalar that reduces to 0 (#39) |
 // | #51    | BoundedInt, the integer of Z_ℓ: [−0.5, ℓ − 0.5), order ℓ; define without order; RistrettoBoundedIntSpec (#49) |
 // | #53    | BoundedInt: no order, no RistrettoBoundedIntSpec, no define override (#52) |
+// | #55    | BoundedInt removed: the blinding context makes the class of its group (#48) |

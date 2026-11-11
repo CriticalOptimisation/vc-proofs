@@ -991,3 +991,4 @@ describe("bigint scalars far beyond ℓ, through blindWith", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #40    | new: the edge cases of BlindingContext, of its group, of bigint scalars (#39) |
+// | #55    | values are bounded integers; a missing group, bad ORDER, wrong classes, the class of a group, order 7 (#48) |

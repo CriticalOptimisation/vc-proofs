@@ -219,3 +219,4 @@ describe("docs/core/bounded-int.md: the notice of the BoundedInt of the entry po
 // |--------|---------------------------------------------------------------|
 // | #51    | new: the section BoundedInt of ristretto255.md, and the notice of bounded-int.md (#49) |
 // | #53    | no order; low and high; own members min and max; the generic define (#52) |
+// | #55    | the class of a group in blinding-context.md, from context.boundedInt() (#48) |

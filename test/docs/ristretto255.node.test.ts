@@ -114,3 +114,4 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
 // | #40    | scalars are bigints: no section RistrettoScalar; ORDER, encodeScalar, decodeScalar, invertScalar; BoundedInt; randomScalar needs ℓ; multiplyScalar of 0 (#39) |
 // | #51    | BoundedInt.from(5n); the links to the section BoundedInt (#49) |
 // | #53    | Ranges: no class made from BoundedInt holds more than ℓ integers; placeholder of #49 removed (#52) |
+// | #55    | Scalars through context.boundedInt() (#48) |

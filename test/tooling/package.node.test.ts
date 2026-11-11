@@ -182,3 +182,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #47    | ./core declares the constants, min and end included, and new members of BoundedInt (#44) |
 // | #51    | ./core exports BoundedInt from ristretto.ts and declares it (#49) |
 // | #53    | declarations without order, RistrettoBoundedIntSpec or define override; low, high, define<T> (#52) |
+// | #55    | ./core exports no BoundedInt; the types Committed, Blinded, Group; a required group (#48) |

@@ -174,3 +174,4 @@ test("docs/core/blinding-context.md quotes the RangeError of blind, which prints
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #40    | new: the page names every public member, and the serialization (#39) |
+// | #55    | boundedInt; the example of Committed and Blinded; the RangeError of blind; a required group (#48) |
