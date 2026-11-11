@@ -62,36 +62,113 @@ The library must defeat each of these. The functions that answer them are listed
 
 ## Accepted residual risks
 
-These risks remain by design. Each is stated with the reason it is accepted.
+These risks remain by design. Each is stated with the reason it is accepted. They are
+grouped by severity, the most severe group first, and ordered within each group, so that
+a new risk can be placed among them by the same rules.
+
+**Rule 0: who bears the outcome.** An item is a threat only if its outcome falls on
+someone who did not knowingly bring it about. Two cases are not threats: a minor who
+obtains restricted content with an adult as a knowing accomplice, since the adult takes
+the responsibility; and a holder whose acts harm only the holder. For restricted content,
+the consent that counts is the adult's: an age restriction protects minors whatever they
+want, so a minor who circumvents it alone is a threat. For a loss of access or of
+privacy, it is the consent of the person who bears it. An item with a variant of each
+kind is ranked by the variant without consent. Items that are not threats stay in the
+list, under [Not a threat](#not-a-threat).
+
+**Rules 1 to 4: how a threat is ranked.**
+
+1. The attackers an item names act deliberately and do whatever they are willing to do,
+   as often as needed. The item is ranked by the worst outcome they can reach that way.
+2. What plays no part: how likely the attack is, how often it must be repeated, the
+   effort of each repetition, the need for an accomplice (the accomplice the item names
+   is assumed willing), and the chance that someone notices.
+3. Only capability limits count: what the attackers cannot do however willing, such as
+   forging the signature of a hardware authenticator, exporting a non-extractable key
+   from an honest browser, or choosing the pair digest the issuer signs.
+4. Within a group, the reach of the outcome decides: how many holders, minors or
+   verifiers it can extend to. Items of equal reach go in label order.
+
+A label never encodes a position. A new risk takes the next free number wherever it is
+placed, and a risk that moves to another group keeps its label.
+
+### Circumvention at will
+
+A minor obtains age-restricted content as long and as often as the attackers want,
+whether one act is enough or each access needs a fresh one.
 
 - **A1** A browser or WebAuthn implementation broken on purpose, including one that lets
   a non-extractable key be exported. The platform is the root of the ceremonies.
-- **A2** A real-time relay to a cooperating adult, who answers the ceremony in place of
-  the holder.
-- **A3** An adult who enrolled genuinely and then delegates on purpose, for example by
-  lending a device that holds the master key.
-- **A4** A holder who extracts their own witnesses after a genuine UV. Encryption at
-  rest protects personal data from others, not from the data subject. The holder learns
-  their own date of birth and blinding factors and gains nothing: a proof still needs the
-  pair passkey and the certified commitment.
-- **A5** A holder who damages their own wallet. The result is invalid proofs, never
-  access to restricted content.
-- **A6** Data that an authorized verifier receives and then leaks (see
-  [Leak at a verifier](#leak-at-a-verifier)).
-- **A7** An issuer that puts a wrong date of birth into a credential or uses weak
-  randomness, and an identity-check provider that returns a wrong result. These are the
-  trust assumptions of the [trust model](#trust-model). Any other failure of the issuer
-  (a malformed credential, a wrong pair digest, a disclosure meant for the issuer left in
-  a credential for a verifier) is not accepted: the verifier must detect it.
-- **A8** Inference of the holder's age from the answers to repeated authorized requests
-  (see [Inference from repeated requests](#inference-from-repeated-requests)).
+- **A7** An issuer that puts into a credential a date of birth that makes the holder
+  older than they are, or an identity-check provider that returns one, including a check
+  that a minor fools, for example with an adult's documents taken without consent. These
+  are trust assumptions of the [trust model](#trust-model). An adult who hands over their
+  documents knowingly delegates on purpose: that is **A3**. Any other failure of the
+  issuer (a malformed credential, a wrong pair digest, a disclosure meant for the issuer
+  left in a credential for a verifier) is not accepted: the verifier must detect it.
 - **A9** User verification taken as proof that the person present is the person whose
   identity was checked. It is not: UV shows that someone unlocked the authenticator.
+
+### Limited access
+
+A minor obtains a limited amount of age-restricted content, or obtains it for a limited
+period, because of a limit the attackers cannot lift whatever they do. None at present.
+
+### Loss of privacy
+
+Facts about the holder reach a party that should not have them, without the active
+involvement of the holder: for example, a date of birth or linkable requests.
+
+- **A12** An issuer that draws weak randomness for the blinding factors of its
+  commitments or the salts of its disclosures. It breaks hiding, not binding: an attacker
+  who can enumerate the candidate blinding factors can search the committed value and
+  learn the exact date of birth (see
+  [Search of a committed value](#search-of-a-committed-value)), a blinding factor reused
+  for two pairs makes them linkable, and a weak salt lets a verifier recover a hidden
+  disclosure from its digest. Good randomness is a trust assumption of the
+  [trust model](#trust-model). A weak nonce in the issuer's own signature is not this
+  risk: it would expose the issuer's signing key, which no item here accepts.
+- **A6** Data that an authorized verifier receives and then leaks (see
+  [Leak at a verifier](#leak-at-a-verifier)).
 - **A10** A wallet that, at issuance, binds a key pair already bound to another pair. A
   stateless issuer keeps no list of bound keys and cannot notice it, and the two pairs
   become linkable. A registry of bound public keys would close it at the cost of issuer
   state; the question is deferred. The same failure at presentation time is not accepted
   (see [Pair-binding failure](#pair-binding-failure)).
+- **A8** Inference of the holder's age from the answers to repeated authorized requests
+  (see [Inference from repeated requests](#inference-from-repeated-requests)).
+
+### Loss of access: wallet or issuer failure
+
+An adult is refused content because of a failure of the wallet or the issuer that no
+verifier detects.
+
+- **A11** An issuer that puts into a credential a date of birth that makes the holder
+  younger than they are, or an identity-check provider that returns one or wrongly
+  refuses an adult. The adult loses access to content they are entitled to see, and no
+  verifier can detect it: these are trust assumptions of the
+  [trust model](#trust-model).
+
+### Loss of access: verifier failure
+
+An adult is refused content because of a failure of the verifier. This group comes last
+among the threats because the verifier owns the content. None at present.
+
+### Not a threat
+
+The outcome falls only on someone who knowingly brought it about (rule 0). These items
+are ordered by the group their outcome would fall in if it were a threat.
+
+- **A2** A real-time relay to a cooperating adult, who answers the ceremony in place of
+  the holder.
+- **A3** An adult who enrolled genuinely and then delegates on purpose, for example by
+  lending a device that holds the master key.
+- **A5** A holder who damages their own wallet. The result is invalid proofs, never
+  access to restricted content.
+- **A4** A holder who extracts their own witnesses after a genuine UV. Encryption at
+  rest protects personal data from others, not from the data subject. The holder learns
+  their own date of birth and blinding factors and gains nothing: a proof still needs the
+  pair passkey and the certified commitment.
 
 ## Inference from repeated requests
 
@@ -164,7 +241,7 @@ then a discrete logarithm in a known interval, which the kangaroo method finds i
 salt of `s` bits, would raise that work by only `2^(s/2)`: to resist `2⁸⁸` operations (an
 assumed `10¹⁶` additions per second for 1000 years), a salt would need about 176 bits,
 which every range proof on the value would pay for. A salt drawn by an issuer with weak
-randomness (**A7**) is as weak as its blinding factors.
+randomness (**A12**) is as weak as its blinding factors.
 
 **So values carry no salt.** The defence against a search is **T8** itself: a blinding
 factor is never disclosed to a verifier. A holder who extracts their own witnesses
