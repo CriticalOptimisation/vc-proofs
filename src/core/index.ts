@@ -7,16 +7,17 @@
  * Code under `src/core/` imports nothing outside `src/core/`, except the pinned
  * `@noble/curves` for the arithmetic of ristretto255, which `ristretto.ts` wraps in the
  * class `RistrettoElement`, whose scalars are `bigint`s (docs/core/ristretto255.md).
- * `BoundedInt` (docs/core/bounded-int.md) wraps an integer in a class, for the bounds of
- * a value: the one exported here is the integer of Z_ℓ, of `ristretto.ts`, which holds at
- * most `ℓ` integers, and so does every class made from it (docs/core/ristretto255.md,
- * *BoundedInt*). The
- * generic class of `bounded-int.ts`, which it extends, is not exported.
+ * The values of the commitments are bounded integers (docs/core/bounded-int.md): the
+ * generic class of `bounded-int.ts` is not exported, and neither is any subclass. A
+ * blinding context gives the class of the integers of its group, `context.boundedInt()`,
+ * from which the classes of the values are made (docs/core/blinding-context.md, *The
+ * class of a group*). `Committed` and `Blinded`, the two forms of a commitment, are
+ * exported as types.
  */
 export { BlindingContext } from "./blinding-context.js";
-export type { Group } from "./blinding-context.js";
+export type { Blinded, Committed, Group } from "./blinding-context.js";
 export { requestHash } from "./request-hash.js";
-export { BoundedInt, RistrettoElement } from "./ristretto.js";
+export { RistrettoElement } from "./ristretto.js";
 
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
