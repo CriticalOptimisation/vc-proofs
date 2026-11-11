@@ -468,11 +468,14 @@ describe("BlindingContext: commitments", () => {
       expect(typeof seams.blindValueWith).toBe("function");
       const r = littleEndian(fromHex(vector.r));
       const x = Days.from(BigInt(vector.m));
-      const blinded = await seams.blindValueWith?.(seamContext(), x, () => r);
+      const context = seamContext();
+      const blinded = await seams.blindValueWith?.(context, x, () => r);
       expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(vector.commitment);
       expect(blinded?.value).toBe(x);
       expect(blinded?.blinding.value).toBe(r);
-      expect(blinded?.blinding.constructor).toBe(Scalar);
+      // The class of the group of that context: in a browser, the module of the seams may
+      // be a second instance, whose class of ristretto255 is its own.
+      expect(blinded?.blinding.constructor).toBe(context.boundedInt());
     },
   );
 
