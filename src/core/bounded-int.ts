@@ -8,9 +8,10 @@
  *   a `number` gives the exact decimal of its binary value. All the arithmetic is on
  *   `bigint`s.
  * - A class is described by its constants: `scale` (`k`: the step is `10^-k`), the
- *   semi-open bounds `[min, max)` of its values, kept exactly, `order`, the
- *   number of distinct values it allows, if any, and `error`, the accuracy of its values,
- *   half a step when it is left out.
+ *   semi-open bounds `[min, max)` of its values, kept exactly, and `error`, the accuracy
+ *   of its values, half a step when it is left out. Its values round to the integers
+ *   `low … high`, and it holds no more of them than its parent, unless its parent is
+ *   `BoundedInt`.
  * - `from` compares a value exactly with the bounds, then scales it to the step and rounds
  *   it once, ties to even; `fromValue` takes the integer as it is.
  * - `valueOf()` is the nearest `number`; `toString()` and `toLocaleString()` write the
@@ -31,11 +32,6 @@ export type Decimal = readonly [mantissa: bigint, exponent: number];
 /** A quantity: a `bigint`, a `number`, or an exact decimal. */
 export type Quantity = bigint | number | Decimal;
 
-/** Anything that states an order as `ORDER`. */
-export interface BoundedIntOrder {
-  readonly ORDER: bigint;
-}
-
 /** The specification of `define`. */
 export interface BoundedIntSpec {
   readonly name: string;
@@ -47,8 +43,6 @@ export interface BoundedIntSpec {
   readonly step?: Quantity;
   /** The accuracy of the values, in their unit; half a step when left out. */
   readonly error?: Quantity;
-  /** The number of distinct values allowed; that of the base when left out. */
-  readonly order?: BoundedIntOrder | bigint;
 }
 
 // --- Exact decimals ---------------------------------------------------------
@@ -253,14 +247,19 @@ function owner(C: BoundedIntClass, key: string): BoundedIntClass {
   return c as BoundedIntClass;
 }
 
-/** The constants of `C`, checked at its first use; throws for an invalid set. */
+/**
+ * The constants of `C`, checked at its first use; throws for an invalid set. Its parent is
+ * checked first: `C` holds no more values than it, unless one of them is `BoundedInt`.
+ */
 function constants(C: BoundedIntClass, where: string): Constants {
   const done = known.get(C);
   if (done !== undefined) return done;
+  const P = Object.getPrototypeOf(C) as BoundedIntClass;
+  const parent = C === BoundedInt || P === BoundedInt ? undefined : constants(P, where);
   if (owner(C, "min") !== owner(C, "max")) {
     throw new TypeError(`${where}: ${C.name} must declare both min and max, or neither`);
   }
-  const { scale, order } = C as { scale: unknown; order: unknown };
+  const { scale } = C as { scale: unknown };
   if (typeof scale !== "number") throw new TypeError(`${where}: ${C.name}.scale must be a number`);
   if (!Number.isInteger(scale) || scale < LOWEST_SCALE || scale > HIGHEST_SCALE) {
     throw new RangeError(
@@ -274,13 +273,13 @@ function constants(C: BoundedIntClass, where: string): Constants {
   }
   const low = scaleExact(min, scale);
   const high = scaleBelow(max, scale);
-  if (order !== undefined) {
-    if (typeof order !== "bigint") {
-      throw new TypeError(`${where}: ${C.name}.order must be a bigint, or undefined`);
-    }
-    if (order <= 0n) throw new RangeError(`${where}: ${C.name}.order must be above 0`);
-    if (high - low + 1n > order) {
-      throw new RangeError(`${where}: ${C.name} must not hold more than ${C.name}.order values`);
+  if (parent !== undefined) {
+    const n = high - low + 1n;
+    const m = parent.high - parent.low + 1n;
+    if (n > m) {
+      throw new RangeError(
+        `${where}: ${C.name} must not hold more values than ${P.name}: ${String(n)} > ${String(m)}`,
+      );
     }
   }
   let error = HALF;
@@ -318,18 +317,6 @@ function fits(min: Decimal, max: Decimal, k: number): boolean {
   return compare([larger[0], larger[1] + k], [10n ** BigInt(NUMBER_DIGITS) - 1n, 0]) <= 0;
 }
 
-/** The order given to `define`: a `bigint`, or a form with a `bigint` `ORDER`. */
-function orderOf(given: unknown, where: string): bigint {
-  const order =
-    (typeof given === "object" && given !== null) || typeof given === "function"
-      ? (given as { ORDER?: unknown }).ORDER
-      : given;
-  if (typeof order !== "bigint") {
-    throw new TypeError(`${where}: order must be a bigint, or have a bigint ORDER`);
-  }
-  return order;
-}
-
 /** An integer with the scale and the bounds of its class. */
 export class BoundedInt {
   /** The scale `k`: the step of the class is `10^-k`. */
@@ -338,8 +325,6 @@ export class BoundedInt {
   static readonly min: Quantity = 0n;
   /** The value just above the highest, excluded. */
   static readonly max: Quantity = MAX;
-  /** The number of distinct values allowed; no limit when it is absent. */
-  declare static readonly order?: bigint;
   /** The accuracy of the values, in their unit; half a step when it is absent. */
   declare static readonly error?: Quantity;
 
@@ -348,6 +333,16 @@ export class BoundedInt {
   /** Not public: instances come from `from` and `fromValue`, or those of a subclass. */
   protected constructor(value: bigint) {
     this.#value = value;
+  }
+
+  /** The lowest integer of the class, that `min` rounds to, a `bigint`. */
+  static get low(): bigint {
+    return constants(this, `${this.name}.low`).low;
+  }
+
+  /** The highest integer of the class, that the values just below `max` round to. */
+  static get high(): bigint {
+    return constants(this, `${this.name}.high`).high;
   }
 
   /** The guaranteed bound of the error of a value, relative to `max − min`. */
@@ -410,17 +405,18 @@ export class BoundedInt {
   }
 
   /**
-   * Makes a frozen subclass of the class it is called on.
+   * Makes a frozen subclass of the class it is called on, its parent, typed as that class.
    *
    * @param spec - `name`; `min` and `max`, the bounds `[min, max)`, kept exactly; `step`,
    *   which gives the smallest scale `k` with `10^-k ≤ step`, or the scale 0 when left
-   *   out; `error`, the accuracy of the values, half a step when left out;
-   *   `order`, the number of distinct values allowed.
-   * @throws TypeError for a bad name, a quantity of the wrong type, or a bad `order`.
+   *   out; `error`, the accuracy of the values, half a step when left out. Any other key
+   *   is ignored.
+   * @throws TypeError for a bad name, or a quantity of the wrong type.
    * @throws RangeError for `min ≥ max`, a `step` that is not above 0 or finer than
-   *   `10^-323`, a negative `error`, or more distinct values than `order`.
+   *   `10^-323`, a negative `error`, or more values than the parent, unless the parent
+   *   is `BoundedInt`.
    */
-  static define(spec: BoundedIntSpec): BoundedIntClass {
+  static define<T extends BoundedIntClass>(this: T, spec: BoundedIntSpec): T {
     const where = `${this.name}.define`;
     if (typeof spec !== "object" || (spec as unknown) === null) {
       throw new TypeError(`${where}: spec must be an object`);
@@ -449,14 +445,13 @@ export class BoundedInt {
       max: keep(spec.max, "max"),
     };
     if (spec.error !== undefined) own.error = keep(spec.error, "error");
-    if (spec.order !== undefined) own.order = orderOf(spec.order, where);
-    const C = class extends this {};
+    const C = class extends (this as BoundedIntClass) {};
     Object.defineProperty(C, "name", { value: spec.name });
     for (const [key, value] of Object.entries(own)) {
       Object.defineProperty(C, key, { value, enumerable: true });
     }
     constants(C, where);
-    return Object.freeze(C);
+    return Object.freeze(C) as T;
   }
 
   /** The integer, a `bigint`. */
