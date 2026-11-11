@@ -85,20 +85,18 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
     expect(text).not.toMatch(/returns the identity before/);
   });
 
-  // REVIEW PLACEHOLDER (#49: the BoundedInt of ./core takes no number)
-  // Scalars sends a number of the application through BoundedInt, whose value the group takes
-  //   -> Scalars sends an integer of the application through BoundedInt, whose value the group takes; BoundedInt has the order ℓ
-  // test("Scalars sends a number of the application through BoundedInt, whose value the group takes", () => {
-  //   expect(members(RistrettoElement)).toContain("static encodeScalar");
-  //   expect(section("Scalars")).toMatch(/\(bounded-int\.md\)/);
-  //   expect(section("Scalars")).toMatch(/`P\.multiplyScalar\(BoundedInt\.from\(5\)\.value\)`/);
-  // });
-  test("Scalars sends an integer of the application through BoundedInt, whose value the group takes; BoundedInt has the order ℓ", () => {
+  // REVIEW PLACEHOLDER (#52: no order)
+  // Scalars sends an integer of the application through BoundedInt, whose value the group takes; BoundedInt has the order ℓ
+  //   -> Scalars sends an integer of the application through BoundedInt, whose value the group takes; BoundedInt holds ℓ integers, no class made from it more
+  //   expect(section("Scalars")).toMatch(
+  //     /The `BoundedInt` of the\s+low-level entry point has the order `ℓ`/,
+  //   );
+  test("Scalars sends an integer of the application through BoundedInt, whose value the group takes; BoundedInt holds ℓ integers, no class made from it more", () => {
     expect(members(RistrettoElement)).toContain("static encodeScalar");
     expect(section("Scalars")).toMatch(/\(#boundedint\)/);
     expect(section("Scalars")).toMatch(/`P\.multiplyScalar\(BoundedInt\.from\(5n\)\.value\)`/);
     expect(section("Scalars")).toMatch(
-      /The `BoundedInt` of the\s+low-level entry point has the order `ℓ`/,
+      /The `BoundedInt` of the\s+low-level entry point holds `ℓ` integers, and no class made from it holds more/,
     );
     expect(section("Scalars")).toMatch(/\(see \[BoundedInt\]\(#boundedint\)\)/);
   });
