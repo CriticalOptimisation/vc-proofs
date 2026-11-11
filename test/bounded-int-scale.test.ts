@@ -7,7 +7,7 @@
  * runs in Node.js and in every headless browser.
  */
 import { describe, expect, test } from "vitest";
-import { BoundedInt } from "../src/core/bounded-int.js";
+import { BoundedInt, type Quantity } from "../src/core/bounded-int.js";
 import { RistrettoElement } from "../src/core/index.js";
 import { classes, constants, examples } from "./helpers/bounded-int-examples.js";
 
@@ -328,6 +328,99 @@ describe("BoundedInt classes: no more values than the parent", () => {
     const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 });
     const Loose = { name: "Loose", min: -0.5, max: 99.5, order: 1n };
     expect(Byte.define(Loose).high).toBe(99n);
+  });
+});
+
+describe("BoundedInt classes: no more values than the parent, edge cases", () => {
+  test("a chain of three classes of 256 values each, in other places and at other steps, passes; one more value is refused at the end", () => {
+    const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 });
+    const Code = Byte.define({ name: "Code", min: 999.5, max: 1255.5 });
+    const Cents = Code.define({ name: "Cents", min: 0, max: 2.555, step: 0.01 });
+    expect([Cents.low, Cents.high]).toEqual([0n, 255n]);
+    expect(Object.getPrototypeOf(Object.getPrototypeOf(Cents))).toBe(Byte);
+    expect(() => Cents.define({ name: "More", min: 0, max: 2.565, step: 0.01 })).toThrow(
+      /^Cents\.define: More must not hold more values than Cents: 257 > 256$/,
+    );
+  });
+
+  test("a count exactly equal to the parent's passes; a tie at a bound counts as it rounds, to even", () => {
+    const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 });
+    // [0.5, 256.5): 0.5 rounds to 0, the values just below 256.5 to 256: 257 values.
+    expect(() => Byte.define({ name: "Tie", min: 0.5, max: 256.5 })).toThrow(
+      /^Byte\.define: Tie must not hold more values than Byte: 257 > 256$/,
+    );
+    // [1.5, 257.5): 1.5 rounds to 2, so 2 … 257: 256 values, exactly as many as Byte.
+    const Even = Byte.define({ name: "Even", min: 1.5, max: 257.5 });
+    expect([Even.low, Even.high]).toEqual([2n, 257n]);
+    // [0, 256): the values just below 256 round to 256: 257 values.
+    expect(() => Byte.define({ name: "Open", min: 0, max: 256 })).toThrow(RangeError);
+  });
+
+  test("a parent of negative scale counts its values in its own steps: 0 … 255 thousands are 256", () => {
+    const Thousands = BoundedInt.define({ name: "Thousands", min: -500, max: 255500, step: 1000 });
+    expect([Thousands.scale, Thousands.low, Thousands.high]).toEqual([-3, 0n, 255n]);
+    expect(Thousands.define({ name: "Units", min: -0.5, max: 255.5 }).high).toBe(255n);
+    expect(() => Thousands.define({ name: "More", min: -0.5, max: 256.5 })).toThrow(
+      /^Thousands\.define: More must not hold more values than Thousands: 257 > 256$/,
+    );
+  });
+
+  test("a parent written by hand with invalid constants gives its own error first, at the first use of its child", () => {
+    const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 });
+    class Bad extends Byte {
+      static override min: Quantity = 5n;
+      static override max: Quantity = 5n;
+    }
+    class Child extends Bad {
+      static override min = -0.5;
+      static override max = 9.5;
+    }
+    class Broken extends Bad {
+      static override min = 0n;
+    }
+    expect(() => Child.from(1)).toThrow(RangeError);
+    expect(() => Child.from(1)).toThrow(/^Child\.from: Bad\.min must be below Bad\.max$/);
+    // Broken is invalid too, but its parent is checked first.
+    expect(() => Broken.fromValue(1n)).toThrow(
+      /^Broken\.fromValue: Bad\.min must be below Bad\.max$/,
+    );
+    expect(() => Bad.define({ name: "Sub", min: -0.5, max: 9.5 })).toThrow(
+      /^Bad\.define: Bad\.min must be below Bad\.max$/,
+    );
+  });
+
+  test("low and high throw, as the other members, for a class written by hand with invalid constants", () => {
+    class NoMax extends BoundedInt {
+      static override min = 1n;
+    }
+    class Empty extends BoundedInt {
+      static override min = 5n;
+      static override max = 5n;
+    }
+    expect(() => NoMax.low).toThrow(TypeError);
+    expect(() => NoMax.low).toThrow(
+      /^NoMax\.low: NoMax must declare both min and max, or neither$/,
+    );
+    expect(() => NoMax.high).toThrow(/^NoMax\.high: /);
+    expect(() => Empty.high).toThrow(RangeError);
+    expect(() => Empty.high).toThrow(/^Empty\.high: Empty\.min must be below Empty\.max$/);
+  });
+
+  test("define on a frozen class written by hand makes a frozen subclass of it, held to its count", () => {
+    const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 });
+    class Hand extends Byte {
+      static override min = -0.5;
+      static override max = 99.5;
+    }
+    Object.freeze(Hand);
+    const Sub = Hand.define({ name: "Sub", min: 899.5, max: 999.5 });
+    expect(Object.isFrozen(Sub)).toBe(true);
+    expect(Object.getPrototypeOf(Sub)).toBe(Hand);
+    expect([Sub.low, Sub.high]).toEqual([900n, 999n]);
+    expect(Sub.from(999)).toBeInstanceOf(Hand);
+    expect(() => Hand.define({ name: "Over", min: -0.5, max: 100.5 })).toThrow(
+      /^Hand\.define: Over must not hold more values than Hand: 101 > 100$/,
+    );
   });
 });
 
