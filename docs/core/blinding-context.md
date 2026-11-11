@@ -16,17 +16,17 @@ import to say what its context is for.
 The library knows nothing about the values it commits to. The application maps its own
 numbers, such as a day count, to [bounded integers](bounded-int.md): a class that bounds
 and scales them, made from [the class of the group](#the-class-of-a-group), which
-`BlindingContext.boundedInt()` gives. A commitment holds the value, its class and its
-blinding factor (see [Committed and Blinded](#committed-and-blinded)).
+`context.boundedInt()` gives. A commitment holds the value, its class and its blinding
+factor (see [Committed and Blinded](#committed-and-blinded)).
 
 ```ts
-import { BlindingContext } from "@criticaloptimisation/vc-proofs/core";
+import { BlindingContext, RistrettoElement } from "@criticaloptimisation/vc-proofs/core";
 
-const Scalar = BlindingContext.boundedInt(); // the integers of Z_ℓ, for ristretto255
-const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
-
-const context = BlindingContext.fromEncoded(publishedH, message); // synchronous
+const context = BlindingContext.fromEncoded(publishedH, message, RistrettoElement); // synchronous
 const pin = await context.serialize(); // rejects if h is not derived from message
+
+const Scalar = context.boundedInt(); // the integers of Z_ℓ, for ristretto255
+const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
 
 const opening = await context.blind(Days.from(20000n)); // { commitment, value, blinding }
 const opens = await context.isOpeningOf(opening); // true
@@ -45,33 +45,34 @@ const opens = await context.isOpeningOf(opening); // true
   factor is a bounded integer of [the class of the group](#the-class-of-a-group), and
   nothing else.
 - **Errors**: `TypeError` for an input that is not a valid value (wrong type, wrong
-  length, a non-canonical encoding, a group without a valid `ORDER`), thrown at once by
-  `fromEncoded`; `RangeError` when `h` is not the generator derived from the message, as
-  the rejection of every member that awaits the validation; `RangeError` for a value
-  whose class holds more integers than the group has scalars (see [blind](#blind)).
+  length, a non-canonical encoding, a missing group, a group without a valid `ORDER`),
+  thrown at once by `fromEncoded`; `RangeError` when `h` is not the generator derived
+  from the message, as the rejection of every member that awaits the validation;
+  `RangeError` for a value whose class holds more integers than the group has scalars
+  (see [blind](#blind)).
 
 ## BlindingContext
 
-| Member                                   | Returns                                                         |
-| ---------------------------------------- | --------------------------------------------------------------- |
-| `static fromEncoded(h, message, group?)` | a new context, whose validation has started                     |
-| `static boundedInt()`                    | the class of the integers of Z_ℓ, for ristretto255              |
-| `group`                                  | the group of the context: `RistrettoElement` by default         |
-| `boundedInt()`                           | the class of the integers of the group of the context           |
-| `h()`                                    | a promise: the generator `h`, once validated                    |
-| `serialize()`                            | a promise: the 44 bytes that identify the suite, once validated |
-| `blind(x)`                               | a promise: a commitment to `x`, with its opening                |
-| `isOpeningOf(opening)`                   | a promise: whether `opening` opens its commitment               |
+| Member                                  | Returns                                                         |
+| --------------------------------------- | --------------------------------------------------------------- |
+| `static fromEncoded(h, message, group)` | a new context, whose validation has started                     |
+| `group`                                 | the group of the context, given to `fromEncoded`                |
+| `boundedInt()`                          | the class of the integers of the group of the context           |
+| `h()`                                   | a promise: the generator `h`, once validated                    |
+| `serialize()`                           | a promise: the 44 bytes that identify the suite, once validated |
+| `blind(x)`                              | a promise: a commitment to `x`, with its opening                |
+| `isOpeningOf(opening)`                  | a promise: whether `opening` opens its commitment               |
 
 ### fromEncoded
 
 `fromEncoded(h, message, group)` takes the published encoding of `h`, the message it
-was derived from, and the [group](#the-group) of the context, `RistrettoElement` when
-it is left out. It throws a `TypeError` at once when `h` or `message` is not a
-`Uint8Array`, when `group.ORDER` is not a `bigint` above 1, or when `group.decode`
-refuses `h`: for ristretto255, anything but 32 bytes that are the canonical encoding of
-an element (RFC 9496, Section 4.3.1). Otherwise it returns a new context, synchronously,
-and the validation runs in the background.
+was derived from, and the [group](#the-group) of the context, such as
+`RistrettoElement`. The group is required: there is no default group, and nothing else
+is needed to make a context. It throws a `TypeError` at once when `h` or `message` is
+not a `Uint8Array`, when `group` is left out, when `group.ORDER` is not a `bigint` above
+1, or when `group.decode` refuses `h`: for ristretto255, anything but 32 bytes that are
+the canonical encoding of an element (RFC 9496, Section 4.3.1). Otherwise it returns a
+new context, synchronously, and the validation runs in the background.
 
 ### The validation
 
@@ -116,24 +117,18 @@ unhandled rejection.
 
 ### group
 
-`group` is the group given to `fromEncoded`, by default the class `RistrettoElement`
-itself. The canonical generator is `context.group.canonicalGenerator()`; for
-ristretto255, the neutral element is `context.group.identity()`.
+`group` is the group given to `fromEncoded`, for ristretto255 the class
+`RistrettoElement` itself. The canonical generator is
+`context.group.canonicalGenerator()`; for ristretto255, the neutral element is
+`context.group.identity()`.
 
 ### boundedInt
 
-`BlindingContext.boundedInt()` is the class of the integers of Z_ℓ, for ristretto255, the
-default group: the class of the blinding factors, and the base of the classes of the
-values (see [The class of a group](#the-class-of-a-group)). It needs no context, so an
-application can make its classes when it loads, before any context exists.
-
-`context.boundedInt()` is the class of the group of the context. For a context over
-ristretto255 it is the same object as `BlindingContext.boundedInt()`. For a context over
-another group, it is the class of that group, made once for the group and shared by all
-of its contexts.
-
-Each call returns the same object for the same group: the class is made at its first
-use, then kept.
+`context.boundedInt()` is the class of the integers of the group of the context, for
+ristretto255 the integers of Z_ℓ: the class of the blinding factors, and the base of the
+classes of the values (see [The class of a group](#the-class-of-a-group)). It is made
+once for the group, at the first context over it, and shared by all of its contexts:
+every call, on any context over the same group, returns the same object.
 
 ### serialize
 
@@ -234,11 +229,12 @@ drawing `r` is negligible. Each context therefore keeps a queue of up to 10 pair
 The values a context commits to, and its blinding factors, are
 [bounded integers](bounded-int.md). Their base is the class of the group, which
 [boundedInt](#boundedint) gives: the integers `0 … ℓ − 1`, `ℓ` the `ORDER` of the group.
-For ristretto255, it is `BlindingContext.boundedInt()`, named `Ristretto255Scalar`. It is
-a subclass of the class of [bounded integers](bounded-int.md): that page documents every
-member it inherits, `define` included, and only its constants differ.
+For ristretto255, it is `Ristretto255Scalar`, the `context.boundedInt()` of a context over
+`RistrettoElement`. It is a subclass of the class of [bounded integers](bounded-int.md):
+that page documents every member it inherits, `define` included, and only its constants
+differ.
 
-| Constant | On `BlindingContext.boundedInt()`       |
+| Constant | On `Ristretto255Scalar`                 |
 | -------- | --------------------------------------- |
 | `scale`  | `0`                                     |
 | `min`    | `-0.5`                                  |
@@ -277,7 +273,8 @@ member it inherits, `define` included, and only its constants differ.
 import { BlindingContext, RistrettoElement } from "@criticaloptimisation/vc-proofs/core";
 
 const ℓ = RistrettoElement.ORDER;
-const Scalar = BlindingContext.boundedInt(); // Ristretto255Scalar
+const context = BlindingContext.fromEncoded(publishedH, message, RistrettoElement);
+const Scalar = context.boundedInt(); // Ristretto255Scalar
 Scalar.from(19_000n).value; // 19000n
 Scalar.from([15n, -1]).value; // 2n: 1.5, rounded to the step, ties to even
 Scalar.from([-5n, -1]).value; // 0n: −0.5, a tie, goes to 0
@@ -328,7 +325,7 @@ the blinding factor as bytes signed by the issuer; it keeps those bytes and the 
 for its proofs, since it cannot sign them again, and builds a `Blinded` for its own use:
 
 ```ts
-const Scalar = BlindingContext.boundedInt();
+const Scalar = context.boundedInt();
 const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
 
 const opening = await context.blind(Days.from(20000n));
@@ -353,8 +350,8 @@ the [protocol](../protocol.md), not to the context.
 ## The group
 
 The context does its arithmetic only through its group, a value held in a field, and
-never names `RistrettoElement` itself: `RistrettoElement` is only the default of
-`fromEncoded`. The scalars of every group are `bigint`s
+never names `RistrettoElement` itself: the caller gives `RistrettoElement` to
+`fromEncoded`, as any other group. The scalars of every group are `bigint`s
 ([Scalars](ristretto255.md#scalars)), so a group has no scalar type. A group is any
 object with these members, which `RistrettoElement` has (see
 [ristretto255](ristretto255.md#suite_name-and-randomscalar)):
@@ -376,8 +373,10 @@ for anything else. The context checks that `ORDER` is a `bigint` above 1, since 
 its class from it; it trusts the other members of its group, and its arithmetic.
 
 **In TypeScript**, a group is the interface `Group<E>`, of elements `E`, and the class
-is `BlindingContext<E>`, whose parameter defaults to `RistrettoElement`. The parameter
-is inferred from the group given to `fromEncoded`, so a caller never writes it: `h()` of
+is `BlindingContext<E>`, whose parameter defaults to `RistrettoElement`, as the
+parameters of `Committed<E>` and `Blinded<E>` do: a default of the type checker only,
+which the code erases. The parameter is inferred from the group given to `fromEncoded`,
+so a caller never writes it: `h()` of
 a ristretto255 context is a `Promise<RistrettoElement>`, not an `any`, and the
 `commitment` of `blind` is a `RistrettoElement`. It exists only for the type checker:
 there is one class at run time, and the group in its field does all the work. A class

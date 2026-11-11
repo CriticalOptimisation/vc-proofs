@@ -183,7 +183,7 @@ encoding and its message, it compares `h` with the generator derived from the me
 and each of its members that yields `h` or uses it rejects when they differ:
 
 ```ts
-const context = BlindingContext.fromEncoded(published, message); // throws on bad bytes
+const context = BlindingContext.fromEncoded(published, message, RistrettoElement); // throws on bad bytes
 const h = await context.h(); // rejects if h is not the generator derived from message
 ```
 

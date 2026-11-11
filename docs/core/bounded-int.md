@@ -404,7 +404,7 @@ call it and add fields of its own.
 
 `@criticaloptimisation/vc-proofs/core` does not export the class of this page. It gives a
 subclass of it instead, specialized for the mathematics of the elliptic curve of the
-library: `BlindingContext.boundedInt()`. Its bounds are its own, and no class made from
+library: the `boundedInt()` of a blinding context. Its bounds are its own, and no class made from
 it, by `define` or by hand, holds more values than it does. The examples of
 `BoundedInt.from` above run on the class of this page. The specialized class is
 documented with the blinding context: see the list of pages of the
