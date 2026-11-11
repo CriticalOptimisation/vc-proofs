@@ -10,9 +10,10 @@
  *
  * The class is looked up on the entry point's namespace, and the seams of
  * src/core/blinding-context.ts are imported dynamically, so that this file compiles and
- * runs before they exist, and fails on the behaviour. Until `BlindingContext.boundedInt`
+ * runs before they exist, and fails on the behaviour. Until `context.boundedInt()`
  * exists, the classes of the values are made from a stand-in with the same constants, so
- * that the tests of `blind` and `isOpeningOf` reach the behaviour they check.
+ * that the tests of `blind` and `isOpeningOf` reach the behaviour they check. The group is
+ * a required argument of `fromEncoded` (#48): every context names its group.
  */
 import { describe, expect, test, vi } from "vitest";
 import { BoundedInt as GenericBoundedInt } from "../src/core/bounded-int.js";
@@ -58,8 +59,7 @@ interface TestGroup {
 }
 
 interface ContextClass {
-  fromEncoded(h: Uint8Array, message: Uint8Array, group?: TestGroup): Context;
-  boundedInt?: () => BoundedIntClass;
+  fromEncoded(h: Uint8Array, message: Uint8Array, group: TestGroup): Context;
 }
 
 interface Seams {
@@ -100,12 +100,16 @@ const abc = () => generator("abc");
 const g = () => RistrettoElement.canonicalGenerator();
 /** ℓ, the order of ristretto255 (RFC 9496). */
 const L = 2n ** 252n + 27742317777372353535851937790883648493n;
+/** The group ristretto255, which every context of ristretto255 names. */
+const RISTRETTO255 = RistrettoElement as unknown as TestGroup;
 
-/** The class of ristretto255, `BlindingContext.boundedInt()`, or a stand-in until it exists. */
-const Scalar: BoundedIntClass =
-  typeof BlindingContext.boundedInt === "function"
-    ? BlindingContext.boundedInt()
-    : GenericBoundedInt.define({ name: "Ristretto255Scalar", min: -0.5, max: [10n * L - 5n, -1] });
+/** The class of ristretto255, `context.boundedInt()`, or a stand-in until it exists. */
+const Scalar: BoundedIntClass = ((context: Context) =>
+  typeof context.boundedInt === "function"
+    ? context.boundedInt()
+    : GenericBoundedInt.define({ name: "Ristretto255Scalar", min: -0.5, max: [10n * L - 5n, -1] }))(
+  BlindingContext.fromEncoded(ageCheck().h, ageCheck().message, RISTRETTO255),
+);
 /** A class of values, made from the class of the group. */
 const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
 /** A class of values with negative integers: −799 … 1599, in steps of 0.01. */
@@ -131,20 +135,26 @@ function pedersen(m: bigint, r: bigint, h: RistrettoElement): RistrettoElement {
 /** The age-check context, built from fresh arrays. */
 function ageCheckContext(): Context {
   const { h, message } = ageCheck();
-  return BlindingContext.fromEncoded(h, message);
+  return BlindingContext.fromEncoded(h, message, RISTRETTO255);
 }
 
 /** The age-check context, from the module instance of the seams. */
 function seamContext(): Context {
   const { h, message } = ageCheck();
-  return (seams.BlindingContext ?? BlindingContext).fromEncoded(h, message);
+  return (seams.BlindingContext ?? BlindingContext).fromEncoded(h, message, RISTRETTO255);
 }
 
 /** The contexts whose h is not derived from their message. */
 const invalid: [string, () => Context][] = [
-  ["the h of another message", () => BlindingContext.fromEncoded(abc().h, ageCheck().message)],
-  ["another message", () => BlindingContext.fromEncoded(ageCheck().h, abc().message)],
-  ["the identity as h", () => BlindingContext.fromEncoded(new Uint8Array(32), ageCheck().message)],
+  [
+    "the h of another message",
+    () => BlindingContext.fromEncoded(abc().h, ageCheck().message, RISTRETTO255),
+  ],
+  ["another message", () => BlindingContext.fromEncoded(ageCheck().h, abc().message, RISTRETTO255)],
+  [
+    "the identity as h",
+    () => BlindingContext.fromEncoded(new Uint8Array(32), ageCheck().message, RISTRETTO255),
+  ],
 ];
 
 /** The rejections that reach no handler while `run` and a few macrotasks run. */
@@ -177,7 +187,7 @@ describe("BlindingContext: construction and validation", () => {
 
   test("fromEncoded builds the age-check context synchronously, and it validates, keeping no message", async () => {
     const { h, message } = ageCheck();
-    const context = BlindingContext.fromEncoded(h, message);
+    const context = BlindingContext.fromEncoded(h, message, RISTRETTO255);
     expect(context).not.toBeInstanceOf(Promise);
     expect("message" in context).toBe(false);
     expect(hex((await context.h()).encode())).toBe(contextVectors.context.h);
@@ -212,7 +222,7 @@ describe("BlindingContext: construction and validation", () => {
 
   test("a late change to the caller's arrays changes nothing in a valid context: it still validates", async () => {
     const { h, message } = ageCheck();
-    const context = BlindingContext.fromEncoded(h, message);
+    const context = BlindingContext.fromEncoded(h, message, RISTRETTO255);
     // Before anything is awaited: the validation has not ended yet. A changed message
     // would make the check fail, so a context that resolves validated its own copy.
     h.set(abc().h);
@@ -223,7 +233,7 @@ describe("BlindingContext: construction and validation", () => {
 
   test("a late change to the caller's arrays does not make an invalid context valid", async () => {
     const h = abc().h;
-    const context = BlindingContext.fromEncoded(h, ageCheck().message);
+    const context = BlindingContext.fromEncoded(h, ageCheck().message, RISTRETTO255);
     h.set(ageCheck().h);
     await expect(context.h()).rejects.toThrow(RangeError);
     await expect(context.serialize()).rejects.toThrow(RangeError);
@@ -272,29 +282,38 @@ describe("BlindingContext: construction and validation", () => {
       );
     }
   });
+
+  test("the group is required: fromEncoded without a group, or with undefined, throws a TypeError at once", () => {
+    const { h, message } = ageCheck();
+    // @ts-expect-error -- the group is required
+    expect(() => BlindingContext.fromEncoded(h, message)).toThrow(TypeError);
+    const missing = undefined as unknown as TestGroup;
+    expect(() => BlindingContext.fromEncoded(h, message, missing)).toThrow(TypeError);
+  });
 });
 
-describe("BlindingContext.boundedInt: the class of a group", () => {
-  test("BlindingContext.boundedInt() is the integers 0 … ℓ − 1 of ristretto255: Ristretto255Scalar, scale 0, [−0.5, ℓ − 0.5), frozen, the same object on every call", () => {
-    expect(typeof BlindingContext.boundedInt).toBe("function");
-    const Z = BlindingContext.boundedInt?.();
-    expect(Z?.name).toBe("Ristretto255Scalar");
-    expect(Z?.scale).toBe(0);
-    expect(Z?.min).toBe(-0.5);
-    expect(Z?.max).toEqual([10n * L - 5n, -1]);
-    expect([Z?.low, Z?.high]).toEqual([0n, L - 1n]);
-    expect(Z !== undefined && Object.isFrozen(Z)).toBe(true);
-    expect(Object.getPrototypeOf(Z)).toBe(GenericBoundedInt);
-    expect(BlindingContext.boundedInt?.()).toBe(Z);
-  });
-
-  test("context.boundedInt() of a ristretto255 context is BlindingContext.boundedInt(); ./core exports no BoundedInt", () => {
+describe("context.boundedInt(): the class of a group", () => {
+  test("context.boundedInt() of a ristretto255 context is the integers 0 … ℓ − 1: Ristretto255Scalar, scale 0, [−0.5, ℓ − 0.5), frozen, the same object on every call", () => {
     const context = ageCheckContext();
     expect(typeof context.boundedInt).toBe("function");
-    expect(context.boundedInt()).toBe(BlindingContext.boundedInt?.());
-    expect(BlindingContext.fromEncoded(abc().h, abc().message).boundedInt()).toBe(
+    const Z = context.boundedInt();
+    expect(Z.name).toBe("Ristretto255Scalar");
+    expect(Z.scale).toBe(0);
+    expect(Z.min).toBe(-0.5);
+    expect(Z.max).toEqual([10n * L - 5n, -1]);
+    expect([Z.low, Z.high]).toEqual([0n, L - 1n]);
+    expect(Object.isFrozen(Z)).toBe(true);
+    expect(Object.getPrototypeOf(Z)).toBe(GenericBoundedInt);
+    expect(context.boundedInt()).toBe(Z);
+  });
+
+  test("every ristretto255 context gives the same class; BlindingContext has no static boundedInt; ./core exports no BoundedInt", () => {
+    const context = ageCheckContext();
+    expect(typeof context.boundedInt).toBe("function");
+    expect(BlindingContext.fromEncoded(abc().h, abc().message, RISTRETTO255).boundedInt()).toBe(
       context.boundedInt(),
     );
+    expect(Object.hasOwn(BlindingContext, "boundedInt")).toBe(false);
     expect((entryPoint as Record<string, unknown>).BoundedInt).toBeUndefined();
   });
 });
@@ -516,7 +535,7 @@ describe("BlindingContext: openings", () => {
 
   test("isOpeningOf refuses a commitment of another context: contexts are independent", async () => {
     const ours = ageCheckContext();
-    const theirs = BlindingContext.fromEncoded(abc().h, abc().message);
+    const theirs = BlindingContext.fromEncoded(abc().h, abc().message, RISTRETTO255);
     const blinded = await theirs.blind(Days.from(20000n));
     expect(await theirs.isOpeningOf(blinded)).toBe(true);
     expect(await ours.isOpeningOf(blinded)).toBe(false);
@@ -588,9 +607,9 @@ describe("BlindingContext over another group", () => {
     const context = BlindingContext.fromEncoded(h.encode(), message(), group);
     expect((await context.h()).equals(h)).toBe(true);
     // The same h is not the generator of ristretto255 for that message.
-    await expect(BlindingContext.fromEncoded(h.encode(), message()).h()).rejects.toThrow(
-      RangeError,
-    );
+    await expect(
+      BlindingContext.fromEncoded(h.encode(), message(), RISTRETTO255).h(),
+    ).rejects.toThrow(RangeError);
   });
 
   test("group is the group given to fromEncoded", async () => {
@@ -628,7 +647,7 @@ describe("BlindingContext over another group", () => {
     const context = BlindingContext.fromEncoded(h, message(), group);
     expect(typeof context.boundedInt).toBe("function");
     const Z = context.boundedInt();
-    expect(Z).not.toBe(BlindingContext.boundedInt?.());
+    expect(Z).not.toBe(ageCheckContext().boundedInt());
     expect(Z.name).toBe("Test-groupScalar");
     expect([Z.scale, Z.low, Z.high]).toEqual([0, 0n, L - 1n]);
     expect(Object.isFrozen(Z)).toBe(true);

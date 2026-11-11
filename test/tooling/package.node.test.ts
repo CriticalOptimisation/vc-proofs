@@ -64,7 +64,7 @@ describe("after the build", { timeout: 120_000 }, () => {
     });
   }
 
-  // REVIEW PLACEHOLDER (#48: ./core exports no BoundedInt; the class of the group comes from BlindingContext.boundedInt())
+  // REVIEW PLACEHOLDER (#48: ./core exports no BoundedInt; the class of the group comes from context.boundedInt())
   // the declarations of ./core export BoundedInt from ristretto.ts: a class that extends the generic one, with its own min and max only
   //   -> the declarations of ./core export no BoundedInt, and the types Committed, Blinded and Group of blinding-context.ts; ristretto.ts declares no BoundedInt
   // test("the declarations of ./core export BoundedInt from ristretto.ts: a class that extends the generic one, with its own min and max only", () => {
@@ -99,8 +99,13 @@ describe("after the build", { timeout: 120_000 }, () => {
     const context = readFileSync(`${root}dist/core/blinding-context.d.ts`, "utf8");
     expect(context).toMatch(/export interface Committed<E/);
     expect(context).toMatch(/export interface Blinded<E/);
-    expect(context).toMatch(/static boundedInt\(\): typeof \w+;/);
+    expect(context).not.toMatch(/static boundedInt/);
     expect(context).toMatch(/\n\s+boundedInt\(\): typeof \w+;/);
+    // The group of fromEncoded is required: one signature, with no optional group.
+    expect(context).toMatch(
+      /static fromEncoded<E extends \w+>\(h: Uint8Array, message: Uint8Array, group: Group<E>\): BlindingContext<E>;/,
+    );
+    expect(context).not.toMatch(/group\?:/);
     expect(context).toMatch(/readonly ORDER: bigint;/);
   });
 

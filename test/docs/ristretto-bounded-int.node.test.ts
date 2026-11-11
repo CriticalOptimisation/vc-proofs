@@ -1,6 +1,7 @@
 /**
- * docs/core/blinding-context.md documents the class of ristretto255,
- * `BlindingContext.boundedInt()` (#49, #48), the integers of Z_ℓ, in its section *The class
+ * docs/core/blinding-context.md documents the class of ristretto255, the
+ * `context.boundedInt()` of a context over `RistrettoElement` (#49, #48), the integers of
+ * Z_ℓ, in its section *The class
  * of a group*: its constants, its bounds, `low` and `high`, the rule that no class made
  * from it holds more than `ℓ` integers (#52), its `define`, its name, and the examples,
  * each checked against the class. docs/core/ristretto255.md keeps a short section that
@@ -8,12 +9,13 @@
  * its own material, that `./core` gives a specialized subclass. The tests of that page stay
  * on the generic class (test/docs/bounded-int.node.test.ts).
  *
- * The class is looked up on `BlindingContext`, so that this file compiles before
- * `boundedInt` exists.
+ * The class is looked up on a context, so that this file compiles before `boundedInt`
+ * exists.
  */
 import { describe, expect, test } from "vitest";
 import { BoundedInt as GenericBoundedInt } from "../../src/core/bounded-int.js";
 import { BlindingContext, RistrettoElement } from "../../src/core/index.js";
+import vectors from "../vectors/blinding-context.json" with { type: "json" };
 import { read } from "./markdown.js";
 
 const page = read("docs/core/blinding-context.md");
@@ -23,9 +25,17 @@ const generic = read("docs/core/bounded-int.md");
 /** `ℓ`, the order of ristretto255. */
 const L = RistrettoElement.ORDER;
 
-/** `BlindingContext.boundedInt()`, the class of ristretto255; `undefined` before it exists. */
+function fromHex(text: string): Uint8Array {
+  return Uint8Array.from(text.match(/../g) ?? [], (pair) => parseInt(pair, 16));
+}
+
+/** `context.boundedInt()`, the class of ristretto255; `undefined` before it exists. */
 const Scalar = (
-  BlindingContext as unknown as { boundedInt?: () => typeof GenericBoundedInt }
+  BlindingContext.fromEncoded(
+    fromHex(vectors.context.h),
+    fromHex(vectors.context.messageHex),
+    RistrettoElement,
+  ) as unknown as { boundedInt?: () => typeof GenericBoundedInt }
 ).boundedInt?.() as typeof GenericBoundedInt;
 
 /** The text of the section `## <title>` of `text`, up to the next `## ` heading. */
@@ -49,10 +59,12 @@ function row(text: string, name: string): string[] {
 describe("docs/core/blinding-context.md, section The class of a group", () => {
   const text = section(page, "The class of a group");
 
-  test("it names the class of ristretto255, BlindingContext.boundedInt(), Ristretto255Scalar, a subclass of the bounded integers, and links their page", () => {
+  test("it names the class of ristretto255, the context.boundedInt() of a context over RistrettoElement, Ristretto255Scalar, a subclass of the bounded integers, and links their page", () => {
     expect(Object.getPrototypeOf(Scalar)).toBe(GenericBoundedInt);
     expect(Scalar.name).toBe("Ristretto255Scalar");
-    expect(text).toMatch(/`BlindingContext\.boundedInt\(\)`, named `Ristretto255Scalar`/);
+    expect(text).toMatch(
+      /it is `Ristretto255Scalar`, the `context\.boundedInt\(\)` of a context over\s+`RistrettoElement`/,
+    );
     expect(text).toMatch(/subclass of the class of \[bounded integers\]\(bounded-int\.md\)/);
     expect(page).toMatch(/\[the class of a group\]\(#the-class-of-a-group\)/i);
   });
@@ -133,7 +145,10 @@ describe("docs/core/blinding-context.md, section The class of a group", () => {
   test("the examples give what they say", () => {
     const code = text.slice(text.indexOf("```ts"), text.lastIndexOf("```"));
     expect(code).toContain('from "@criticaloptimisation/vc-proofs/core"');
-    expect(code).toContain("const Scalar = BlindingContext.boundedInt(); // Ristretto255Scalar");
+    expect(code).toContain(
+      "const context = BlindingContext.fromEncoded(publishedH, message, RistrettoElement);",
+    );
+    expect(code).toContain("const Scalar = context.boundedInt(); // Ristretto255Scalar");
     expect(code).toContain("Scalar.from(19_000n).value; // 19000n");
     expect(Scalar.from(19_000n).value).toBe(19000n);
     expect(code).toContain("Scalar.from([15n, -1]).value; // 2n");
@@ -165,9 +180,9 @@ describe("docs/core/blinding-context.md, section The class of a group", () => {
 });
 
 describe("docs/core/ristretto255.md: the integers of Z_ℓ link to the blinding context", () => {
-  test("its section The integers of Z_ℓ names BlindingContext.boundedInt() and links The class of a group; it has no section BoundedInt", () => {
+  test("its section The integers of Z_ℓ names context.boundedInt(), for a context over RistrettoElement, and links The class of a group; it has no section BoundedInt", () => {
     const text = section(group, "The integers of Z_ℓ");
-    expect(text).toMatch(/`BlindingContext\.boundedInt\(\)`/);
+    expect(text).toMatch(/`context\.boundedInt\(\)`, for\s+a context over `RistrettoElement`/);
     expect(text).toMatch(/\(blinding-context\.md#the-class-of-a-group\)/);
     expect(group).not.toContain("\n## BoundedInt\n");
     expect(group).not.toContain("(#boundedint)");
@@ -175,13 +190,13 @@ describe("docs/core/ristretto255.md: the integers of Z_ℓ link to the blinding 
 });
 
 describe("docs/core/bounded-int.md: the notice of the BoundedInt of the entry point", () => {
-  test("it comes last, after the material of the generic class, and says that ./core gives a specialized subclass, BlindingContext.boundedInt()", () => {
+  test("it comes last, after the material of the generic class, and says that ./core gives a specialized subclass, the boundedInt() of a blinding context", () => {
     const notice = section(generic, "The BoundedInt of the entry point");
     expect(generic.indexOf("\n## The BoundedInt of the entry point\n")).toBeGreaterThan(
       generic.indexOf("\n## Subclasses\n"),
     );
     expect(notice).toMatch(/does not export the class of this page/);
-    expect(notice).toMatch(/library: `BlindingContext\.boundedInt\(\)`\./);
+    expect(notice).toMatch(/library: the `boundedInt\(\)` of a blinding context\./);
     expect(notice).toMatch(
       /no class\s+made\s+from\s+it, by `define` or by hand,\s+holds more values than it does/,
     );
@@ -189,11 +204,12 @@ describe("docs/core/bounded-int.md: the notice of the BoundedInt of the entry po
     expect(notice).toMatch(/\(\.\.\/\.\.\/README\.md#documentation\)/);
   });
 
-  test("the README lists BlindingContext.boundedInt(), the integers of Z_ℓ, with the page of the blinding context", () => {
+  test("the README lists context.boundedInt(), the integers of Z_ℓ, with the page of the blinding context", () => {
     const readme = read("README.md");
     expect(readme).toMatch(
-      /\[The blinding context\]\(docs\/core\/blinding-context\.md\)[^\n]*\n[^\n]*\n\s+`BlindingContext\.boundedInt\(\)`, the integers of Z_ℓ/,
+      /\[The blinding context\]\(docs\/core\/blinding-context\.md\)[^\n]*\n[^\n]*\n\s+`context\.boundedInt\(\)`, the integers of Z_ℓ/,
     );
+    expect(readme).not.toContain("BlindingContext.boundedInt");
     expect(readme).not.toMatch(/`BoundedInt`, the integer of Z_ℓ/);
   });
 });

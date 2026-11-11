@@ -1,5 +1,5 @@
 /**
- * The class of ristretto255, `BlindingContext.boundedInt()` (#49, #48;
+ * The class of ristretto255, `context.boundedInt()` of a context over `RistrettoElement` (#49, #48;
  * docs/core/blinding-context.md, The class of a group): the integers of Z_ℓ, a subclass of
  * the generic class of `src/core/bounded-int.ts`, named `Ristretto255Scalar`. Its scale is
  * 0, its bounds `[−0.5, ℓ − 0.5)` are `ℓ` equal buckets, one for each integer from 0 to
@@ -9,12 +9,14 @@
  * its values need 76 digits. `./core` exports no `BoundedInt` (#48). The same file runs in
  * Node.js and in every headless browser.
  *
- * The class is looked up on `BlindingContext`, so that this file compiles before
- * `boundedInt` exists, and every test fails without it.
+ * The class is looked up on a context, so that this file compiles before `boundedInt`
+ * exists, and every test fails without it. The context is the age-check one of
+ * test/vectors/generator-h.json; the class does not await its validation.
  */
 import { describe, expect, expectTypeOf, test } from "vitest";
 import { BoundedInt as GenericBoundedInt } from "../src/core/bounded-int.js";
 import { BlindingContext, RistrettoElement } from "../src/core/index.js";
+import generatorVectors from "./vectors/generator-h.json" with { type: "json" };
 
 /** `ℓ`, the order of ristretto255. */
 const L = RistrettoElement.ORDER;
@@ -22,12 +24,24 @@ const L = RistrettoElement.ORDER;
 /** `ℓ − 0.5`, the bound `max` of the class, as an exact decimal. */
 const MAX = [10n * L - 5n, -1] as const;
 
-/** `BlindingContext.boundedInt()`, the class of ristretto255; `undefined` before it exists. */
+function fromHex(text: string): Uint8Array {
+  return Uint8Array.from(text.match(/../g) ?? [], (pair) => parseInt(pair, 16));
+}
+
+/** The age-check vector of test/vectors/generator-h.json. */
+const ageCheck = generatorVectors.vectors.find((v) => v.name === "age-check");
+if (ageCheck === undefined) throw new Error("no generator vector age-check");
+
+/** `context.boundedInt()`, the class of ristretto255; `undefined` before it exists. */
 const Scalar = (
-  BlindingContext as unknown as { boundedInt?: () => typeof GenericBoundedInt }
+  BlindingContext.fromEncoded(
+    fromHex(ageCheck.h),
+    fromHex(ageCheck.messageHex),
+    RistrettoElement,
+  ) as unknown as { boundedInt?: () => typeof GenericBoundedInt }
 ).boundedInt?.() as typeof GenericBoundedInt;
 
-describe("BlindingContext.boundedInt(): the integer of Z_ℓ", () => {
+describe("context.boundedInt() of ristretto255: the integer of Z_ℓ", () => {
   test("its constants: scale 0, the bounds [−0.5, ℓ − 0.5), no order, no error; low 0n, high ℓ − 1n; the class is frozen", () => {
     expect(Scalar.scale).toBe(0);
     expect(Scalar.min).toBe(-0.5);
@@ -63,7 +77,7 @@ describe("BlindingContext.boundedInt(): the integer of Z_ℓ", () => {
   });
 });
 
-describe("the define of BlindingContext.boundedInt(): no class made from it holds more than ℓ integers", () => {
+describe("the define of the class of ristretto255: no class made from it holds more than ℓ integers", () => {
   test("a class made by define holds at most ℓ integers, and a class made from it no more than its parent", () => {
     const Mass = Scalar.define({ name: "Mass", min: 0, max: 100.05, step: 0.1 });
     expect(Mass.from(2.3).value).toBe(23n);
@@ -116,7 +130,7 @@ describe("the define of BlindingContext.boundedInt(): no class made from it hold
   });
 });
 
-describe("BlindingContext.boundedInt() and the generic class", () => {
+describe("the class of ristretto255 and the generic class", () => {
   test("it extends the generic class of bounded-int.ts; its instances are instances of both; its messages name Ristretto255Scalar", () => {
     expect(Scalar).not.toBe(GenericBoundedInt);
     expect(Object.getPrototypeOf(Scalar)).toBe(GenericBoundedInt);
@@ -160,7 +174,7 @@ describe("BlindingContext.boundedInt() and the generic class", () => {
   });
 });
 
-describe("BlindingContext.boundedInt(): edge cases", () => {
+describe("the class of ristretto255: edge cases", () => {
   test("define accepts order: undefined, ignored as any other key", () => {
     // The type refuses it (exactOptionalPropertyTypes); a caller in JavaScript may pass it.
     const spec = { name: "Byte", min: -0.5, max: 255.5, order: undefined };

@@ -24,14 +24,14 @@ interface Blinded {
 
 interface Context {
   serialize(): Promise<Uint8Array>;
+  boundedInt?: () => typeof GenericBoundedInt;
   blind(x: GenericBoundedInt): Promise<Blinded>;
   isOpeningOf(opening: Blinded): Promise<boolean>;
 }
 
 interface ContextClass {
   readonly prototype: unknown;
-  fromEncoded(h: Uint8Array, message: Uint8Array): Context;
-  boundedInt?: () => typeof GenericBoundedInt;
+  fromEncoded(h: Uint8Array, message: Uint8Array, group: typeof RistrettoElement): Context;
 }
 
 const BlindingContext = (entryPoint as Record<string, unknown>).BlindingContext as
@@ -76,7 +76,6 @@ describe("docs/core/blinding-context.md, section BlindingContext", () => {
         "h",
         "isOpeningOf",
         "serialize",
-        "static boundedInt",
         "static fromEncoded",
       ].sort(),
     );
@@ -94,6 +93,7 @@ test("docs/core/blinding-context.md quotes the serialization of the age-check co
   const context = BlindingContext?.fromEncoded(
     fromHex(vectors.context.h),
     fromHex(vectors.context.messageHex),
+    RistrettoElement,
   );
   const serialized = hex((await context?.serialize()) ?? new Uint8Array());
   expect(serialized).toBe(vectors.context.serialized);
@@ -112,16 +112,19 @@ describe("docs/core/blinding-context.md, section Committed and Blinded", () => {
   });
 
   test("its example runs as written: blind, isOpeningOf, and an opening rebuilt from bytes", async () => {
-    expect(typeof BlindingContext?.boundedInt).toBe("function");
     const text = section("Committed and Blinded");
+    expect(text).toContain("const Scalar = context.boundedInt();");
     expect(text).toContain("opening.value.constructor === Days; // true");
     expect(text).toContain("await context.isOpeningOf(opening); // true");
-    const Scalar = BlindingContext?.boundedInt?.();
-    if (BlindingContext === undefined || Scalar === undefined) return;
+    if (BlindingContext === undefined) throw new Error("no BlindingContext");
     const context = BlindingContext.fromEncoded(
       fromHex(vectors.context.h),
       fromHex(vectors.context.messageHex),
+      RistrettoElement,
     );
+    expect(typeof context.boundedInt).toBe("function");
+    const Scalar = context.boundedInt?.();
+    if (Scalar === undefined) return;
     const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
     const opening = await context.blind(Days.from(20000n));
     expect(opening.value.constructor).toBe(Days);
@@ -137,6 +140,18 @@ describe("docs/core/blinding-context.md, section Committed and Blinded", () => {
   });
 });
 
+test("docs/core/blinding-context.md requires the group of fromEncoded: no group? in the table, no default group, and the examples name RistrettoElement", () => {
+  const table = section("BlindingContext");
+  expect(table).toContain("`static fromEncoded(h, message, group)`");
+  expect(page).not.toContain("group?");
+  expect(page).not.toMatch(/by default/);
+  expect(table).toMatch(/The group is required: there is no default group/);
+  for (const call of page.match(/BlindingContext\.fromEncoded\([^)]*\)/g) ?? []) {
+    expect(call).toMatch(/, RistrettoElement\)$/);
+  }
+  expect(page).not.toContain("BlindingContext.boundedInt");
+});
+
 test("docs/core/blinding-context.md quotes the RangeError of blind, which prints no number, as the code gives it", async () => {
   const quoted =
     /`(BlindingContext\.blind: Wide holds more values than the group Ristretto255 has\s+scalars)`/.exec(
@@ -146,6 +161,7 @@ test("docs/core/blinding-context.md quotes the RangeError of blind, which prints
   const context = BlindingContext?.fromEncoded(
     fromHex(vectors.context.h),
     fromHex(vectors.context.messageHex),
+    RistrettoElement,
   );
   const L = RistrettoElement.ORDER;
   const Wide = GenericBoundedInt.define({ name: "Wide", min: -0.5, max: [10n * L + 5n, -1] });
