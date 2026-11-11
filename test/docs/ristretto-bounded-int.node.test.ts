@@ -57,7 +57,7 @@ describe("docs/core/blinding-context.md, section The class of a group", () => {
     expect(page).toMatch(/\[the class of a group\]\(#the-class-of-a-group\)/i);
   });
 
-  test("it names every own member of the class: the constants min and max", () => {
+  test("it names every own member of the class: the constants scale, min and max", () => {
     const own = Object.getOwnPropertyNames(Scalar).filter(
       (name) => !["length", "name", "prototype"].includes(name),
     );
@@ -183,7 +183,7 @@ describe("docs/core/bounded-int.md: the notice of the BoundedInt of the entry po
     expect(notice).toMatch(/does not export the class of this page/);
     expect(notice).toMatch(/library: `BlindingContext\.boundedInt\(\)`\./);
     expect(notice).toMatch(
-      /no class\s+made from it, by `define` or by hand, holds more values than it does/,
+      /no class\s+made\s+from\s+it, by `define` or by hand,\s+holds more values than it does/,
     );
     expect(notice.slice(0, notice.indexOf("<!--"))).not.toContain("order");
     expect(notice).toMatch(/\(\.\.\/\.\.\/README\.md#documentation\)/);
