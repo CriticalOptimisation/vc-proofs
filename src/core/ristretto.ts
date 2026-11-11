@@ -13,18 +13,14 @@
  *   `hashToGroup` and `deriveGenerator` are asynchronous. `MAP` (RFC 9496, Section
  *   4.3.4) is written here, since noble does not export it.
  * - `BoundedInt`, the integer of Z_ℓ (docs/core/ristretto255.md), extends the generic
- *   class of `bounded-int.ts` with the bounds `[−0.5, ℓ − 0.5)` and the order `ℓ`, which
- *   every class made from it inherits: its `define` takes no `order`.
+ *   class of `bounded-int.ts` with the bounds `[−0.5, ℓ − 0.5)`: it holds `ℓ` integers,
+ *   and no class made from it holds more.
  *
  * The functions exported below the classes are for the tests, not for the entry point.
  */
 import { ed25519, ristretto255 } from "@noble/curves/ed25519.js";
 import { bytesToNumberLE } from "@noble/curves/utils.js";
-import {
-  BoundedInt as GenericBoundedInt,
-  type BoundedIntSpec,
-  type Quantity,
-} from "./bounded-int.js";
+import { BoundedInt as GenericBoundedInt, type Quantity } from "./bounded-int.js";
 
 type Point = InstanceType<typeof ristretto255.Point>;
 
@@ -318,14 +314,11 @@ export class RistrettoElement {
   }
 }
 
-/** The specification of `define` on `BoundedInt`: no `order`, which is `ℓ`, inherited. */
-export type RistrettoBoundedIntSpec = Omit<BoundedIntSpec, "order"> & { readonly order?: never };
-
 /**
  * The integer of Z_ℓ: scale 0, the bounds `[−0.5, ℓ − 0.5)`, `ℓ` equal buckets, one for
- * each integer from 0 to `ℓ − 1`, and the order `ℓ`, which every class made from it
- * inherits. Its values need 76 digits, so it takes no `number`; a class of a narrower
- * range made from it does. Frozen. See docs/core/ristretto255.md, *BoundedInt*.
+ * each integer from 0 to `ℓ − 1`: no class made from it, by `define` or by hand, holds
+ * more than `ℓ` integers. Its values need 76 digits, so it takes no `number`; a class of
+ * a narrower range made from it does. Frozen. See docs/core/ristretto255.md, *BoundedInt*.
  */
 export class BoundedInt extends GenericBoundedInt {
   /** `−0.5`: the bucket of 0 is `[−0.5, 0.5)`. */
@@ -335,29 +328,6 @@ export class BoundedInt extends GenericBoundedInt {
     10n * RistrettoElement.ORDER - 5n,
     -1,
   ] as const);
-  /** `ℓ`, the order of the group: no class made from `BoundedInt` holds more values. */
-  static override readonly order: bigint = RistrettoElement.ORDER;
-
-  /**
-   * The `define` of the generic class, without `order`: the class it makes inherits `ℓ`,
-   * and so does every class made from that one, which inherits this `define` too.
-   *
-   * @throws TypeError when `spec` has an `order`, with the errors of the generic `define`.
-   * @throws RangeError as the generic `define`, for more than `ℓ` distinct values too.
-   */
-  static override define(spec: RistrettoBoundedIntSpec): typeof BoundedInt {
-    // The type of the parameter says `never`; a caller in JavaScript may still pass one.
-    if (
-      typeof spec === "object" &&
-      (spec as unknown) !== null &&
-      (spec as { order?: unknown }).order !== undefined
-    ) {
-      throw new TypeError(
-        `${this.name}.define: the order is that of the group, ℓ; leave order out`,
-      );
-    }
-    return super.define(spec) as typeof BoundedInt;
-  }
 }
 Object.freeze(BoundedInt);
 
@@ -531,3 +501,4 @@ function hex(bytes: Uint8Array): string {
 // | #38    | new: the two classes; the derivation of generator.ts (#35)    |
 // | #40    | SUITE_NAME, randomScalar, ORDER, encodeScalar, decodeScalar, invertScalar; bigint scalars, RistrettoScalar removed; multiplyScalar multiplies even for a scalar that reduces to 0 (#39) |
 // | #51    | BoundedInt, the integer of Z_ℓ: [−0.5, ℓ − 0.5), order ℓ; define without order; RistrettoBoundedIntSpec (#49) |
+// | #53    | BoundedInt: no order, no RistrettoBoundedIntSpec, no define override (#52) |

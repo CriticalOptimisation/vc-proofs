@@ -52,6 +52,8 @@ BoundedInt.from(-1); // RangeError: below BoundedInt.min
 | `static from(x)`                     | a new instance holding the value `x`, scaled                       | see [from](#from)                    |
 | `static fromValue(q)`                | a new instance holding the integer `q`, as it is                   | see [fromValue](#fromvalue)          |
 | `static define(spec)`                | a new subclass                                                     | see [define](#define)                |
+| `static low`                         | the lowest integer of the class, a `bigint`                        | as the constants                     |
+| `static high`                        | the highest integer of the class, a `bigint`                       | as the constants                     |
 | `static errorBound`                  | the bound of the error of a value, relative to `max − min`         | as the constants                     |
 | `static quadraticError`              | the quadratic error of a value, relative to `max − min`            | as the constants                     |
 | `static termError`                   | the error of the least accurate term, relative to `max − min`      | as the constants                     |
@@ -103,13 +105,12 @@ A class whose values need more than 15 digits takes no `number` (see [from](#fro
 A class is described by its constants, which every member reads from the class of the
 call (`this` in a static member, `this.constructor` in an instance member):
 
-| Constant | Meaning                                                                    | On `BoundedInt`  |
-| -------- | -------------------------------------------------------------------------- | ---------------- |
-| `scale`  | the integer `k` of the factor `10^k`: the step of the class is `10^-k`     | `0`              |
-| `min`    | the lowest value, included, a quantity                                     | `0n`             |
-| `max`    | the value just above the highest, excluded, a quantity                     | `32767.5`        |
-| `order`  | the most distinct values the class, and every class made from it, may hold | absent: no limit |
-| `error`  | the accuracy of the values, in the unit of the values, a quantity          | absent: ½ step   |
+| Constant | Meaning                                                                | On `BoundedInt` |
+| -------- | ---------------------------------------------------------------------- | --------------- |
+| `scale`  | the integer `k` of the factor `10^k`: the step of the class is `10^-k` | `0`             |
+| `min`    | the lowest value, included, a quantity                                 | `0n`            |
+| `max`    | the value just above the highest, excluded, a quantity                 | `32767.5`       |
+| `error`  | the accuracy of the values, in the unit of the values, a quantity      | absent: ½ step  |
 
 - **The scale is a power of ten.** `k` is an integer from `−308` to `323`, the powers of
   ten whose step `10^-k` a `number` can write. A step of `0.01` is `k = 2`, a step of 1000
@@ -129,41 +130,47 @@ The bounds are kept exactly as they are given, whatever the scale: they need not
 the step. A value that is within them is scaled to the step and rounded; a value that is
 not is refused, even if it would round to an integer that a value within them gives.
 
-**The order.** A class with its bounds and its step holds a number of distinct values,
-`(max − min) / step`, as integers of a fixed size do. An unsigned byte holds 256 values:
-with the rounding, its bounds are `[−0.5, 255.5)` at the step 1, every `x` of that
-interval rounds to one of the integers from 0 to 255, and 255.5, which would round to 256,
-is excluded. The values need not be integers: with a positive scale they are fractions,
-and they count the same.
+**The integers of a class.** The values of `[min, max)`, scaled and rounded, give the
+integers from `low` to `high`, both included. `low` is the integer `min` rounds to, and
+`high` the integer the values just below `max` round to. The static getters `low` and
+`high` give them, as `bigint`s: `0n` and `32767n` on `BoundedInt`, `0n` and `1000n` on
+`Mass`.
 
-The constant `order` is a limit on that number, and it is inherited: a class that declares
-it passes it to every class made from it, and each of them must hold at most `order`
-values, else a `RangeError` when it is made. `BoundedInt` declares none, so that an
-application can have several families of classes, each rooted on a subclass of
-`BoundedInt` with an order of its own:
+**The number of values.** A class holds `high − low + 1` distinct values, as integers of a
+fixed size do. An unsigned byte holds 256 values: with the rounding, its bounds are
+`[−0.5, 255.5)` at the step 1, every `x` of that interval rounds to one of the integers
+from 0 to 255, and 255.5, which would round to 256, is excluded. The values need not be
+integers: with a positive scale they are fractions, and they count the same.
+
+A class holds no more values than its parent, the class it extends, else a `RangeError`.
+Only the number of values is compared: the range of a class may lie within that of its
+parent, overlap it or lie outside it, at the same step or at another. The rule holds from
+parent to child, so a class holds no more values than any of its ancestors. A class whose
+parent is `BoundedInt` is the exception: it holds as many values as its bounds give, as
+`DayCount` of the [examples](#examples) does with 365251. So an application can root
+families of classes of its own, each on a class made from `BoundedInt`:
 
 ```ts
-const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5, step: 1, order: 256n });
-const Percent = Byte.define({ name: "Percent", min: -0.5, max: 100.5, step: 1 }); // order 256n
-Byte.define({ name: "Word", min: -0.5, max: 65535.5, step: 1 }); // RangeError: 65536 values
+const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 }); // 0 to 255: 256 values
+const Percent = Byte.define({ name: "Percent", min: -0.5, max: 100.5 }); // 0 to 100: 101 values
+const Code = Byte.define({ name: "Code", min: 999.5, max: 1255.5 }); // 1000 to 1255: 256 values
+const Cents = Byte.define({ name: "Cents", min: 0, max: 2.555, step: 0.01 }); // 0 to 255, k = 2: 256 values
+Byte.define({ name: "Word", min: -0.5, max: 65535.5 }); // RangeError: 65536 values, more than Byte
 ```
-
-`define` takes `order` as a `bigint`, or any form with a `bigint` `ORDER`; a class
-inherits the order of its base when it is left out. Without an order, there is no limit.
 
 The constants of a class made by `define` are checked when it is made. A class written
 by hand, `class Days extends BoundedInt { static override min = 0n; static override max =
-365251n }`, is checked at its first use, once. Each constant it declares overrides that of
-`BoundedInt`, so TypeScript requires `override` under `noImplicitOverride`:
+365251n }`, is checked at its first use, once; its parent is checked first. Each constant
+it declares overrides that of `BoundedInt`, so TypeScript requires `override` under
+`noImplicitOverride`:
 
 | Constants                                                      | Error        |
 | -------------------------------------------------------------- | ------------ |
 | `min` without `max`, or `max` without `min`                    | `TypeError`  |
 | `min`, `max` or `error` not a quantity, `scale` not a `number` | `TypeError`  |
-| `order` not a `bigint`                                         | `TypeError`  |
 | `min ≥ max`                                                    | `RangeError` |
 | `scale` not an integer from `−308` to `323`                    | `RangeError` |
-| `order` not above 0, or more distinct values than `order`      | `RangeError` |
+| more values than its parent, unless its parent is `BoundedInt` | `RangeError` |
 | `error` below 0                                                | `RangeError` |
 
 The constants are `static readonly`: TypeScript refuses to assign them, and a class made by
@@ -293,8 +300,8 @@ the worst outcome. Since `[Symbol.toPrimitive]` comes first, JavaScript never ca
 
 ### define
 
-`BoundedInt.define({ name, min, max, step?, error?, order? })` makes a
-frozen subclass of the class it is called on:
+`BoundedInt.define({ name, min, max, step?, error? })` makes a frozen subclass of the
+class it is called on, its parent, and is typed as that class:
 
 - `name` is the name of the class, a non-empty string, used in the messages;
 - `min` and `max` are the bounds `[min, max)`, quantities, with `min < max`; the class
@@ -303,16 +310,18 @@ frozen subclass of the class it is called on:
   `−308` to `323`, with `10^-k ≤ step`, compared exactly: a step of `0.1` gives `k = 1`, a
   step of `0.025` gives `k = 2`, a step of 1000 gives `k = −3`. Without `step`, `k = 0`;
 - `error` is the accuracy of the values, in the unit of the values (the unit of `min` and
-  `max`), a quantity, 0 or more; half a step when it is left out;
-- `order` is the most distinct values the class and every class made from it may hold, a
-  `bigint` or a form with a `bigint` `ORDER`; that of the base when it is left out.
+  `max`), a quantity, 0 or more; half a step when it is left out.
 
-| `spec`                                                               | Error        |
-| -------------------------------------------------------------------- | ------------ |
-| `name` not a non-empty string; a quantity or `order` of another type | `TypeError`  |
-| `min ≥ max`; `step` not above 0                                      | `RangeError` |
-| a `step` below `10^-323`                                             | `RangeError` |
-| `error` below 0; more distinct values than `order`                   | `RangeError` |
+Any other key of `spec` is ignored. The new class holds no more values than its parent,
+unless its parent is `BoundedInt` (see [The range of a class](#the-range-of-a-class)).
+
+| `spec`                                                         | Error        |
+| -------------------------------------------------------------- | ------------ |
+| `name` not a non-empty string; a quantity of another type      | `TypeError`  |
+| `min ≥ max`; `step` not above 0                                | `RangeError` |
+| a `step` below `10^-323`                                       | `RangeError` |
+| `error` below 0                                                | `RangeError` |
+| more values than its parent, unless its parent is `BoundedInt` | `RangeError` |
 
 ## Rounding
 
@@ -395,8 +404,8 @@ call it and add fields of its own.
 
 The `BoundedInt` that `@criticaloptimisation/vc-proofs/core` exports is not the class of
 this page, but a subclass of it, specialized for the mathematics of the elliptic curve of
-the library. Its bounds and its `order` are its own, every class made from it inherits
-that order, and its `define` takes no `order`. The examples of `BoundedInt.from` above run
+the library. Its bounds are its own, and no class made from it, by `define` or by hand,
+holds more values than it does. The examples of `BoundedInt.from` above run
 on the class of this page. The specialized class is documented with the curve: see the
 list of pages of the [README](../../README.md#documentation).
 
@@ -408,4 +417,5 @@ Change History
 | #42 | new: BoundedInt, its casts, conversions and subclasses (#41) |
 | #47 | decimal classes: scale, the exact bounds [min, max), order, error; quantities as decimals, numbers at 15 digits; from, fromValue, define; valueOf, toString, toLocaleString, rounding (#44) |
 | #51 | notice: ./core exports a specialized subclass (#49) |
+| #53 | no order: a class holds no more values than its parent, unless its parent is BoundedInt; static low and high; define typed as its class, other keys ignored (#52) |
 -->

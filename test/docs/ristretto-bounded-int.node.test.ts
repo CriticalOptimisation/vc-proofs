@@ -1,7 +1,8 @@
 /**
  * docs/core/ristretto255.md documents the `BoundedInt` of `./core` (#49), the integer of
- * Z_ℓ, in its section *BoundedInt*: its constants, its bounds, its order, its `define`
- * without `order`, and the examples, each checked against the class. The page of the
+ * Z_ℓ, in its section *BoundedInt*: its constants, its bounds, `low` and `high`, the rule
+ * that no class made from it holds more than `ℓ` integers (#52), its `define`, and the
+ * examples, each checked against the class. The page of the
  * generic class, docs/core/bounded-int.md, only says, after its own material, that
  * `./core` exports a specialized subclass. The tests of that page stay on the generic
  * class (test/docs/bounded-int.node.test.ts).
@@ -45,23 +46,48 @@ describe("docs/core/ristretto255.md, section BoundedInt", () => {
     expect(page).toMatch(/\[BoundedInt\]\(#boundedint\)/);
   });
 
-  test("it names every own member of the class: the constants min, max, order, and define", () => {
+  // REVIEW PLACEHOLDER (#52: no order; the generic define)
+  // it names every own member of the class: the constants min, max, order, and define
+  //   -> it names every own member of the class: the constants min and max
+  //   expect(own.sort()).toEqual(["define", "max", "min", "order"]);
+  // the table of constants shows the constants of the class: scale 0, [−0.5, ℓ − 0.5), order ℓ, no error
+  //   -> the table of constants shows the constants of the class: scale 0, [−0.5, ℓ − 0.5), no error; no order
+  //   expect(row(text, "order")[1]).toBe("`ℓ`, `RistrettoElement.ORDER`");
+  //   expect(BoundedInt.order).toBe(L);
+  // define takes no order: a TypeError, inherited by the classes it makes; a class written by hand may declare one
+  //   -> low and high are 0n and ℓ − 1n; no class made from it, by define or by hand, holds more than ℓ integers
+  //   -> define is the generic define, typed as the class it is called on
+  // test("define takes no order: a TypeError, inherited by the classes it makes; a class written by hand may declare one", () => {
+  //   expect(text).toMatch(/`BoundedInt\.define\(\{ name, min, max, step\?, error\? \}\)`/);
+  //   expect(text).toMatch(/`order` in `spec` is a `TypeError`/);
+  //   expect(text).toMatch(/\[bounded integers\]\(bounded-int\.md#define\)/);
+  //   expect(text).toMatch(/`static override order = 256n`\. Nothing prevents it/);
+  //   const spec = { name: "Word", min: -0.5, max: 65535.5, order: 65536n };
+  //   expect(() => BoundedInt.define(spec as never)).toThrow(/^BoundedInt\.define: /);
+  //   const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 });
+  //   expect(() => Byte.define({ ...spec, name: "W" } as never)).toThrow(/^Byte\.define: /);
+  // });
+  // the examples give what they say: the order assertions are replaced by the counts
+  //   expect(Mass.order).toBe(L);
+  //   expect(Percent.order).toBe(L);
+  //   expect(code).toMatch(/order: 65536n \}\); \/\/ TypeError/);
+  test("it names every own member of the class: the constants min and max", () => {
     const own = Object.getOwnPropertyNames(BoundedInt).filter(
       (name) => !["length", "name", "prototype"].includes(name),
     );
-    expect(own.sort()).toEqual(["define", "max", "min", "order"]);
+    expect(own.sort()).toEqual(["max", "min"]);
     for (const name of own) expect(text).toContain(`\`${name}\``);
   });
 
-  test("the table of constants shows the constants of the class: scale 0, [−0.5, ℓ − 0.5), order ℓ, no error", () => {
+  test("the table of constants shows the constants of the class: scale 0, [−0.5, ℓ − 0.5), no error; no order", () => {
     expect(row(text, "scale")[1]).toBe("`0`");
     expect(BoundedInt.scale).toBe(0);
     expect(row(text, "min")[1]).toBe("`-0.5`");
     expect(BoundedInt.min).toBe(-0.5);
     expect(row(text, "max")[1]).toBe("`ℓ − 0.5`, kept as `[10n * ℓ - 5n, -1]`");
     expect(BoundedInt.max).toEqual([10n * L - 5n, -1]);
-    expect(row(text, "order")[1]).toBe("`ℓ`, `RistrettoElement.ORDER`");
-    expect(BoundedInt.order).toBe(L);
+    expect(text).not.toMatch(/\| `order` /);
+    expect("order" in BoundedInt).toBe(false);
     expect(row(text, "error")[1]).toBe("absent: ½ step");
     expect(BoundedInt.error).toBeUndefined();
   });
@@ -74,15 +100,30 @@ describe("docs/core/ristretto255.md, section BoundedInt", () => {
     expect(() => BoundedInt.define({ name: "Full", min: 0n, max: L })).toThrow(RangeError);
   });
 
-  test("define takes no order: a TypeError, inherited by the classes it makes; a class written by hand may declare one", () => {
+  test("low and high are 0n and ℓ − 1n; no class made from it, by define or by hand, holds more than ℓ integers", () => {
+    expect(text).toMatch(/\*\*`low` and `high`\*\* are `0n` and `ℓ − 1n`/);
+    expect([BoundedInt.low, BoundedInt.high]).toEqual([0n, L - 1n]);
+    expect(text).toMatch(/\*\*No class made from it holds more than `ℓ` integers\.\*\*/);
+    expect(text).toMatch(/\[The range of a class\]\(bounded-int\.md#the-range-of-a-class\)/);
+    expect(text).toMatch(/by `define` or by hand/);
+    class Full extends BoundedInt {
+      static override readonly min = 0n;
+      static override readonly max = L;
+    }
+    expect(() => Full.from(5n)).toThrow(/must not hold more values than BoundedInt/);
+    expect(() => BoundedInt.define({ name: "Full", min: 0n, max: L })).toThrow(
+      /must not hold more values than BoundedInt/,
+    );
+  });
+
+  test("define is the generic define, typed as the class it is called on", () => {
+    expect(text).toMatch(
+      /\*\*`define`\*\* is the `define` of \[bounded integers\]\(bounded-int\.md#define\)/,
+    );
     expect(text).toMatch(/`BoundedInt\.define\(\{ name, min, max, step\?, error\? \}\)`/);
-    expect(text).toMatch(/`order` in `spec` is a `TypeError`/);
-    expect(text).toMatch(/\[bounded integers\]\(bounded-int\.md#define\)/);
-    expect(text).toMatch(/`static override order = 256n`\. Nothing prevents it/);
-    const spec = { name: "Word", min: -0.5, max: 65535.5, order: 65536n };
-    expect(() => BoundedInt.define(spec as never)).toThrow(/^BoundedInt\.define: /);
-    const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 });
-    expect(() => Byte.define({ ...spec, name: "W" } as never)).toThrow(/^Byte\.define: /);
+    expect(text).not.toContain("order");
+    expect(Object.hasOwn(BoundedInt, "define")).toBe(false);
+    expect(Object.getPrototypeOf(BoundedInt)).toBe(GenericBoundedInt);
   });
 
   test("the class takes no number, and is frozen; a narrower class made from it, Mass, takes one", () => {
@@ -109,12 +150,20 @@ describe("docs/core/ristretto255.md, section BoundedInt", () => {
     const Mass = BoundedInt.define({ name: "Mass", min: 0, max: 100.05, step: 0.1 });
     expect(code).toContain("Mass.from(2.3).value; // 23n");
     expect(Mass.from(2.3).value).toBe(23n);
-    expect(Mass.order).toBe(L);
+    expect(code).toContain("BoundedInt.high === ℓ - 1n; // true");
+    expect(BoundedInt.high === L - 1n).toBe(true);
+    expect(code).toMatch(/step: 0\.1 \}\); \/\/ 1001 values/);
+    expect(Mass.high - Mass.low + 1n).toBe(1001n);
     const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 });
     const Percent = Byte.define({ name: "Percent", min: -0.5, max: 100.5 });
-    expect(Percent.order).toBe(L);
+    expect(code).toMatch(/max: 100\.5 \}\); \/\/ 101 values/);
+    expect(Percent.high - Percent.low + 1n).toBe(101n);
     expect(code).toContain("// RangeError: ℓ + 1 values");
-    expect(code).toMatch(/order: 65536n \}\); \/\/ TypeError/);
+    expect(code).toContain(
+      'Byte.define({ name: "Word", min: -0.5, max: 65535.5 }); // RangeError: more values than Byte',
+    );
+    expect(() => Byte.define({ name: "Word", min: -0.5, max: 65535.5 })).toThrow(RangeError);
+    expect(code).not.toContain("order");
   });
 });
 
@@ -125,7 +174,13 @@ describe("docs/core/bounded-int.md: the notice of the BoundedInt of the entry po
       generic.indexOf("\n## Subclasses\n"),
     );
     expect(notice).toMatch(/is not the class of\s+this page, but a subclass of it/);
-    expect(notice).toMatch(/its `define` takes no `order`/);
+    // REVIEW PLACEHOLDER (#52: no order)
+    // the notice said: its `define` takes no `order`
+    //   expect(notice).toMatch(/its `define` takes no `order`/);
+    expect(notice).toMatch(
+      /no class made from it, by `define` or by hand,\s+holds more values than it does/,
+    );
+    expect(notice.slice(0, notice.indexOf("<!--"))).not.toContain("order");
     expect(notice).toMatch(/\(\.\.\/\.\.\/README\.md#documentation\)/);
   });
 
@@ -141,3 +196,4 @@ describe("docs/core/bounded-int.md: the notice of the BoundedInt of the entry po
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #51    | new: the section BoundedInt of ristretto255.md, and the notice of bounded-int.md (#49) |
+// | #53    | no order; low and high; own members min and max; the generic define (#52) |
