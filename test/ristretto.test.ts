@@ -1,14 +1,15 @@
 /**
  * `RistrettoElement` and its scalars, which are bigints (#35; docs/core/ristretto255.md),
  * with the scalar members that need the order ℓ (ORDER, encodeScalar, decodeScalar,
- * invertScalar) and the value of a BoundedInt (docs/core/bounded-int.md), against the
+ * invertScalar) and the value of a bounded integer (docs/core/bounded-int.md), against the
  * vectors of RFC 9496, Appendix A, and the published vectors of the generator h. Every
  * expected value comes from the text of an RFC or from test/vectors/generator-h.json,
  * which libsodium cross-checks. The same file runs in Node.js and in every headless
  * browser.
  */
 import { describe, expect, expectTypeOf, test } from "vitest";
-import { BoundedInt, RistrettoElement } from "../src/core/index.js";
+import { BoundedInt as GenericBoundedInt } from "../src/core/bounded-int.js";
+import { BlindingContext, RistrettoElement } from "../src/core/index.js";
 import { deriveGeneratorWith } from "../src/core/ristretto.js";
 import vectors from "./vectors/generator-h.json" with { type: "json" };
 import rfc from "./vectors/rfc9380-rfc9496.json" with { type: "json" };
@@ -31,6 +32,14 @@ function le32(n: bigint): Uint8Array {
 const ascii = (text: string): Uint8Array => new TextEncoder().encode(text);
 const L = 2n ** 252n + 27742317777372353535851937790883648493n;
 const g = () => RistrettoElement.canonicalGenerator();
+/**
+ * The integers of Z_ℓ, `BlindingContext.boundedInt()` (docs/core/blinding-context.md, The
+ * class of a group), or a class of the same constants until it exists: the tests here are
+ * about the group, which takes the value of any bounded integer.
+ */
+const Scalar =
+  (BlindingContext as unknown as { boundedInt?: () => typeof GenericBoundedInt }).boundedInt?.() ??
+  GenericBoundedInt.define({ name: "Ristretto255Scalar", min: -0.5, max: [10n * L - 5n, -1] });
 const multiples = rfc.multiplesOfGenerator.encodings;
 
 describe("RistrettoElement: RFC 9496, Appendix A", () => {
@@ -400,7 +409,7 @@ describe("The scalar members of RistrettoElement", () => {
     ["a string", "5"],
     ["null", null],
     ["undefined", undefined],
-    ["a BoundedInt", BoundedInt.from(5n)],
+    ["a bounded integer", Scalar.from(5n)],
     ["an element", g()],
   ])(
     "encodeScalar and invertScalar refuse %s, which is not a bigint, with a TypeError",
@@ -412,18 +421,16 @@ describe("The scalar members of RistrettoElement", () => {
     },
   );
 
-  test("a BoundedInt passes its value: multiplyScalar(x.value) takes it, multiplyScalar(x) is a TypeError", () => {
-    expect(hex(g().multiplyScalar(BoundedInt.from(5n).value).encode())).toBe(multiples[5]);
-    // BoundedInt is the integer of Z_ℓ (#49): −1 is the scalar ℓ − 1.
+  test("a bounded integer passes its value: multiplyScalar(x.value) takes it, multiplyScalar(x) is a TypeError", () => {
+    expect(hex(g().multiplyScalar(Scalar.from(5n).value).encode())).toBe(multiples[5]);
+    // The class of the group holds the integers of Z_ℓ (#49, #48): −1 is the scalar ℓ − 1.
     expect(
       g()
-        .multiplyScalar(BoundedInt.from(L - 1n).value)
+        .multiplyScalar(Scalar.from(L - 1n).value)
         .equals(g().negate()),
     ).toBe(true);
-    expect(hex(RistrettoElement.encodeScalar(BoundedInt.from(L - 1n).value))).toBe(
-      hex(le32(L - 1n)),
-    );
-    expect(() => g().multiplyScalar(BoundedInt.from(5n) as never)).toThrow(TypeError);
+    expect(hex(RistrettoElement.encodeScalar(Scalar.from(L - 1n).value))).toBe(hex(le32(L - 1n)));
+    expect(() => g().multiplyScalar(Scalar.from(5n) as never)).toThrow(TypeError);
   });
 
   test("the scalar parameters are bigints, and so are the scalars returned", () => {

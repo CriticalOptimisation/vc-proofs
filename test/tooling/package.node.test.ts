@@ -20,7 +20,7 @@ const tsc = require.resolve("typescript/bin/tsc");
  */
 const surface: Record<string, string[]> = {
   "": [],
-  "/core": ["BlindingContext", "BoundedInt", "RistrettoElement", "requestHash"],
+  "/core": ["BlindingContext", "RistrettoElement", "requestHash"],
 };
 const entries = Object.keys(surface);
 
@@ -64,35 +64,44 @@ describe("after the build", { timeout: 120_000 }, () => {
     });
   }
 
-  // REVIEW PLACEHOLDER (#52: no order; the generic define, typed as the class it is called on)
-  // the declarations of ./core export BoundedInt from ristretto.ts: a class that extends the generic one, with its order and a define without order
-  //   -> the declarations of ./core export BoundedInt from ristretto.ts: a class that extends the generic one, with its own min and max only
-  //   expect(declarations).toContain("static readonly order: bigint;");
+  // REVIEW PLACEHOLDER (#48: ./core exports no BoundedInt; the class of the group comes from BlindingContext.boundedInt())
+  // the declarations of ./core export BoundedInt from ristretto.ts: a class that extends the generic one, with its own min and max only
+  //   -> the declarations of ./core export no BoundedInt, and the types Committed, Blinded and Group of blinding-context.ts; ristretto.ts declares no BoundedInt
+  // test("the declarations of ./core export BoundedInt from ristretto.ts: a class that extends the generic one, with its own min and max only", () => {
+  //   const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
+  //   expect(index).toMatch(/export \{[^}]*\bBoundedInt\b[^}]*\} from "\.\/ristretto\.js";/);
+  //   expect(index).not.toContain("./bounded-int.js");
+  //   const declarations = readFileSync(`${root}dist/core/ristretto.d.ts`, "utf8");
   //   expect(declarations).toMatch(
-  //     /export type RistrettoBoundedIntSpec = Omit<BoundedIntSpec, "order">/,
+  //     /import \{ BoundedInt as (\w+)\b[^}]*\} from "\.\/bounded-int\.js";/,
   //   );
-  //   expect(declarations).toContain(
-  //     "static define(spec: RistrettoBoundedIntSpec): typeof BoundedInt;",
-  //   );
-  // the declarations of bounded-int.ts declare the generic BoundedInt, its constants without integerOnly, the quantities, from, fromValue, define, the errors of the class, value, valueOf, toString and toLocaleString
-  //   -> the declarations of bounded-int.ts declare the generic BoundedInt, its constants without integerOnly nor order, the quantities, from, fromValue, define typed as its class, low, high, the errors of the class, value, valueOf, toString and toLocaleString
-  //   expect(declarations).toContain("static readonly order?: bigint;");
-  //   expect(declarations).toContain("static define(spec: ");
-  test("the declarations of ./core export BoundedInt from ristretto.ts: a class that extends the generic one, with its own min and max only", () => {
+  //   const base = /import \{ BoundedInt as (\w+)/.exec(declarations)?.[1] ?? "";
+  //   expect(declarations).toContain(`export declare class BoundedInt extends ${base} {`);
+  //   expect(declarations).toContain("static readonly min: Quantity;");
+  //   expect(declarations).toContain("static readonly max: Quantity;");
+  //   const own = /export declare class BoundedInt extends \w+ \{([^}]*)\}/.exec(declarations);
+  //   expect(own?.[1]).not.toMatch(/order|define/);
+  //   expect(declarations).not.toContain("RistrettoBoundedIntSpec");
+  // });
+  test("the declarations of ./core export no BoundedInt, and the types Committed, Blinded and Group of blinding-context.ts; ristretto.ts declares no BoundedInt", () => {
     const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
-    expect(index).toMatch(/export \{[^}]*\bBoundedInt\b[^}]*\} from "\.\/ristretto\.js";/);
+    expect(index).not.toMatch(/\bBoundedInt\b/);
     expect(index).not.toContain("./bounded-int.js");
-    const declarations = readFileSync(`${root}dist/core/ristretto.d.ts`, "utf8");
-    expect(declarations).toMatch(
-      /import \{ BoundedInt as (\w+)\b[^}]*\} from "\.\/bounded-int\.js";/,
-    );
-    const base = /import \{ BoundedInt as (\w+)/.exec(declarations)?.[1] ?? "";
-    expect(declarations).toContain(`export declare class BoundedInt extends ${base} {`);
-    expect(declarations).toContain("static readonly min: Quantity;");
-    expect(declarations).toContain("static readonly max: Quantity;");
-    const own = /export declare class BoundedInt extends \w+ \{([^}]*)\}/.exec(declarations);
-    expect(own?.[1]).not.toMatch(/order|define/);
-    expect(declarations).not.toContain("RistrettoBoundedIntSpec");
+    const types = /export type \{([^}]*)\} from "\.\/blinding-context\.js";/.exec(index)?.[1];
+    expect(
+      types
+        ?.split(",")
+        .map((name) => name.trim())
+        .sort(),
+    ).toEqual(["Blinded", "Committed", "Group"]);
+    const ristretto = readFileSync(`${root}dist/core/ristretto.d.ts`, "utf8");
+    expect(ristretto).not.toMatch(/\bBoundedInt\b/);
+    const context = readFileSync(`${root}dist/core/blinding-context.d.ts`, "utf8");
+    expect(context).toMatch(/export interface Committed<E/);
+    expect(context).toMatch(/export interface Blinded<E/);
+    expect(context).toMatch(/static boundedInt\(\): typeof \w+;/);
+    expect(context).toMatch(/\n\s+boundedInt\(\): typeof \w+;/);
+    expect(context).toMatch(/readonly ORDER: bigint;/);
   });
 
   test("the declarations of bounded-int.ts declare the generic BoundedInt, its constants without integerOnly nor order, the quantities, from, fromValue, define typed as its class, low, high, the errors of the class, value, valueOf, toString and toLocaleString", () => {

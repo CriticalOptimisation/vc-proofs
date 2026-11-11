@@ -1,25 +1,38 @@
 /**
- * `BlindingContext` (#39; docs/core/blinding-context.md): the validation in the
- * constructor, the members that await it, the serialization, the commitments, their
- * openings, the queue of blindings, and a context over a group other than the default.
- * Scalars are bigints (docs/core/ristretto255.md, Scalars), and a BoundedInt passes its
- * value (docs/core/bounded-int.md). The expected values come from
- * test/vectors/generator-h.json and test/vectors/blinding-context.json, which
- * tools/generator-h/reference.py and tools/blinding-context/reference.py compute apart
- * from the TypeScript code, with libsodium. The same file runs in Node.js and in every
- * headless browser.
+ * `BlindingContext` (#39, #48; docs/core/blinding-context.md): the validation in the
+ * constructor, the members that await it, the serialization, the class of a group
+ * (`boundedInt`), the commitments to bounded integers and their openings (`Blinded`), the
+ * queue of blindings, and a context over a group other than the default. The expected
+ * values come from test/vectors/generator-h.json and test/vectors/blinding-context.json,
+ * which tools/generator-h/reference.py and tools/blinding-context/reference.py compute
+ * apart from the TypeScript code, with libsodium. The same file runs in Node.js and in
+ * every headless browser.
  *
  * The class is looked up on the entry point's namespace, and the seams of
  * src/core/blinding-context.ts are imported dynamically, so that this file compiles and
- * runs before they exist, and fails on the behaviour.
+ * runs before they exist, and fails on the behaviour. Until `BlindingContext.boundedInt`
+ * exists, the classes of the values are made from a stand-in with the same constants, so
+ * that the tests of `blind` and `isOpeningOf` reach the behaviour they check.
  */
 import { describe, expect, test, vi } from "vitest";
+import { BoundedInt as GenericBoundedInt } from "../src/core/bounded-int.js";
 import * as entryPoint from "../src/core/index.js";
-import { BoundedInt, RistrettoElement } from "../src/core/index.js";
+import { RistrettoElement } from "../src/core/index.js";
 import contextVectors from "./vectors/blinding-context.json" with { type: "json" };
 import generatorVectors from "./vectors/generator-h.json" with { type: "json" };
 
+/** A class of bounded integers. */
+type BoundedIntClass = typeof GenericBoundedInt;
+
+/** A commitment and its opening (docs/core/blinding-context.md, Committed and Blinded). */
 interface Blinded {
+  readonly commitment: RistrettoElement;
+  readonly value: GenericBoundedInt;
+  readonly blinding: GenericBoundedInt;
+}
+
+/** What the seam blindWith resolves to: the commitment, and r as a bigint. */
+interface BlindedWith {
   readonly commitment: RistrettoElement;
   readonly blinding: bigint;
 }
@@ -28,14 +41,16 @@ interface Context {
   readonly group: unknown;
   h(): Promise<RistrettoElement>;
   serialize(): Promise<Uint8Array>;
-  blind(scalar: bigint): Promise<Blinded>;
-  isOpeningOf(scalar: bigint, blinding: bigint, commitment: RistrettoElement): Promise<boolean>;
+  boundedInt(): BoundedIntClass;
+  blind(x: GenericBoundedInt): Promise<Blinded>;
+  isOpeningOf(opening: Blinded): Promise<boolean>;
 }
 
 /** What a context needs of its group (docs/core/blinding-context.md, The group). */
 interface TestGroup {
   readonly SUITE_NAME: string;
   readonly GENERATOR_DST: string;
+  readonly ORDER: bigint;
   decode(bytes: Uint8Array): RistrettoElement;
   hashToGroup(message: Uint8Array, dst: Uint8Array): Promise<RistrettoElement>;
   canonicalGenerator(): RistrettoElement;
@@ -44,11 +59,13 @@ interface TestGroup {
 
 interface ContextClass {
   fromEncoded(h: Uint8Array, message: Uint8Array, group?: TestGroup): Context;
+  boundedInt?: () => BoundedIntClass;
 }
 
 interface Seams {
   BlindingContext?: ContextClass;
-  blindWith?: (context: Context, scalar: bigint, draw: () => bigint) => Promise<Blinded>;
+  blindWith?: (context: Context, scalar: bigint, draw: () => bigint) => Promise<BlindedWith>;
+  blindValueWith?: (context: Context, x: GenericBoundedInt, draw: () => bigint) => Promise<Blinded>;
   queuedBlindings?: (context: Context) => number;
 }
 
@@ -83,6 +100,21 @@ const abc = () => generator("abc");
 const g = () => RistrettoElement.canonicalGenerator();
 /** ℓ, the order of ristretto255 (RFC 9496). */
 const L = 2n ** 252n + 27742317777372353535851937790883648493n;
+
+/** The class of ristretto255, `BlindingContext.boundedInt()`, or a stand-in until it exists. */
+const Scalar: BoundedIntClass =
+  typeof BlindingContext.boundedInt === "function"
+    ? BlindingContext.boundedInt()
+    : GenericBoundedInt.define({ name: "Ristretto255Scalar", min: -0.5, max: [10n * L - 5n, -1] });
+/** A class of values, made from the class of the group. */
+const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
+/** A class of values with negative integers: −799 … 1599, in steps of 0.01. */
+const Reading = Scalar.define({ name: "Reading", min: -7.99, max: 15.995, step: 0.01 });
+
+/** An opening built by hand, with the integers of its value and of its blinding factor. */
+function opening(commitment: RistrettoElement, m: bigint, r: bigint): Blinded {
+  return { commitment, value: Days.fromValue(m), blinding: Scalar.fromValue(r) };
+}
 
 /** The integer of a little-endian encoding, such as the scalars of the vectors. */
 function littleEndian(bytes: Uint8Array): bigint {
@@ -173,8 +205,8 @@ describe("BlindingContext: construction and validation", () => {
       expect(context).toBeDefined();
       await expect(context.h()).rejects.toThrow(RangeError);
       await expect(context.serialize()).rejects.toThrow(RangeError);
-      await expect(context.blind(1n)).rejects.toThrow(RangeError);
-      await expect(context.isOpeningOf(1n, 1n, g())).rejects.toThrow(RangeError);
+      await expect(context.blind(Days.from(1n))).rejects.toThrow(RangeError);
+      await expect(context.isOpeningOf(opening(g(), 1n, 1n))).rejects.toThrow(RangeError);
     },
   );
 
@@ -219,44 +251,161 @@ describe("BlindingContext: construction and validation", () => {
     expect("Scalar" in RistrettoElement).toBe(false);
     expect((entryPoint as Record<string, unknown>).RistrettoScalar).toBeUndefined();
   });
+
+  test("a group declares its ORDER: RistrettoElement.ORDER is ℓ, and fromEncoded refuses a group without a bigint ORDER above 1, with a TypeError at once", () => {
+    const group = RistrettoElement as unknown as Record<string, unknown>;
+    expect(group.ORDER).toBe(L);
+    expect(ageCheckContext().group).toHaveProperty("ORDER", L);
+    const { h, message } = ageCheck();
+    const base = {
+      SUITE_NAME: "No-order",
+      GENERATOR_DST: RistrettoElement.GENERATOR_DST,
+      decode: (bytes: Uint8Array) => RistrettoElement.decode(bytes),
+      hashToGroup: (bytes: Uint8Array, dst: Uint8Array) => RistrettoElement.hashToGroup(bytes, dst),
+      canonicalGenerator: () => g(),
+      randomScalar: () => RistrettoElement.randomScalar(),
+    };
+    for (const order of [undefined, 7, 1n, 0n]) {
+      const without = { ...base, ORDER: order } as unknown as TestGroup;
+      expect(() => BlindingContext.fromEncoded(h, message, without), String(order)).toThrow(
+        TypeError,
+      );
+    }
+  });
+});
+
+describe("BlindingContext.boundedInt: the class of a group", () => {
+  test("BlindingContext.boundedInt() is the integers 0 … ℓ − 1 of ristretto255: Ristretto255Scalar, scale 0, [−0.5, ℓ − 0.5), frozen, the same object on every call", () => {
+    expect(typeof BlindingContext.boundedInt).toBe("function");
+    const Z = BlindingContext.boundedInt?.();
+    expect(Z?.name).toBe("Ristretto255Scalar");
+    expect(Z?.scale).toBe(0);
+    expect(Z?.min).toBe(-0.5);
+    expect(Z?.max).toEqual([10n * L - 5n, -1]);
+    expect([Z?.low, Z?.high]).toEqual([0n, L - 1n]);
+    expect(Z !== undefined && Object.isFrozen(Z)).toBe(true);
+    expect(Object.getPrototypeOf(Z)).toBe(GenericBoundedInt);
+    expect(BlindingContext.boundedInt?.()).toBe(Z);
+  });
+
+  test("context.boundedInt() of a ristretto255 context is BlindingContext.boundedInt(); ./core exports no BoundedInt", () => {
+    const context = ageCheckContext();
+    expect(typeof context.boundedInt).toBe("function");
+    expect(context.boundedInt()).toBe(BlindingContext.boundedInt?.());
+    expect(BlindingContext.fromEncoded(abc().h, abc().message).boundedInt()).toBe(
+      context.boundedInt(),
+    );
+    expect((entryPoint as Record<string, unknown>).BoundedInt).toBeUndefined();
+  });
 });
 
 describe("BlindingContext: commitments", () => {
-  test("blind gives C = m·g + r·h with the returned r, a bigint from 1 to ℓ − 1", async () => {
+  // REVIEW PLACEHOLDER (#48: blind takes a bounded integer, and resolves to its opening)
+  // blind gives C = m·g + r·h with the returned r, a bigint from 1 to ℓ − 1
+  //   -> blind(x) resolves to a frozen { commitment, value, blinding }: C = m·g + r·h, value is x, r a value of the class of the group from 1 to ℓ − 1
+  // test("blind gives C = m·g + r·h with the returned r, a bigint from 1 to ℓ − 1", async () => {
+  //   const context = ageCheckContext();
+  //   const m = 20000n;
+  //   const { commitment, blinding } = await context.blind(m);
+  //   expect(typeof blinding).toBe("bigint");
+  //   expect(blinding > 0n && blinding < L).toBe(true);
+  //   expect(commitment.equals(pedersen(m, blinding, await context.h()))).toBe(true);
+  // });
+  test("blind(x) resolves to a frozen { commitment, value, blinding }: C = m·g + r·h, value is x, r a value of the class of the group from 1 to ℓ − 1", async () => {
     const context = ageCheckContext();
-    const m = 20000n;
-    const { commitment, blinding } = await context.blind(m);
-    expect(typeof blinding).toBe("bigint");
-    expect(blinding > 0n && blinding < L).toBe(true);
-    expect(commitment.equals(pedersen(m, blinding, await context.h()))).toBe(true);
+    const x = Days.from(20000n);
+    const blinded = await context.blind(x);
+    expect(Object.keys(blinded).sort()).toEqual(["blinding", "commitment", "value"]);
+    expect(Object.isFrozen(blinded)).toBe(true);
+    expect(blinded.value).toBe(x);
+    expect(blinded.value.constructor).toBe(Days);
+    const { blinding } = blinded;
+    expect(blinding).toBeInstanceOf(Scalar);
+    expect(blinding.constructor).toBe(Scalar);
+    expect(blinding.value > 0n && blinding.value < L).toBe(true);
+    expect(blinded.commitment.equals(pedersen(20000n, blinding.value, await context.h()))).toBe(
+      true,
+    );
   });
 
-  test("two commitments to the same scalar have different r and C", async () => {
+  test("blind of a value of the class of the group itself commits to its integer", async () => {
     const context = ageCheckContext();
-    const first = await context.blind(20000n);
-    const second = await context.blind(20000n);
-    expect(first.blinding).not.toBe(second.blinding);
+    const x = Scalar.from(L - 1n);
+    const { commitment, blinding } = await context.blind(x);
+    expect(commitment.equals(pedersen(L - 1n, blinding.value, await context.h()))).toBe(true);
+  });
+
+  test("two commitments to the same value have different r and C", async () => {
+    const context = ageCheckContext();
+    const first = await context.blind(Days.from(20000n));
+    const second = await context.blind(Days.from(20000n));
+    expect(first.blinding.value).not.toBe(second.blinding.value);
     expect(first.commitment.equals(second.commitment)).toBe(false);
   });
 
-  test("a BoundedInt passes its value: blind(x.value) commits to x, and blind(x) and isOpeningOf(x, …) reject with a TypeError", async () => {
-    const context = ageCheckContext();
-    const x = BoundedInt.from(20000n);
-    const { commitment, blinding } = await context.blind(x.value);
-    expect(commitment.equals(pedersen(20000n, blinding, await context.h()))).toBe(true);
-    expect(await context.isOpeningOf(x.value, BoundedInt.from(blinding).value, commitment)).toBe(
-      true,
-    );
-    await expect(context.blind(x as never)).rejects.toBeInstanceOf(TypeError);
-    await expect(context.isOpeningOf(x as never, blinding, commitment)).rejects.toBeInstanceOf(
-      TypeError,
-    );
-    await expect(
-      context.isOpeningOf(20000n, BoundedInt.from(blinding) as never, commitment),
-    ).rejects.toBeInstanceOf(TypeError);
+  // REVIEW PLACEHOLDER (#48: blind takes a bounded integer, and refuses a bigint)
+  // a BoundedInt passes its value: blind(x.value) commits to x, and blind(x) and isOpeningOf(x, …) reject with a TypeError
+  //   -> blind of a bigint, of a number and of an object with a value rejects with a TypeError
+  //   -> blind(x) resolves to a frozen { commitment, value, blinding }: C = m·g + r·h, value is x, r a value of the class of the group from 1 to ℓ − 1
+  // test("a BoundedInt passes its value: blind(x.value) commits to x, and blind(x) and isOpeningOf(x, …) reject with a TypeError", async () => {
+  //   const context = ageCheckContext();
+  //   const x = BoundedInt.from(20000n);
+  //   const { commitment, blinding } = await context.blind(x.value);
+  //   expect(commitment.equals(pedersen(20000n, blinding, await context.h()))).toBe(true);
+  //   expect(await context.isOpeningOf(x.value, BoundedInt.from(blinding).value, commitment)).toBe(
+  //     true,
+  //   );
+  //   await expect(context.blind(x as never)).rejects.toBeInstanceOf(TypeError);
+  //   await expect(context.isOpeningOf(x as never, blinding, commitment)).rejects.toBeInstanceOf(
+  //     TypeError,
+  //   );
+  //   await expect(
+  //     context.isOpeningOf(20000n, BoundedInt.from(blinding) as never, commitment),
+  //   ).rejects.toBeInstanceOf(TypeError);
+  // });
+  test.each<[string, unknown]>([
+    ["a bigint", 20000n],
+    ["a number", 20000],
+    ["an object with a value", { value: 20000n }],
+  ])("blind of %s rejects with a TypeError", async (_name, value) => {
+    await expect(ageCheckContext().blind(value as GenericBoundedInt)).rejects.toThrow(TypeError);
   });
 
-  test("blind and isOpeningOf take any integer: m, m + ℓ and m − ℓ commit to the same value", async () => {
+  test("blind of a value whose class holds ℓ + 1 integers rejects with a RangeError that names the class and the group, and prints no number", async () => {
+    // Made on the generic class, which does not count the integers of its children.
+    const Wide = GenericBoundedInt.define({ name: "Wide", min: -0.5, max: [10n * L + 5n, -1] });
+    expect(Wide.high - Wide.low + 1n).toBe(L + 1n);
+    const error: unknown = await ageCheckContext()
+      .blind(Wide.fromValue(5n))
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(RangeError);
+    const message = (error as Error).message;
+    expect(message).toMatch(/Wide/);
+    expect(message).toMatch(/Ristretto255/);
+    expect(message).not.toMatch(/\d{6}/);
+  });
+
+  // REVIEW PLACEHOLDER (#48: isOpeningOf takes a Blinded; the class of a value bounds it)
+  // blind and isOpeningOf take any integer: m, m + ℓ and m − ℓ commit to the same value
+  //   -> blindWith takes any integer: m, m + ℓ and m − ℓ commit to the same value
+  //   -> a negative value is committed as it is: −12 of Reading gives (ℓ − 12)·g + r·h, and isOpeningOf accepts its opening
+  // test("blind and isOpeningOf take any integer: m, m + ℓ and m − ℓ commit to the same value", async () => {
+  //   expect(typeof seams.blindWith).toBe("function");
+  //   const vector = contextVectors.commitments[0];
+  //   if (vector === undefined) throw new Error("no commitment vector");
+  //   const m = littleEndian(fromHex(vector.mHex));
+  //   const r = littleEndian(fromHex(vector.r));
+  //   const context = seamContext();
+  //   for (const shifted of [m + L, m - L, m + 3n * L]) {
+  //     const blinded = await seams.blindWith?.(context, shifted, () => r);
+  //     expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(vector.commitment);
+  //   }
+  //   const commitment = RistrettoElement.decode(fromHex(vector.commitment));
+  //   expect(await context.isOpeningOf(m - L, r + L, commitment)).toBe(true);
+  //   expect(await context.isOpeningOf(m, r - 2n * L, commitment)).toBe(true);
+  //   expect(await context.isOpeningOf(m + 1n, r, commitment)).toBe(false);
+  // });
+  test("blindWith takes any integer: m, m + ℓ and m − ℓ commit to the same value", async () => {
     expect(typeof seams.blindWith).toBe("function");
     const vector = contextVectors.commitments[0];
     if (vector === undefined) throw new Error("no commitment vector");
@@ -267,10 +416,18 @@ describe("BlindingContext: commitments", () => {
       const blinded = await seams.blindWith?.(context, shifted, () => r);
       expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(vector.commitment);
     }
-    const commitment = RistrettoElement.decode(fromHex(vector.commitment));
-    expect(await context.isOpeningOf(m - L, r + L, commitment)).toBe(true);
-    expect(await context.isOpeningOf(m, r - 2n * L, commitment)).toBe(true);
-    expect(await context.isOpeningOf(m + 1n, r, commitment)).toBe(false);
+  });
+
+  test("a negative value is committed as it is: −12 of Reading gives (ℓ − 12)·g + r·h, and isOpeningOf accepts its opening", async () => {
+    const context = ageCheckContext();
+    const x = Reading.from([-125n, -3]); // −0.125, a tie, goes to −0.12
+    expect(x.value).toBe(-12n);
+    const blinded = await context.blind(x);
+    const h = await context.h();
+    expect(blinded.commitment.equals(pedersen(L - 12n, blinded.blinding.value, h))).toBe(true);
+    expect(await context.isOpeningOf(blinded)).toBe(true);
+    const twelve = { ...blinded, value: Reading.fromValue(12n) };
+    expect(await context.isOpeningOf(twelve)).toBe(false);
   });
 
   test.each(contextVectors.commitments)(
@@ -283,6 +440,20 @@ describe("BlindingContext: commitments", () => {
       const blinded = await seams.blindWith?.(seamContext(), m, () => r);
       expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(vector.commitment);
       expect(blinded?.blinding).toBe(r);
+    },
+  );
+
+  test.each(contextVectors.commitments)(
+    "blindValueWith a fixed r gives the commitment of vector $name, and its opening",
+    async (vector) => {
+      expect(typeof seams.blindValueWith).toBe("function");
+      const r = littleEndian(fromHex(vector.r));
+      const x = Days.from(BigInt(vector.m));
+      const blinded = await seams.blindValueWith?.(seamContext(), x, () => r);
+      expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(vector.commitment);
+      expect(blinded?.value).toBe(x);
+      expect(blinded?.blinding.value).toBe(r);
+      expect(blinded?.blinding.constructor).toBe(Scalar);
     },
   );
 
@@ -306,26 +477,49 @@ describe("BlindingContext: commitments", () => {
 describe("BlindingContext: openings", () => {
   test("isOpeningOf accepts the opening that blind returned", async () => {
     const context = ageCheckContext();
-    const m = 20000n;
-    const { commitment, blinding } = await context.blind(m);
-    expect(await context.isOpeningOf(m, blinding, commitment)).toBe(true);
+    const blinded = await context.blind(Days.from(20000n));
+    expect(await context.isOpeningOf(blinded)).toBe(true);
   });
 
-  test("isOpeningOf refuses a wrong scalar and a wrong blinding factor", async () => {
+  test("isOpeningOf refuses a wrong value, a wrong blinding factor and a wrong commitment", async () => {
     const context = ageCheckContext();
-    const m = 20000n;
-    const { commitment, blinding } = await context.blind(m);
-    expect(await context.isOpeningOf(20001n, blinding, commitment)).toBe(false);
-    expect(await context.isOpeningOf(m, blinding + 1n, commitment)).toBe(false);
+    const blinded = await context.blind(Days.from(20000n));
+    const other = await context.blind(Days.from(20000n));
+    expect(await context.isOpeningOf({ ...blinded, value: Days.from(20001n) })).toBe(false);
+    expect(await context.isOpeningOf({ ...blinded, blinding: other.blinding })).toBe(false);
+    expect(await context.isOpeningOf({ ...blinded, commitment: other.commitment })).toBe(false);
+  });
+
+  test("isOpeningOf of an object literal built from the parts of an opening: a Blinded is a plain structure", async () => {
+    const context = ageCheckContext();
+    const blinded = await context.blind(Days.from(20000n));
+    const rebuilt = opening(
+      RistrettoElement.decode(blinded.commitment.encode()),
+      20000n,
+      RistrettoElement.decodeScalar(RistrettoElement.encodeScalar(blinded.blinding.value)),
+    );
+    expect(Object.isFrozen(rebuilt)).toBe(false);
+    expect(await context.isOpeningOf(rebuilt)).toBe(true);
+  });
+
+  test("isOpeningOf refuses a blinding factor that is a bigint, or of another class of the same integers, with a TypeError", async () => {
+    const context = ageCheckContext();
+    const blinded = await context.blind(Days.from(20000n));
+    const r = blinded.blinding.value;
+    const asBigint = { ...blinded, blinding: r as unknown as GenericBoundedInt };
+    await expect(context.isOpeningOf(asBigint)).rejects.toThrow(TypeError);
+    const Copy = Scalar.define({ name: "Copy", min: -0.5, max: [10n * L - 5n, -1] });
+    await expect(context.isOpeningOf({ ...blinded, blinding: Copy.fromValue(r) })).rejects.toThrow(
+      TypeError,
+    );
   });
 
   test("isOpeningOf refuses a commitment of another context: contexts are independent", async () => {
     const ours = ageCheckContext();
     const theirs = BlindingContext.fromEncoded(abc().h, abc().message);
-    const m = 20000n;
-    const { commitment, blinding } = await theirs.blind(m);
-    expect(await theirs.isOpeningOf(m, blinding, commitment)).toBe(true);
-    expect(await ours.isOpeningOf(m, blinding, commitment)).toBe(false);
+    const blinded = await theirs.blind(Days.from(20000n));
+    expect(await theirs.isOpeningOf(blinded)).toBe(true);
+    expect(await ours.isOpeningOf(blinded)).toBe(false);
   });
 });
 
@@ -334,7 +528,7 @@ describe("BlindingContext: the queue of blindings", () => {
     expect(typeof seams.queuedBlindings).toBe("function");
     const context = seamContext();
     const queued = () => seams.queuedBlindings?.(context);
-    await context.blind(1n);
+    await context.blind(Days.from(1n));
     await vi.waitFor(() => {
       expect(queued()).toBe(10);
     }, 5000);
@@ -346,10 +540,10 @@ describe("BlindingContext: the queue of blindings", () => {
     const context = ageCheckContext();
     const h = await context.h();
     const values = Array.from({ length: 20 }, (_, i) => BigInt(i));
-    const blinded = await Promise.all(values.map((m) => context.blind(m)));
+    const blinded = await Promise.all(values.map((m) => context.blind(Days.from(m))));
     blinded.forEach(({ commitment, blinding }, i) => {
       const m = values[i] ?? 0n;
-      expect(commitment.equals(pedersen(m, blinding, h))).toBe(true);
+      expect(commitment.equals(pedersen(m, blinding.value, h))).toBe(true);
     });
     const commitments = new Set(blinded.map(({ commitment }) => hex(commitment.encode())));
     expect(commitments.size).toBe(20);
@@ -368,6 +562,7 @@ describe("BlindingContext over another group", () => {
     return {
       SUITE_NAME: "Test-group",
       GENERATOR_DST: "vc-proofs-test-other-group",
+      ORDER: L,
       decode: (bytes) => RistrettoElement.decode(bytes),
       hashToGroup: (message, dst) => RistrettoElement.hashToGroup(message, dst),
       canonicalGenerator: () => g2,
@@ -418,12 +613,28 @@ describe("BlindingContext over another group", () => {
     const h = await hOf(group);
     const context = BlindingContext.fromEncoded(h.encode(), message(), group);
     const m = 20000n;
-    const { commitment, blinding } = await context.blind(m);
-    const expected = group.canonicalGenerator().multiplyScalar(m).add(h.multiplyScalar(blinding));
-    expect(commitment.equals(expected)).toBe(true);
-    expect(commitment.equals(pedersen(m, blinding, h))).toBe(false);
+    const blinded = await context.blind(Days.from(m));
+    const r = blinded.blinding.value;
+    const expected = group.canonicalGenerator().multiplyScalar(m).add(h.multiplyScalar(r));
+    expect(blinded.commitment.equals(expected)).toBe(true);
+    expect(blinded.commitment.equals(pedersen(m, r, h))).toBe(false);
     expect(group.drawn()).toBeGreaterThan(0);
-    expect(await context.isOpeningOf(m, blinding, commitment)).toBe(true);
+    expect(await context.isOpeningOf(blinded)).toBe(true);
+  });
+
+  test("the class of another group is its own: Test-groupScalar, the integers 0 … ORDER − 1, shared by its contexts, and its blinding factors", async () => {
+    const group = otherGroup();
+    const h = (await hOf(group)).encode();
+    const context = BlindingContext.fromEncoded(h, message(), group);
+    expect(typeof context.boundedInt).toBe("function");
+    const Z = context.boundedInt();
+    expect(Z).not.toBe(BlindingContext.boundedInt?.());
+    expect(Z.name).toBe("Test-groupScalar");
+    expect([Z.scale, Z.low, Z.high]).toEqual([0, 0n, L - 1n]);
+    expect(Object.isFrozen(Z)).toBe(true);
+    expect(BlindingContext.fromEncoded(h, message(), group).boundedInt()).toBe(Z);
+    const { blinding } = await context.blind(Days.from(5n));
+    expect(blinding.constructor).toBe(Z);
   });
 });
 
