@@ -244,37 +244,38 @@ defined for every integer `n`, in any group.
   depends on the range of each value, not on the value itself. The group knows no range:
   ranges belong to the classes of [`BoundedInt`](bounded-int.md#the-class-constants),
   and the linear combinations check them against `ORDER` (#31). The `BoundedInt` of the
-  low-level entry point has the order `ℓ`, which every class made from it inherits: none
-  of them holds more than `ℓ` integers (see [BoundedInt](#boundedint)).
+  low-level entry point holds `ℓ` integers, and no class made from it holds more
+  (see [BoundedInt](#boundedint)).
 
 ## BoundedInt
 
 The `BoundedInt` of `@criticaloptimisation/vc-proofs/core` is the integer of Z_ℓ. It is a
 subclass of the class of [bounded integers](bounded-int.md), specialized for this group:
-that page documents every member it inherits, and only its constants and its `define`
-differ.
+that page documents every member it inherits, its `define` included, and only its
+constants differ.
 
 | Constant | On `BoundedInt`                         |
 | -------- | --------------------------------------- |
 | `scale`  | `0`                                     |
 | `min`    | `-0.5`                                  |
 | `max`    | `ℓ − 0.5`, kept as `[10n * ℓ - 5n, -1]` |
-| `order`  | `ℓ`, `RistrettoElement.ORDER`           |
 | `error`  | absent: ½ step                          |
 
 - **The bounds** `[−0.5, ℓ − 0.5)` are `ℓ` equal buckets of width 1, one for each integer
   from 0 to `ℓ − 1`: every value of `[i − 0.5, i + 0.5)` rounds to `i`. The bounds
   `{ min: 0n, max: ℓ }` would hold `ℓ + 1` integers: `max` is excluded, but the values
   just below it, such as `ℓ − 0.1`, round to `ℓ`.
-- **The order** `ℓ` is inherited by every class made from `BoundedInt`: none of them holds
-  more than `ℓ` integers, else a `RangeError` when it is made.
-- **`define`** takes no `order`: `BoundedInt.define({ name, min, max, step?, error? })`. An
-  `order` in `spec` is a `TypeError`, whose message begins with `<Class>.define: `. The
-  classes it makes inherit this `define`, so they refuse an `order` too. Otherwise it is
-  the `define` of [bounded integers](bounded-int.md#define).
-- **A class written by hand** may still declare an `order` of its own, such as
-  `static override order = 256n`. Nothing prevents it, and it is checked like any other
-  constant. A consumer that expects the order `ℓ` may refuse such a class.
+- **`low` and `high`** are `0n` and `ℓ − 1n`: `BoundedInt` holds `ℓ` integers.
+- **No class made from it holds more than `ℓ` integers.** A class holds no more values
+  than its parent (see [The range of a class](bounded-int.md#the-range-of-a-class)), so
+  every class made from `BoundedInt`, by `define` or by hand, and every class made from
+  one of them, holds at most `ℓ` integers, else a `RangeError`: when it is made by
+  `define`, at its first use when it is written by hand. No class needs to state `ℓ`. A
+  range of at most `ℓ` consecutive integers holds no two that are equal mod `ℓ`, so the
+  group tells apart every value of such a class.
+- **`define`** is the `define` of [bounded integers](bounded-int.md#define):
+  `BoundedInt.define({ name, min, max, step?, error? })`, typed as the class it is called
+  on.
 - **No `number`.** The values of `BoundedInt` need 76 digits, more than a `number` holds,
   so `from(5)` is a `TypeError`, and `from(5n)` is `5n`. A class of a narrower range made
   from it, such as `Mass`, takes a `number`.
@@ -290,12 +291,14 @@ BoundedInt.from([-5n, -1]).value; // 0n: −0.5, a tie, goes to 0
 BoundedInt.from(-1n); // RangeError: below BoundedInt.min
 BoundedInt.from(5); // TypeError: BoundedInt needs 76 digits, more than a number holds
 
-const Mass = BoundedInt.define({ name: "Mass", min: 0, max: 100.05, step: 0.1 }); // order ℓ
+BoundedInt.high === ℓ - 1n; // true
+
+const Mass = BoundedInt.define({ name: "Mass", min: 0, max: 100.05, step: 0.1 }); // 1001 values
 Mass.from(2.3).value; // 23n
 const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 }); // 256 values
-const Percent = Byte.define({ name: "Percent", min: -0.5, max: 100.5 }); // order ℓ too
+const Percent = Byte.define({ name: "Percent", min: -0.5, max: 100.5 }); // 101 values
 BoundedInt.define({ name: "Full", min: 0n, max: ℓ }); // RangeError: ℓ + 1 values
-BoundedInt.define({ name: "Word", min: -0.5, max: 65535.5, order: 65536n }); // TypeError
+Byte.define({ name: "Word", min: -0.5, max: 65535.5 }); // RangeError: more values than Byte
 ```
 
 ## Constant time
