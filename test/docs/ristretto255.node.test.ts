@@ -85,20 +85,25 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
     expect(text).not.toMatch(/returns the identity before/);
   });
 
-  // REVIEW PLACEHOLDER (#52: no order)
-  // Scalars sends an integer of the application through BoundedInt, whose value the group takes; BoundedInt has the order ℓ
-  //   -> Scalars sends an integer of the application through BoundedInt, whose value the group takes; BoundedInt holds ℓ integers, no class made from it more
+  // REVIEW PLACEHOLDER (#48: ./core exports no BoundedInt; the class of the group comes from a blinding context)
+  // Scalars sends an integer of the application through BoundedInt, whose value the group takes; BoundedInt holds ℓ integers, no class made from it more
+  //   -> Scalars sends an integer of the application through the class of the group, whose value the group takes; that class holds ℓ integers, no class made from it more
+  //   expect(section("Scalars")).toMatch(/\(#boundedint\)/);
+  //   expect(section("Scalars")).toMatch(/`P\.multiplyScalar\(BoundedInt\.from\(5n\)\.value\)`/);
   //   expect(section("Scalars")).toMatch(
-  //     /The `BoundedInt` of the\s+low-level entry point has the order `ℓ`/,
+  //     /The `BoundedInt` of the\s+low-level entry point holds `ℓ` integers, and no class made from it holds more/,
   //   );
-  test("Scalars sends an integer of the application through BoundedInt, whose value the group takes; BoundedInt holds ℓ integers, no class made from it more", () => {
+  //   expect(section("Scalars")).toMatch(/\(see \[BoundedInt\]\(#boundedint\)\)/);
+  test("Scalars sends an integer of the application through the class of the group, whose value the group takes; that class holds ℓ integers, no class made from it more", () => {
     expect(members(RistrettoElement)).toContain("static encodeScalar");
-    expect(section("Scalars")).toMatch(/\(#boundedint\)/);
-    expect(section("Scalars")).toMatch(/`P\.multiplyScalar\(BoundedInt\.from\(5n\)\.value\)`/);
     expect(section("Scalars")).toMatch(
-      /The `BoundedInt` of the\s+low-level entry point holds `ℓ` integers, and no class made from it holds more/,
+      /`Scalar = context\.boundedInt\(\)`, for a context over `RistrettoElement`/,
     );
-    expect(section("Scalars")).toMatch(/\(see \[BoundedInt\]\(#boundedint\)\)/);
+    expect(section("Scalars")).toMatch(/`P\.multiplyScalar\(Scalar\.from\(5n\)\.value\)`/);
+    expect(section("Scalars")).toMatch(
+      /The class of the\s+integers of Z_ℓ holds `ℓ` integers, and no class made from it holds more/,
+    );
+    expect(section("Scalars")).toMatch(/\(see \[The integers of Z_ℓ\]\(#the-integers-of-z_ℓ\)\)/);
   });
 });
 
@@ -109,3 +114,4 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
 // | #40    | scalars are bigints: no section RistrettoScalar; ORDER, encodeScalar, decodeScalar, invertScalar; BoundedInt; randomScalar needs ℓ; multiplyScalar of 0 (#39) |
 // | #51    | BoundedInt.from(5n); the links to the section BoundedInt (#49) |
 // | #53    | Ranges: no class made from BoundedInt holds more than ℓ integers; placeholder of #49 removed (#52) |
+// | #55    | Scalars through context.boundedInt() (#48) |

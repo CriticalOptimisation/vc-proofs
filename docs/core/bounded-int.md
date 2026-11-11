@@ -402,12 +402,13 @@ call it and add fields of its own.
 
 ## The BoundedInt of the entry point
 
-The `BoundedInt` that `@criticaloptimisation/vc-proofs/core` exports is not the class of
-this page, but a subclass of it, specialized for the mathematics of the elliptic curve of
-the library. Its bounds are its own, and no class made from it, by `define` or by hand,
-holds more values than it does. The examples of `BoundedInt.from` above run
-on the class of this page. The specialized class is documented with the curve: see the
-list of pages of the [README](../../README.md#documentation).
+`@criticaloptimisation/vc-proofs/core` does not export the class of this page. It gives a
+subclass of it instead, specialized for the mathematics of the elliptic curve of the
+library: the `boundedInt()` of a blinding context. Its bounds are its own, and no class made from
+it, by `define` or by hand, holds more values than it does. The examples of
+`BoundedInt.from` above run on the class of this page. The specialized class is
+documented with the blinding context: see the list of pages of the
+[README](../../README.md#documentation).
 
 <!--
 Change History
@@ -418,4 +419,5 @@ Change History
 | #47 | decimal classes: scale, the exact bounds [min, max), order, error; quantities as decimals, numbers at 15 digits; from, fromValue, define; valueOf, toString, toLocaleString, rounding (#44) |
 | #51 | notice: ./core exports a specialized subclass (#49) |
 | #53 | no order: a class holds no more values than its parent, unless its parent is BoundedInt; static low and high; define typed as its class, other keys ignored (#52) |
+| #55 | notice: ./core gives the subclass through the boundedInt() of a blinding context (#48) |
 -->

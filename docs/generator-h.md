@@ -183,7 +183,7 @@ encoding and its message, it compares `h` with the generator derived from the me
 and each of its members that yields `h` or uses it rejects when they differ:
 
 ```ts
-const context = BlindingContext.fromEncoded(published, message); // throws on bad bytes
+const context = BlindingContext.fromEncoded(published, message, RistrettoElement); // throws on bad bytes
 const h = await context.h(); // rejects if h is not the generator derived from message
 ```
 
@@ -263,4 +263,5 @@ Change History
 | #37 | the derivation of h: construction, parameters, trust argument, vectors (#34) |
 | #38 | h as the factory RistrettoElement.deriveGenerator (#35) |
 | #40 | runtime use: the check of BlindingContext (#39) |
+| #55 | runtime use: fromEncoded names its group, RistrettoElement (#48) |
 -->

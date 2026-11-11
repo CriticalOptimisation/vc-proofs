@@ -12,15 +12,13 @@
  * - `expand_message_xmd` runs on WebCrypto (`crypto.subtle.digest("SHA-512")`), so
  *   `hashToGroup` and `deriveGenerator` are asynchronous. `MAP` (RFC 9496, Section
  *   4.3.4) is written here, since noble does not export it.
- * - `BoundedInt`, the integer of Z_ℓ (docs/core/ristretto255.md), extends the generic
- *   class of `bounded-int.ts` with the bounds `[−0.5, ℓ − 0.5)`: it holds `ℓ` integers,
- *   and no class made from it holds more.
+ * - The integers of Z_ℓ, as bounded integers, are not here: the blinding context makes
+ *   the class of its group (docs/core/blinding-context.md, *The class of a group*).
  *
  * The functions exported below the classes are for the tests, not for the entry point.
  */
 import { ed25519, ristretto255 } from "@noble/curves/ed25519.js";
 import { bytesToNumberLE } from "@noble/curves/utils.js";
-import { BoundedInt as GenericBoundedInt, type Quantity } from "./bounded-int.js";
 
 type Point = InstanceType<typeof ristretto255.Point>;
 
@@ -314,23 +312,6 @@ export class RistrettoElement {
   }
 }
 
-/**
- * The integer of Z_ℓ: scale 0, the bounds `[−0.5, ℓ − 0.5)`, `ℓ` equal buckets, one for
- * each integer from 0 to `ℓ − 1`: no class made from it, by `define` or by hand, holds
- * more than `ℓ` integers. Its values need 76 digits, so it takes no `number`; a class of
- * a narrower range made from it does. Frozen. See docs/core/ristretto255.md, *BoundedInt*.
- */
-export class BoundedInt extends GenericBoundedInt {
-  /** `−0.5`: the bucket of 0 is `[−0.5, 0.5)`. */
-  static override readonly min: Quantity = -0.5;
-  /** `ℓ − 0.5`, exactly, as the decimal `[10ℓ − 5, −1]`. */
-  static override readonly max: Quantity = Object.freeze([
-    10n * RistrettoElement.ORDER - 5n,
-    -1,
-  ] as const);
-}
-Object.freeze(BoundedInt);
-
 // --- For the tests, not for the entry point ---------------------------------
 
 /**
@@ -502,3 +483,4 @@ function hex(bytes: Uint8Array): string {
 // | #40    | SUITE_NAME, randomScalar, ORDER, encodeScalar, decodeScalar, invertScalar; bigint scalars, RistrettoScalar removed; multiplyScalar multiplies even for a scalar that reduces to 0 (#39) |
 // | #51    | BoundedInt, the integer of Z_ℓ: [−0.5, ℓ − 0.5), order ℓ; define without order; RistrettoBoundedIntSpec (#49) |
 // | #53    | BoundedInt: no order, no RistrettoBoundedIntSpec, no define override (#52) |
+// | #55    | BoundedInt removed: the blinding context makes the class of its group (#48) |
