@@ -283,3 +283,4 @@ describe("BoundedInt of ./core: edge cases", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #51    | new: the BoundedInt of Z_ℓ, its define without order, and its edge cases (#49) |
+// | #53    | no order: at most ℓ integers, by define or by hand; low and high; define typed as its class (#52) |

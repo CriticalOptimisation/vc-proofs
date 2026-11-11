@@ -628,3 +628,4 @@ describe("BoundedInt classes: a number only where 15 digits are enough", () => {
 // |--------|---------------------------------------------------------------|
 // | #47    | new: the preliminary tests of the decimal classes; the bounds [min, max), kept exactly; the order and the error of a class (#44) |
 // | #51    | imports the generic BoundedInt of bounded-int.ts; placeholders of #47 removed (#49) |
+// | #53    | no order: no more values than the parent, low and high, define ignores order; its edge cases (#52) |

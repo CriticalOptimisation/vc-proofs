@@ -528,3 +528,4 @@ export class BoundedInt {
 // |--------|---------------------------------------------------------------|
 // | #42    | new: BoundedInt, from, valueOf, toString, toPrimitive (#41)   |
 // | #47    | decimal classes: scale, the exact bounds [min, max), order, error; numbers rounded to 15 digits; from, fromValue, define; exact decimals on bigints; valueOf, toString, toLocaleString (#44) |
+// | #53    | no order: a class holds no more values than its parent, checked parent first; static low and high; define<T>(this: T) (#52) |

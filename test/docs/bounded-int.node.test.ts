@@ -223,3 +223,4 @@ describe("docs/core/bounded-int.md, section Examples", () => {
 // | #42    | new: the page names every public member of BoundedInt (#41)   |
 // | #47    | the new members; the constants and the examples tables; The range of a class; a self-contained page (#44) |
 // | #51    | imports the generic BoundedInt of bounded-int.ts; placeholders of #47 removed (#49) |
+// | #53    | low and high; no order; The integers and The number of values; define without order (#52) |

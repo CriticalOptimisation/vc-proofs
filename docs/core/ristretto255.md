@@ -375,4 +375,5 @@ Change History
 | #40 | links the blinding context; SUITE_NAME and randomScalar; scalars are bigints, RistrettoScalar removed; ORDER, encodeScalar, decodeScalar, invertScalar; multiplyScalar runs its multiplication for a scalar that reduces to 0 (#39) |
 | #47 | values are bounded and scaled, never salted; ranges belong to the classes (#44) |
 | #51 | section BoundedInt: the integer of Z_ℓ, its constants, define without order; from(5n) in Scalars (#49) |
+| #53 | section BoundedInt: no order; low and high; no class made from it holds more than ℓ integers; the generic define (#52) |
 -->
