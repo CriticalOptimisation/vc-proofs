@@ -134,3 +134,4 @@ test("docs/threat-model.md orders the residual risks by severity", () => {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #28    | fixed anchors and threat-model labels (#27)                   |
+// | #54    | labels A1-A12; residual risks in severity order (#46)         |
