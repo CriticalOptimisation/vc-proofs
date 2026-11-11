@@ -4,8 +4,9 @@ The commitments and proofs of vc-proofs work in the group ristretto255
 ([RFC 9496](https://www.rfc-editor.org/rfc/rfc9496.html)), of prime order
 `ℓ = 2²⁵² + 27742317777372353535851937790883648493`. The low-level entry point,
 `@criticaloptimisation/vc-proofs/core`, gives it the class `RistrettoElement`, an
-element of the group. A scalar is a plain `bigint` (see [Scalars](#scalars)). Its
-`BoundedInt` is the integer of Z_ℓ (see [BoundedInt](#boundedint)).
+element of the group. A scalar is a plain `bigint` (see [Scalars](#scalars)). The
+integers of Z_ℓ, as bounded integers, are the class of the group that the blinding
+context gives (see [The integers of Z_ℓ](#the-integers-of-z_ℓ)).
 
 `RistrettoElement` is the only way the rest of the library handles group elements. It
 holds the arithmetic of [`@noble/curves`](https://github.com/paulmillr/noble-curves), but
@@ -236,70 +237,24 @@ defined for every integer `n`, in any group.
   `bigint`, never a `number`.
 - **From the numbers of an application.** The group converts nothing: only the
   application knows how a value of its own, such as a day count, is bounded and scaled.
-  That conversion belongs to [`BoundedInt`](#boundedint) and to its
-  subclasses. The group takes its `value`: `P.multiplyScalar(BoundedInt.from(5n).value)`
-  is `P.multiplyScalar(5n)`, and `P.multiplyScalar(BoundedInt.from(5n))` is a
-  `TypeError`.
+  That conversion belongs to the [bounded integers](bounded-int.md) made from the
+  integers of Z_ℓ (see [The integers of Z_ℓ](#the-integers-of-z_ℓ)). The group takes their
+  `value`: with `Scalar = BlindingContext.boundedInt()`,
+  `P.multiplyScalar(Scalar.from(5n).value)` is `P.multiplyScalar(5n)`, and
+  `P.multiplyScalar(Scalar.from(5n))` is a `TypeError`.
 - **Ranges.** Whether a linear combination of committed values can wrap around `ℓ`
   depends on the range of each value, not on the value itself. The group knows no range:
   ranges belong to the classes of [`BoundedInt`](bounded-int.md#the-class-constants),
-  and the linear combinations check them against `ORDER` (#31). The `BoundedInt` of the
-  low-level entry point holds `ℓ` integers, and no class made from it holds more
-  (see [BoundedInt](#boundedint)).
+  and the linear combinations check them against `ORDER` (#31). The class of the
+  integers of Z_ℓ holds `ℓ` integers, and no class made from it holds more
+  (see [The integers of Z_ℓ](#the-integers-of-z_ℓ)).
 
-## BoundedInt
+## The integers of Z_ℓ
 
-The `BoundedInt` of `@criticaloptimisation/vc-proofs/core` is the integer of Z_ℓ. It is a
-subclass of the class of [bounded integers](bounded-int.md), specialized for this group:
-that page documents every member it inherits, its `define` included, and only its
-constants differ.
-
-| Constant | On `BoundedInt`                         |
-| -------- | --------------------------------------- |
-| `scale`  | `0`                                     |
-| `min`    | `-0.5`                                  |
-| `max`    | `ℓ − 0.5`, kept as `[10n * ℓ - 5n, -1]` |
-| `error`  | absent: ½ step                          |
-
-- **The bounds** `[−0.5, ℓ − 0.5)` are `ℓ` equal buckets of width 1, one for each integer
-  from 0 to `ℓ − 1`: every value of `[i − 0.5, i + 0.5)` rounds to `i`. The bounds
-  `{ min: 0n, max: ℓ }` would hold `ℓ + 1` integers: `max` is excluded, but the values
-  just below it, such as `ℓ − 0.1`, round to `ℓ`.
-- **`low` and `high`** are `0n` and `ℓ − 1n`: `BoundedInt` holds `ℓ` integers.
-- **No class made from it holds more than `ℓ` integers.** A class holds no more values
-  than its parent (see [The range of a class](bounded-int.md#the-range-of-a-class)), so
-  every class made from `BoundedInt`, by `define` or by hand, and every class made from
-  one of them, holds at most `ℓ` integers, else a `RangeError`: when it is made by
-  `define`, at its first use when it is written by hand. No class needs to state `ℓ`. A
-  range of at most `ℓ` consecutive integers holds no two that are equal mod `ℓ`, so the
-  group tells apart every value of such a class.
-- **`define`** is the `define` of [bounded integers](bounded-int.md#define):
-  `BoundedInt.define({ name, min, max, step?, error? })`, typed as the class it is called
-  on.
-- **No `number`.** The values of `BoundedInt` need 76 digits, more than a `number` holds,
-  so `from(5)` is a `TypeError`, and `from(5n)` is `5n`. A class of a narrower range made
-  from it, such as `Mass`, takes a `number`.
-- **Frozen**, like the classes made by `define`.
-
-```ts
-import { BoundedInt, RistrettoElement } from "@criticaloptimisation/vc-proofs/core";
-
-const ℓ = RistrettoElement.ORDER;
-BoundedInt.from(19_000n).value; // 19000n
-BoundedInt.from([15n, -1]).value; // 2n: 1.5, rounded to the step, ties to even
-BoundedInt.from([-5n, -1]).value; // 0n: −0.5, a tie, goes to 0
-BoundedInt.from(-1n); // RangeError: below BoundedInt.min
-BoundedInt.from(5); // TypeError: BoundedInt needs 76 digits, more than a number holds
-
-BoundedInt.high === ℓ - 1n; // true
-
-const Mass = BoundedInt.define({ name: "Mass", min: 0, max: 100.05, step: 0.1 }); // 1001 values
-Mass.from(2.3).value; // 23n
-const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 }); // 256 values
-const Percent = Byte.define({ name: "Percent", min: -0.5, max: 100.5 }); // 101 values
-BoundedInt.define({ name: "Full", min: 0n, max: ℓ }); // RangeError: ℓ + 1 values
-Byte.define({ name: "Word", min: -0.5, max: 65535.5 }); // RangeError: more values than Byte
-```
+The bounded integers of ristretto255, the integers `0 … ℓ − 1` and the classes made from
+them, come from the blinding context, which commits to them:
+`BlindingContext.boundedInt()` (see
+[The class of a group](blinding-context.md#the-class-of-a-group)).
 
 ## Constant time
 
