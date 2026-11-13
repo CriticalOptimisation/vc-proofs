@@ -312,10 +312,13 @@ describe("docs/core/bounded-int.md, section define: the direct scale and the err
 });
 
 describe("docs/core/bounded-int.md, section For the other modules of the library", () => {
+  // REVIEW PLACEHOLDER (#58: the page names MANTISSA and EXPONENT in one cell, `MANTISSA`, `EXPONENT`)
+  //   expect(text).toMatch(new RegExp("\\| `" + name + "[`(]"));
   test("it names each export of bounded-int.ts for the other modules, and each exists", () => {
     const text = section("For the other modules of the library");
     for (const name of ["decimal", "MANTISSA", "EXPONENT", "errors"]) {
-      expect(text).toMatch(new RegExp("\\| `" + name + "[`(]"));
+      // In the first cell of a row, alone or after the other names of the cell.
+      expect(text).toMatch(new RegExp("\\| (?:`\\w+`, )*`" + name + "[`(]"));
       expect(name in exported, name).toBe(true);
     }
     for (const type of ["Quantity", "Decimal", "ErrorSpec", "Errors"]) {

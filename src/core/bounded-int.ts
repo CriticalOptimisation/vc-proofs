@@ -8,29 +8,64 @@
  *   a `number` gives the exact decimal of its binary value. All the arithmetic is on
  *   `bigint`s.
  * - A class is described by its constants: `scale` (`k`: the step is `10^-k`), the
- *   semi-open bounds `[min, max)` of its values, kept exactly, and `error`, the accuracy
- *   of its values, half a step when it is left out. Its values round to the integers
- *   `low … high`, and it holds no more of them than its parent, unless its parent is
- *   `BoundedInt`.
+ *   semi-open bounds `[min, max)` of its values, kept exactly, and `error`, the three
+ *   errors of its values, `bound ≥ quadratic ≥ term`, each a decimal in the unit of the
+ *   values or `undefined`; half a step of its own scale when it declares none, never those
+ *   of its parent. Its values round to the integers `low … high`, and it holds no more of
+ *   them than its parent, unless its parent is `BoundedInt`.
  * - `from` compares a value exactly with the bounds, then scales it to the step and rounds
  *   it once, ties to even; `fromValue` takes the integer as it is.
  * - `valueOf()` is the nearest `number`; `toString()` and `toLocaleString()` write the
- *   exact decimal, without the digits that the error makes meaningless.
- *   `[Symbol.toPrimitive]` converts to a string only.
+ *   exact decimal, without the digits that the first defined of `term`, `quadratic` and
+ *   `bound` makes meaningless. `[Symbol.toPrimitive]` converts to a string only.
+ * - For the other modules of the library, it exports `decimal`, `MANTISSA`, `EXPONENT`,
+ *   `errors` and the types of quantities and errors; `./core` exports only the types
+ *   `Decimal` and `Quantity`.
  */
 
 /** The upper bound of `BoundedInt`, a 15-bit integer and half a step: 0 … 32767. */
 const MAX = 32767.5;
 
-/** The lowest and the highest scales: those whose step `10^-k` is a `number`. */
-const LOWEST_SCALE = -308;
-const HIGHEST_SCALE = 323;
+/**
+ * The coarsest and the finest scales, those whose step `10^-k` a `number` can write: the
+ * step `10^308`, near the largest `number`, and the step `10^-323`, near the smallest.
+ */
+const COARSEST_SCALE = -308;
+const FINEST_SCALE = 323;
 
 /** An exact decimal `[n, e]`, worth `n · 10^e`: `[23n, -1]` is 2.3. */
 export type Decimal = readonly [mantissa: bigint, exponent: number];
 
 /** A quantity: a `bigint`, a `number`, or an exact decimal. */
 export type Quantity = bigint | number | Decimal;
+
+/** The index of the mantissa `n` in a decimal `[n, e]`. */
+export const MANTISSA = 0;
+/** The index of the exponent `e` in a decimal `[n, e]`. */
+export const EXPONENT = 1;
+
+/**
+ * The object form of `error`: each error given is kept, the others are `undefined` unless
+ * the rules fill them in. A key left out and a key set to `undefined` mean the same thing.
+ */
+export interface ErrorSpec {
+  /** A guaranteed bound of the error. */
+  readonly bound?: Quantity | undefined;
+  /** The quadratic error: the square root of the sum of the squares of independent errors. */
+  readonly quadratic?: Quantity | undefined;
+  /** The error of the least accurate term. */
+  readonly term?: Quantity | undefined;
+}
+
+/**
+ * The three errors of a class, in the unit of its values: each a frozen decimal without
+ * trailing zeros, or `undefined` when the class does not know it.
+ */
+export interface Errors {
+  readonly bound: Decimal | undefined;
+  readonly quadratic: Decimal | undefined;
+  readonly term: Decimal | undefined;
+}
 
 /** The specification of `define`. */
 export interface BoundedIntSpec {
@@ -41,8 +76,11 @@ export interface BoundedIntSpec {
   readonly max: Quantity;
   /** The accuracy, which gives the scale; the scale 0, a step of 1, when left out. */
   readonly step?: Quantity;
-  /** The accuracy of the values, in their unit; half a step when left out. */
-  readonly error?: Quantity;
+  /**
+   * The errors of the values, in their unit: a quantity, the three equal, or an object of
+   * errors; half a step each when left out, none with `{}`.
+   */
+  readonly error?: Quantity | ErrorSpec;
 }
 
 // --- Exact decimals ---------------------------------------------------------
@@ -108,7 +146,7 @@ function numberDecimal(x: number): Decimal {
  * `x` as an exact decimal, or a `TypeError`: a `bigint`, a finite `number`, or `[n, e]`
  * with a `bigint` `n` and an integer `e`.
  */
-function decimal(x: unknown, where: string, what: string): Decimal {
+export function decimal(x: unknown, where: string, what: string): Decimal {
   if (typeof x === "bigint") return [x, 0];
   if (typeof x === "number") {
     if (!Number.isFinite(x)) throw new TypeError(`${where}: ${what} must be a finite number`);
@@ -117,10 +155,10 @@ function decimal(x: unknown, where: string, what: string): Decimal {
   if (
     Array.isArray(x) &&
     x.length === 2 &&
-    typeof x[0] === "bigint" &&
-    Number.isSafeInteger(x[1])
+    typeof x[MANTISSA] === "bigint" &&
+    Number.isSafeInteger(x[EXPONENT])
   ) {
-    return [x[0], x[1] as number];
+    return [x[MANTISSA], x[EXPONENT] as number];
   }
   throw new TypeError(`${where}: ${what} must be a bigint, a number or a decimal [n, e]`);
 }
@@ -218,6 +256,85 @@ function position([n, e]: Decimal): number {
   return n === 0n ? 0 : Math.max(0, digits(2n * n) + e - 1);
 }
 
+/** The keys of the three errors, from the largest to the smallest. */
+const ERRORS = ["bound", "quadratic", "term"] as const;
+
+/** The errors already normalized: those that `define` stores as `error`. */
+const normalized = new WeakSet();
+
+/**
+ * The three errors of a class of scale `k`, checked and normalized, in the unit of its
+ * values (docs/core/bounded-int.md, *The rules*):
+ * - left out (`undefined`): each is half a step, `[5n, −1 − k]`;
+ * - a quantity (an array is one, a decimal): the three are equal to it;
+ * - an object `{ bound?, quadratic?, term? }`: each error given is kept; any other key is
+ *   ignored.
+ *
+ * Each error is 0 or more, and `term ≤ quadratic ≤ bound` between those that are defined,
+ * compared exactly. When two are equal, the third must equal them, or takes their value
+ * when it is `undefined`. Nothing else is filled in.
+ *
+ * @throws TypeError when `error` is neither a quantity nor an object of quantities.
+ * @throws RangeError for an error below 0, or errors that break the rules.
+ */
+function normalizeErrors(error: unknown, k: number, where: string, name: string): Errors {
+  if (error !== undefined && normalized.has(error as object)) return error as Errors;
+  let given: (Decimal | undefined)[];
+  if (error === undefined) {
+    given = [[HALF[MANTISSA], HALF[EXPONENT] - k]];
+  } else if (typeof error === "object" && error !== null && !Array.isArray(error)) {
+    const spec = error as Record<string, unknown>;
+    given = ERRORS.map((key) =>
+      spec[key] === undefined ? undefined : decimal(spec[key], where, `${name}.${key}`),
+    );
+  } else {
+    given = [decimal(error, where, name)];
+  }
+  // A single quantity is the three errors; its messages name it as given.
+  const single = given.length === 1;
+  if (single) given = [given[0], given[0], given[0]];
+  const label = (i: number): string => (single ? name : `${name}.${String(ERRORS[i])}`);
+  given.forEach((d, i) => {
+    if (d !== undefined && d[MANTISSA] < 0n) {
+      throw new RangeError(`${where}: ${label(i)} must be 0 or more`);
+    }
+  });
+  // term ≤ quadratic ≤ bound, between any two that are defined.
+  for (let i = 0; i < 3; i++) {
+    for (let j = i + 1; j < 3; j++) {
+      const a = given[i];
+      const b = given[j];
+      if (a !== undefined && b !== undefined && compare(b, a) > 0) {
+        throw new RangeError(`${where}: ${label(j)} must not be above ${label(i)}`);
+      }
+    }
+  }
+  // Two equal errors are a single term: the third equals them.
+  for (let i = 0; i < 3; i++) {
+    for (let j = i + 1; j < 3; j++) {
+      const a = given[i];
+      const b = given[j];
+      if (a === undefined || b === undefined || compare(a, b) !== 0) continue;
+      const t = 3 - i - j;
+      const c = given[t];
+      if (c === undefined) given[t] = a;
+      else if (compare(c, a) !== 0) {
+        throw new RangeError(
+          `${where}: ${label(t)} must equal ${label(i)} and ${label(j)}, which are equal`,
+        );
+      }
+    }
+  }
+  const frozen = given.map((d) => (d === undefined ? undefined : Object.freeze(normalize(d))));
+  const result: Errors = Object.freeze({
+    bound: frozen[0],
+    quadratic: frozen[1],
+    term: frozen[2],
+  });
+  normalized.add(result);
+  return result;
+}
+
 // --- Classes ----------------------------------------------------------------
 
 /** A class of bounded integers, as the static members see it. */
@@ -232,8 +349,8 @@ interface Constants {
   /** The integers that the values of `[min, max)` round to, from `low` to `high`. */
   readonly low: bigint;
   readonly high: bigint;
-  /** The error, in steps. */
-  readonly error: Decimal;
+  /** The three errors, in the unit of the values. */
+  readonly errors: Errors;
   /** Whether `from` takes a `number`: the class needs at most 15 significant digits. */
   readonly numbers: boolean;
 }
@@ -261,9 +378,9 @@ function constants(C: BoundedIntClass, where: string): Constants {
   }
   const { scale } = C as { scale: unknown };
   if (typeof scale !== "number") throw new TypeError(`${where}: ${C.name}.scale must be a number`);
-  if (!Number.isInteger(scale) || scale < LOWEST_SCALE || scale > HIGHEST_SCALE) {
+  if (!Number.isInteger(scale) || scale < COARSEST_SCALE || scale > FINEST_SCALE) {
     throw new RangeError(
-      `${where}: ${C.name}.scale must be an integer from ${String(LOWEST_SCALE)} to ${String(HIGHEST_SCALE)}`,
+      `${where}: ${C.name}.scale must be an integer from ${String(COARSEST_SCALE)} to ${String(FINEST_SCALE)}`,
     );
   }
   const min = decimal(C.min, where, `${C.name}.min`);
@@ -282,19 +399,16 @@ function constants(C: BoundedIntClass, where: string): Constants {
       );
     }
   }
-  let error = HALF;
-  if (C.error !== undefined) {
-    const [n, e] = decimal(C.error, where, `${C.name}.error`);
-    if (n < 0n) throw new RangeError(`${where}: ${C.name}.error must be 0 or more`);
-    error = normalize([n, e + scale]);
-  }
+  // Only an own error: the errors of the parent are not those of C, whose scale may differ.
+  const own = Object.hasOwn(C, "error") ? C.error : undefined;
+  const errors = normalizeErrors(own, scale, where, `${C.name}.error`);
   const result: Constants = {
     scale,
     min,
     max,
     low,
     high,
-    error,
+    errors,
     numbers: fits(min, max, scale),
   };
   known.set(C, result);
@@ -314,7 +428,9 @@ function fits(min: Decimal, max: Decimal, k: number): boolean {
   const abs = ([n, e]: Decimal): Decimal => [n < 0n ? -n : n, e];
   const larger = compare(abs(min), abs(max)) > 0 ? abs(min) : abs(max);
   // ⌈|x| · 10^k⌉ < 10^15, that is |x| · 10^k ≤ 10^15 − 1.
-  return compare([larger[0], larger[1] + k], [10n ** BigInt(NUMBER_DIGITS) - 1n, 0]) <= 0;
+  return (
+    compare([larger[MANTISSA], larger[EXPONENT] + k], [10n ** BigInt(NUMBER_DIGITS) - 1n, 0]) <= 0
+  );
 }
 
 /** An integer with the scale and the bounds of its class. */
@@ -325,8 +441,12 @@ export class BoundedInt {
   static readonly min: Quantity = 0n;
   /** The value just above the highest, excluded. */
   static readonly max: Quantity = MAX;
-  /** The accuracy of the values, in their unit; half a step when it is absent. */
-  declare static readonly error?: Quantity;
+  /**
+   * The errors of the values, in their unit. `define` stores them as frozen `Errors`; a
+   * class written by hand may declare a quantity or an `ErrorSpec`. Never inherited: a
+   * class that declares none has half its own step. Read them with `errors(C)`.
+   */
+  declare static readonly error?: Quantity | ErrorSpec;
 
   readonly #value: bigint;
 
@@ -345,20 +465,19 @@ export class BoundedInt {
     return constants(this, `${this.name}.high`).high;
   }
 
-  /** The guaranteed bound of the error of a value, relative to `max − min`. */
-  static get errorBound(): number {
-    const c = constants(this, `${this.name}.errorBound`);
-    return ratio([c.error[0], c.error[1] - c.scale], subtract(c.max, c.min));
+  /** The guaranteed bound of the error, `bound`, relative to `max − min`, or `undefined`. */
+  static get errorBound(): number | undefined {
+    return relative(this, "errorBound", "bound");
   }
 
-  /** The quadratic error of a value, relative to `max − min`: the bound, for one value. */
-  static get quadraticError(): number {
-    return this.errorBound;
+  /** The quadratic error, `quadratic`, relative to `max − min`, or `undefined`. */
+  static get quadraticError(): number | undefined {
+    return relative(this, "quadraticError", "quadratic");
   }
 
-  /** The error of the least accurate term, relative to `max − min`: the bound, for one value. */
-  static get termError(): number {
-    return this.errorBound;
+  /** The error of the least accurate term, `term`, relative to `max − min`, or `undefined`. */
+  static get termError(): number | undefined {
+    return relative(this, "termError", "term");
   }
 
   /**
@@ -408,13 +527,16 @@ export class BoundedInt {
    * Makes a frozen subclass of the class it is called on, its parent, typed as that class.
    *
    * @param spec - `name`; `min` and `max`, the bounds `[min, max)`, kept exactly; `step`,
-   *   which gives the smallest scale `k` with `10^-k ≤ step`, or the scale 0 when left
-   *   out; `error`, the accuracy of the values, half a step when left out. Any other key
-   *   is ignored.
-   * @throws TypeError for a bad name, or a quantity of the wrong type.
-   * @throws RangeError for `min ≥ max`, a `step` that is not above 0 or finer than
-   *   `10^-323`, a negative `error`, or more values than the parent, unless the parent
-   *   is `BoundedInt`.
+   *   which gives the smallest scale `k` with `10^-k ≤ step`, `k = 1 − digits(n) − e` for
+   *   `step = [n, e]`, or the scale 0 when left out; `error`, the errors of the values, a
+   *   quantity or an object `{ bound?, quadratic?, term? }`, half a step each when left
+   *   out. The class always gets its own `error`, frozen `Errors`. Any other key is
+   *   ignored.
+   * @throws TypeError for a bad name, a quantity of the wrong type, or an `error` that is
+   *   neither a quantity nor an object of quantities.
+   * @throws RangeError for `min ≥ max`, a `step` that is not above 0, finer than
+   *   `10^-323` or of `10^309` or more, an error below 0, errors that break the rules, or
+   *   more values than the parent, unless the parent is `BoundedInt`.
    */
   static define<T extends BoundedIntClass>(this: T, spec: BoundedIntSpec): T {
     const where = `${this.name}.define`;
@@ -427,11 +549,16 @@ export class BoundedInt {
     let scale = 0;
     if (spec.step !== undefined) {
       const step = decimal(spec.step, where, "step");
-      if (step[0] <= 0n) throw new RangeError(`${where}: step must be above 0`);
-      scale = LOWEST_SCALE;
-      while (scale <= HIGHEST_SCALE && compare([1n, -scale], step) > 0) scale++;
-      if (scale > HIGHEST_SCALE) {
-        throw new RangeError(`${where}: step must be 10^-${String(HIGHEST_SCALE)} or more`);
+      if (step[MANTISSA] <= 0n) throw new RangeError(`${where}: step must be above 0`);
+      // 10^(digits(n) + e − 1) ≤ step < 10^(digits(n) + e): the smallest k with 10^-k ≤ step.
+      // digits(n) writes n in decimal, once per call.
+      scale = 1 - digits(step[MANTISSA]) - step[EXPONENT];
+      if (scale > FINEST_SCALE) {
+        throw new RangeError(`${where}: step must be 10^-${String(FINEST_SCALE)} or more`);
+      }
+      // Never brought back to the coarsest scale: it would not match the step.
+      if (scale < COARSEST_SCALE) {
+        throw new RangeError(`${where}: step must be below 10^${String(1 - COARSEST_SCALE)}`);
       }
     }
     // The quantities are kept as given, a decimal frozen: the class converts them once.
@@ -443,8 +570,9 @@ export class BoundedInt {
       scale,
       min: keep(spec.min, "min"),
       max: keep(spec.max, "max"),
+      // Its own errors, always, converted once: a class never takes those of its parent.
+      error: normalizeErrors(spec.error, scale, where, "error"),
     };
-    if (spec.error !== undefined) own.error = keep(spec.error, "error");
     const C = class extends (this as BoundedIntClass) {};
     Object.defineProperty(C, "name", { value: spec.name });
     for (const [key, value] of Object.entries(own)) {
@@ -462,12 +590,15 @@ export class BoundedInt {
   /**
    * The decimal that `valueOf()`, `toString()` and `toLocaleString()` give: `q · 10^-k`,
    * rounded at the largest power of ten `10^j` with `10^j ≤ 2 · error`, in steps, ties to
-   * even, as `[n, e]`.
+   * even, as `[n, e]`. The error is the first defined of `term`, `quadratic` and `bound`;
+   * with none, `j = 0`: every digit.
    */
   #shown(): Decimal {
     const C = this.constructor as BoundedIntClass;
     const c = constants(C, `${C.name}.toString`);
-    const j = position(c.error);
+    const { bound, quadratic, term } = c.errors;
+    const error = term ?? quadratic ?? bound;
+    const j = error === undefined ? 0 : position([error[MANTISSA], error[EXPONENT] + c.scale]);
     const q = this.#value;
     // |q| < 10^(j − 1) rounds to 0, with no power of ten to build.
     const n = j === 0 ? q : digits(q) < j ? 0n : roundHalfEven(q, pow10n(j));
@@ -521,6 +652,24 @@ export class BoundedInt {
         "or read x.value for the bigint",
     );
   }
+}
+
+/** An error of the class `C`, relative to `max − min`, or `undefined`. */
+function relative(C: BoundedIntClass, member: string, key: keyof Errors): number | undefined {
+  const c = constants(C, `${C.name}.${member}`);
+  const error = c.errors[key];
+  return error === undefined ? undefined : ratio(error, subtract(c.max, c.min));
+}
+
+/**
+ * The three errors of the class `C`, `{ bound, quadratic, term }`, frozen, in the unit of
+ * its values: those `define` stores, or those of a class written by hand, checked under
+ * the same rules. The way for the other modules to read the errors of a class.
+ *
+ * @throws as the constants of `C` do, at its first use.
+ */
+export function errors(C: BoundedIntClass): Errors {
+  return constants(C, `${C.name}.errors`).errors;
 }
 
 // --- Change History -------------------------------------------------------

@@ -226,9 +226,12 @@ describe("the class of ristretto255: edge cases", () => {
     expect(top.valueOf()).toBe(Number(L - 1n));
   });
 
+  // REVIEW PLACEHOLDER (#58: errorBound is a number or undefined; undefined gives NaN, which fails)
+  // errorBound is ½ / ℓ: half a step over the ℓ steps of [−0.5, ℓ − 0.5)
+  //   expect(Math.abs(Scalar.errorBound - expected) / expected).toBeLessThan(1e-15);
   test("errorBound is ½ / ℓ: half a step over the ℓ steps of [−0.5, ℓ − 0.5)", () => {
     const expected = 0.5 / Number(L);
-    expect(Math.abs(Scalar.errorBound - expected) / expected).toBeLessThan(1e-15);
+    expect(Math.abs((Scalar.errorBound ?? Number.NaN) - expected) / expected).toBeLessThan(1e-15);
     expect(Scalar.quadraticError).toBe(Scalar.errorBound);
     expect(Scalar.termError).toBe(Scalar.errorBound);
   });

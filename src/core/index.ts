@@ -12,10 +12,12 @@
  * blinding context gives the class of the integers of its group, `context.boundedInt()`,
  * from which the classes of the values are made (docs/core/blinding-context.md, *The
  * class of a group*). `Committed` and `Blinded`, the two forms of a commitment, are
- * exported as types.
+ * exported as types, and so are `Decimal` and `Quantity`, the quantities its signatures
+ * name; the helpers of `bounded-int.ts` for the other modules are not exported.
  */
 export { BlindingContext } from "./blinding-context.js";
 export type { Blinded, Committed, Group } from "./blinding-context.js";
+export type { Decimal, Quantity } from "./bounded-int.js";
 export { requestHash } from "./request-hash.js";
 export { RistrettoElement } from "./ristretto.js";
 

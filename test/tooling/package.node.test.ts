@@ -107,6 +107,9 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(context).toMatch(/readonly ORDER: bigint;/);
   });
 
+  // REVIEW PLACEHOLDER (#58: error takes a quantity or an ErrorSpec; each getter may be undefined)
+  //   expect(declarations).toContain("static readonly error?: Quantity;");
+  //   expect(declarations).toContain(`static get ${error}(): number;`);
   test("the declarations of bounded-int.ts declare the generic BoundedInt, its constants without integerOnly nor order, the quantities, from, fromValue, define typed as its class, low, high, the errors of the class, value, valueOf, toString and toLocaleString", () => {
     const declarations = readFileSync(`${root}dist/core/bounded-int.d.ts`, "utf8");
     expect(declarations).toContain("export declare class BoundedInt {");
@@ -118,7 +121,7 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(declarations).not.toContain("integerOnly");
     expect(declarations).not.toMatch(/\border\b/);
     expect(declarations).not.toContain("BoundedIntOrder");
-    expect(declarations).toContain("static readonly error?: Quantity;");
+    expect(declarations).toContain("static readonly error?: Quantity | ErrorSpec;");
     expect(declarations).toContain("static from(x: Quantity): BoundedInt;");
     expect(declarations).toContain("static fromValue(q: bigint): BoundedInt;");
     expect(declarations).toMatch(
@@ -128,7 +131,7 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(declarations).toContain("static get high(): bigint;");
     expect(declarations).not.toContain("defineRaw");
     for (const error of ["errorBound", "quadraticError", "termError"]) {
-      expect(declarations).toContain(`static get ${error}(): number;`);
+      expect(declarations).toContain(`static get ${error}(): number | undefined;`);
     }
     expect(declarations).toContain("get value(): bigint;");
     expect(declarations).toContain("valueOf(): number;");
