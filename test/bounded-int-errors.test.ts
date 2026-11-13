@@ -215,3 +215,4 @@ describe("BoundedInt classes: the display at the first defined of term, quadrati
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
+// | #59    | new: the three errors, their rules, getters, display; the exports of bounded-int.ts (#58) |

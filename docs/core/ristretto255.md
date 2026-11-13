@@ -332,4 +332,5 @@ Change History
 | #51 | section BoundedInt: the integer of Z_ℓ, its constants, define without order; from(5n) in Scalars (#49) |
 | #53 | section BoundedInt: no order; low and high; no class made from it holds more than ℓ integers; the generic define (#52) |
 | #55 | section The integers of Z_ℓ, moved to the blinding context; Scalars through context.boundedInt() (#48) |
+| #59 | context.boundedInt, a getter (#58) |
 -->

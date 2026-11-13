@@ -256,3 +256,4 @@ describe("the class of ristretto255: edge cases", () => {
 // | #51    | new: the BoundedInt of Z_ℓ, its define without order, and its edge cases (#49) |
 // | #53    | no order: at most ℓ integers, by define or by hand; low and high; define typed as its class (#52) |
 // | #55    | the class of ristretto255 from context.boundedInt(), Ristretto255Scalar (#48) |
+// | #59    | the errors of half a step; context.boundedInt, a getter; errorBound may be undefined (#58) |

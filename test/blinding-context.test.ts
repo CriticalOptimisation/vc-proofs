@@ -637,4 +637,5 @@ describe("BlindingContext over another group", () => {
 // | #40    | new: the preliminary tests of BlindingContext, its group, bigint scalars, a BoundedInt's value (#39) |
 // | #51    | the blinding factor through BoundedInt itself, the integer of Z_ℓ (#49) |
 // | #55    | Committed and Blinded, ORDER, blind of a bounded integer, boundedInt(), a required group (#48) |
+// | #59    | context.boundedInt, a getter, without stand-in; placeholders of #55 removed (#58) |
 // | #60    | blindWith uses a draw of 0n as it is; r from 0 to ℓ − 1 (#56) |

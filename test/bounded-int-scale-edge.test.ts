@@ -267,3 +267,4 @@ describe("BoundedInt classes: the error decides the digits shown, at every scale
 // |--------|---------------------------------------------------------------|
 // | #47    | new: the edge cases of the decimal classes; the exact decimal of a number, the ends of the scales, the error of a class (#44) |
 // | #51    | imports the generic BoundedInt of bounded-int.ts; placeholders of #47 removed (#49) |
+// | #59    | a step of 10^309 or more is refused, never clamped; [99n, 307] and [9461n, 12] (#58) |

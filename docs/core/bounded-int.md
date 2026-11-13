@@ -518,4 +518,5 @@ Change History
 | #51 | notice: ./core exports a specialized subclass (#49) |
 | #53 | no order: a class holds no more values than its parent, unless its parent is BoundedInt; static low and high; define typed as its class, other keys ignored (#52) |
 | #55 | notice: ./core gives the subclass through the boundedInt() of a blinding context (#48) |
+| #59 | three errors { bound, quadratic, term } as decimals, their rules, never inherited, {} disables them; getters may be undefined; display at the first defined error; direct scale, never clamped; For the other modules of the library (#58) |
 -->

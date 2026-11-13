@@ -247,3 +247,4 @@ describe("BoundedInt.define: the scale k = 1 − digits(n) − e, at the ends", 
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
+// | #59    | new: the edge cases of the three errors and of the direct scale (#58) |

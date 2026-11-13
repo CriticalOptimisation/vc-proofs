@@ -106,3 +106,4 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
 // | #51    | BoundedInt.from(5n); the links to the section BoundedInt (#49) |
 // | #53    | Ranges: no class made from BoundedInt holds more than ℓ integers; placeholder of #49 removed (#52) |
 // | #55    | Scalars through context.boundedInt() (#48) |
+// | #59    | context.boundedInt, a getter; placeholders of #55 removed (#58) |
