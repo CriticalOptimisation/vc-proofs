@@ -20,7 +20,7 @@ const tsc = require.resolve("typescript/bin/tsc");
  */
 const surface: Record<string, string[]> = {
   "": [],
-  "/core": ["BlindingContext", "RistrettoElement", "requestHash"],
+  "/core": ["BlindingContext", "LinearCombination", "RistrettoElement", "requestHash"],
 };
 const entries = Object.keys(surface);
 
@@ -64,11 +64,6 @@ describe("after the build", { timeout: 120_000 }, () => {
     });
   }
 
-  // REVIEW PLACEHOLDER (#58: ./core exports the types Decimal and Quantity of bounded-int.ts; boundedInt is a getter)
-  // the declarations of ./core export no BoundedInt, and the types Committed, Blinded and Group of blinding-context.ts; ristretto.ts declares no BoundedInt
-  //   -> the declarations of ./core export no BoundedInt, the types Committed, Blinded and Group of blinding-context.ts, and the types Decimal and Quantity of bounded-int.ts; ristretto.ts declares no BoundedInt; boundedInt is a getter
-  //   expect(index).not.toContain("./bounded-int.js");
-  //   expect(context).toMatch(/\n\s+boundedInt\(\): typeof \w+;/);
   test("the declarations of ./core export no BoundedInt, the types Committed, Blinded and Group of blinding-context.ts, and the types Decimal and Quantity of bounded-int.ts; ristretto.ts declares no BoundedInt; boundedInt is a getter", () => {
     const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
     expect(index).not.toMatch(/\bBoundedInt\b/);
@@ -107,10 +102,6 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(context).toMatch(/readonly ORDER: bigint;/);
   });
 
-  // REVIEW PLACEHOLDER (#58: error takes a quantity or an ErrorSpec; each getter may be undefined)
-  //   expect(declarations).toContain("static readonly error?: Quantity;");
-  //   (then, in this PR) expect(declarations).toContain("static readonly error?: Quantity | ErrorSpec;");
-  //   expect(declarations).toContain(`static get ${error}(): number;`);
   test("the declarations of bounded-int.ts declare the generic BoundedInt, its constants without integerOnly nor order, the quantities, from, fromValue, define typed as its class, low, high, the errors of the class, value, valueOf, toString and toLocaleString", () => {
     const declarations = readFileSync(`${root}dist/core/bounded-int.d.ts`, "utf8");
     expect(declarations).toContain("export declare class BoundedInt {");
@@ -139,6 +130,27 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(declarations).toContain("valueOf(): number;");
     expect(declarations).toContain("toString(): string;");
     expect(declarations).toContain("toLocaleString(");
+  });
+
+  test("the declarations of linear-combination.ts declare LinearCombination, its class of the result and its coefficients, combine of Committed returning an element E, combineBlinded of Blinded returning a Blinded; ./core exports it; it imports blinding-context.ts for its types only", () => {
+    const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
+    expect(index).toContain('export { LinearCombination } from "./linear-combination.js";');
+    const declarations = readFileSync(`${root}dist/core/linear-combination.d.ts`, "utf8");
+    expect(declarations).toContain("export declare class LinearCombination {");
+    expect(declarations).toMatch(/\n\s+constructor\(spec: \w+\);/);
+    expect(declarations).toContain("get boundedInt(): typeof BoundedInt;");
+    expect(declarations).toContain("get coefficients(): readonly bigint[];");
+    // A verifier's Committed gives an element; a Committed is no Blinded, so the type
+    // checker refuses it to combineBlinded.
+    expect(declarations).toMatch(
+      /\n\s+combine<E extends \w+>\(context: BlindingContext<E>, committed: readonly Committed<E>\[\]\): E;/,
+    );
+    expect(declarations).toMatch(
+      /\n\s+combineBlinded<E extends \w+>\(context: BlindingContext<E>, openings: readonly Blinded<E>\[\]\): Blinded<E>;/,
+    );
+    expect(readFileSync(`${root}dist/core/linear-combination.js`, "utf8")).not.toContain(
+      "./blinding-context.js",
+    );
   });
 
   test("a path outside the exports map does not resolve", () => {
