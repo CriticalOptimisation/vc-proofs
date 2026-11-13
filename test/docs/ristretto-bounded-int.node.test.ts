@@ -1,6 +1,6 @@
 /**
  * docs/core/blinding-context.md documents the class of ristretto255, the
- * `context.boundedInt()` of a context over `RistrettoElement` (#49, #48), the integers of
+ * `context.boundedInt` of a context over `RistrettoElement` (#49, #48), the integers of
  * Z_ℓ, in its section *The class
  * of a group*: its constants, its bounds, `low` and `high`, the rule that no class made
  * from it holds more than `ℓ` integers (#52), its `define`, its name, and the examples,
@@ -9,8 +9,7 @@
  * its own material, that `./core` gives a specialized subclass. The tests of that page stay
  * on the generic class (test/docs/bounded-int.node.test.ts).
  *
- * The class is looked up on a context, so that this file compiles before `boundedInt`
- * exists.
+ * The class is looked up on a context, `context.boundedInt`.
  */
 import { describe, expect, test } from "vitest";
 import { BoundedInt as GenericBoundedInt } from "../../src/core/bounded-int.js";
@@ -29,14 +28,12 @@ function fromHex(text: string): Uint8Array {
   return Uint8Array.from(text.match(/../g) ?? [], (pair) => parseInt(pair, 16));
 }
 
-/** `context.boundedInt()`, the class of ristretto255; `undefined` before it exists. */
-const Scalar = (
-  BlindingContext.fromEncoded(
-    fromHex(vectors.context.h),
-    fromHex(vectors.context.messageHex),
-    RistrettoElement,
-  ) as unknown as { boundedInt?: () => typeof GenericBoundedInt }
-).boundedInt?.() as typeof GenericBoundedInt;
+/** `context.boundedInt`, the class of ristretto255. */
+const Scalar = BlindingContext.fromEncoded(
+  fromHex(vectors.context.h),
+  fromHex(vectors.context.messageHex),
+  RistrettoElement,
+).boundedInt;
 
 /** The text of the section `## <title>` of `text`, up to the next `## ` heading. */
 function section(text: string, title: string): string {

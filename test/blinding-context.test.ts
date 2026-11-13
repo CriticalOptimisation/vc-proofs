@@ -10,10 +10,9 @@
  *
  * The class is looked up on the entry point's namespace, and the seams of
  * src/core/blinding-context.ts are imported dynamically, so that this file compiles and
- * runs before they exist, and fails on the behaviour. Until `context.boundedInt()`
- * exists, the classes of the values are made from a stand-in with the same constants, so
- * that the tests of `blind` and `isOpeningOf` reach the behaviour they check. The group is
- * a required argument of `fromEncoded` (#48): every context names its group.
+ * runs before they exist, and fails on the behaviour. The classes of the values are made
+ * from `context.boundedInt`, the class of the group. The group is a required argument of
+ * `fromEncoded` (#48): every context names its group.
  */
 import { describe, expect, test, vi } from "vitest";
 import { BoundedInt as GenericBoundedInt } from "../src/core/bounded-int.js";
@@ -42,7 +41,7 @@ interface Context {
   readonly group: unknown;
   h(): Promise<RistrettoElement>;
   serialize(): Promise<Uint8Array>;
-  boundedInt(): BoundedIntClass;
+  readonly boundedInt: BoundedIntClass;
   blind(x: GenericBoundedInt): Promise<Blinded>;
   isOpeningOf(opening: Blinded): Promise<boolean>;
 }
@@ -103,13 +102,12 @@ const L = 2n ** 252n + 27742317777372353535851937790883648493n;
 /** The group ristretto255, which every context of ristretto255 names. */
 const RISTRETTO255 = RistrettoElement as unknown as TestGroup;
 
-/** The class of ristretto255, `context.boundedInt()`, or a stand-in until it exists. */
-const Scalar: BoundedIntClass = ((context: Context) =>
-  typeof context.boundedInt === "function"
-    ? context.boundedInt()
-    : GenericBoundedInt.define({ name: "Ristretto255Scalar", min: -0.5, max: [10n * L - 5n, -1] }))(
-  BlindingContext.fromEncoded(ageCheck().h, ageCheck().message, RISTRETTO255),
-);
+/** The class of ristretto255, `context.boundedInt`. */
+const Scalar: BoundedIntClass = BlindingContext.fromEncoded(
+  ageCheck().h,
+  ageCheck().message,
+  RISTRETTO255,
+).boundedInt;
 /** A class of values, made from the class of the group. */
 const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
 /** A class of values with negative integers: −799 … 1599, in steps of 0.01. */
@@ -292,11 +290,11 @@ describe("BlindingContext: construction and validation", () => {
   });
 });
 
-describe("context.boundedInt(): the class of a group", () => {
-  test("context.boundedInt() of a ristretto255 context is the integers 0 … ℓ − 1: Ristretto255Scalar, scale 0, [−0.5, ℓ − 0.5), frozen, the same object on every call", () => {
+describe("context.boundedInt: the class of a group", () => {
+  test("context.boundedInt of a ristretto255 context is the integers 0 … ℓ − 1: Ristretto255Scalar, scale 0, [−0.5, ℓ − 0.5), frozen, the same object on every read", () => {
     const context = ageCheckContext();
     expect(typeof context.boundedInt).toBe("function");
-    const Z = context.boundedInt();
+    const Z = context.boundedInt;
     expect(Z.name).toBe("Ristretto255Scalar");
     expect(Z.scale).toBe(0);
     expect(Z.min).toBe(-0.5);
@@ -304,14 +302,14 @@ describe("context.boundedInt(): the class of a group", () => {
     expect([Z.low, Z.high]).toEqual([0n, L - 1n]);
     expect(Object.isFrozen(Z)).toBe(true);
     expect(Object.getPrototypeOf(Z)).toBe(GenericBoundedInt);
-    expect(context.boundedInt()).toBe(Z);
+    expect(context.boundedInt).toBe(Z);
   });
 
   test("every ristretto255 context gives the same class; BlindingContext has no static boundedInt; ./core exports no BoundedInt", () => {
     const context = ageCheckContext();
     expect(typeof context.boundedInt).toBe("function");
-    expect(BlindingContext.fromEncoded(abc().h, abc().message, RISTRETTO255).boundedInt()).toBe(
-      context.boundedInt(),
+    expect(BlindingContext.fromEncoded(abc().h, abc().message, RISTRETTO255).boundedInt).toBe(
+      context.boundedInt,
     );
     expect(Object.hasOwn(BlindingContext, "boundedInt")).toBe(false);
     expect((entryPoint as Record<string, unknown>).BoundedInt).toBeUndefined();
@@ -429,7 +427,7 @@ describe("BlindingContext: commitments", () => {
       expect(blinded?.blinding.value).toBe(r);
       // The class of the group of that context: in a browser, the module of the seams may
       // be a second instance, whose class of ristretto255 is its own.
-      expect(blinded?.blinding.constructor).toBe(context.boundedInt());
+      expect(blinded?.blinding.constructor).toBe(context.boundedInt);
     },
   );
 
@@ -622,12 +620,12 @@ describe("BlindingContext over another group", () => {
     const h = (await hOf(group)).encode();
     const context = BlindingContext.fromEncoded(h, message(), group);
     expect(typeof context.boundedInt).toBe("function");
-    const Z = context.boundedInt();
-    expect(Z).not.toBe(ageCheckContext().boundedInt());
+    const Z = context.boundedInt;
+    expect(Z).not.toBe(ageCheckContext().boundedInt);
     expect(Z.name).toBe("Test-groupScalar");
     expect([Z.scale, Z.low, Z.high]).toEqual([0, 0n, L - 1n]);
     expect(Object.isFrozen(Z)).toBe(true);
-    expect(BlindingContext.fromEncoded(h, message(), group).boundedInt()).toBe(Z);
+    expect(BlindingContext.fromEncoded(h, message(), group).boundedInt).toBe(Z);
     const { blinding } = await context.blind(Days.from(5n));
     expect(blinding.constructor).toBe(Z);
   });

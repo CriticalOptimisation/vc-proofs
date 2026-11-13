@@ -9,7 +9,7 @@
  * class `RistrettoElement`, whose scalars are `bigint`s (docs/core/ristretto255.md).
  * The values of the commitments are bounded integers (docs/core/bounded-int.md): the
  * generic class of `bounded-int.ts` is not exported, and neither is any subclass. A
- * blinding context gives the class of the integers of its group, `context.boundedInt()`,
+ * blinding context gives the class of the integers of its group, `context.boundedInt`,
  * from which the classes of the values are made (docs/core/blinding-context.md, *The
  * class of a group*). `Committed` and `Blinded`, the two forms of a commitment, are
  * exported as types, and so are `Decimal` and `Quantity`, the quantities its signatures

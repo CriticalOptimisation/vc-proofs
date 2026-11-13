@@ -1,5 +1,5 @@
 /**
- * The class of ristretto255, `context.boundedInt()` of a context over `RistrettoElement` (#49, #48;
+ * The class of ristretto255, `context.boundedInt` of a context over `RistrettoElement` (#49, #48;
  * docs/core/blinding-context.md, The class of a group): the integers of Z_ℓ, a subclass of
  * the generic class of `src/core/bounded-int.ts`, named `Ristretto255Scalar`. Its scale is
  * 0, its bounds `[−0.5, ℓ − 0.5)` are `ℓ` equal buckets, one for each integer from 0 to
@@ -9,9 +9,8 @@
  * its values need 76 digits. `./core` exports no `BoundedInt` (#48). The same file runs in
  * Node.js and in every headless browser.
  *
- * The class is looked up on a context, so that this file compiles before `boundedInt`
- * exists, and every test fails without it. The context is the age-check one of
- * test/vectors/generator-h.json; the class does not await its validation.
+ * The class is looked up on a context, `context.boundedInt`. The context is the age-check
+ * one of test/vectors/generator-h.json; the class does not await its validation.
  */
 import { describe, expect, expectTypeOf, test } from "vitest";
 import { BoundedInt as GenericBoundedInt } from "../src/core/bounded-int.js";
@@ -32,16 +31,14 @@ function fromHex(text: string): Uint8Array {
 const ageCheck = generatorVectors.vectors.find((v) => v.name === "age-check");
 if (ageCheck === undefined) throw new Error("no generator vector age-check");
 
-/** `context.boundedInt()`, the class of ristretto255; `undefined` before it exists. */
-const Scalar = (
-  BlindingContext.fromEncoded(
-    fromHex(ageCheck.h),
-    fromHex(ageCheck.messageHex),
-    RistrettoElement,
-  ) as unknown as { boundedInt?: () => typeof GenericBoundedInt }
-).boundedInt?.() as typeof GenericBoundedInt;
+/** `context.boundedInt`, the class of ristretto255. */
+const Scalar = BlindingContext.fromEncoded(
+  fromHex(ageCheck.h),
+  fromHex(ageCheck.messageHex),
+  RistrettoElement,
+).boundedInt;
 
-describe("context.boundedInt() of ristretto255: the integer of Z_ℓ", () => {
+describe("context.boundedInt of ristretto255: the integer of Z_ℓ", () => {
   // REVIEW PLACEHOLDER (#58: define stores the errors of every class it makes, half a step by default)
   // its constants: scale 0, the bounds [−0.5, ℓ − 0.5), no order, no error; low 0n, high ℓ − 1n; the class is frozen
   //   -> its constants: scale 0, the bounds [−0.5, ℓ − 0.5), no order, the errors of half a step; low 0n, high ℓ − 1n; the class is frozen

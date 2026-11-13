@@ -314,9 +314,10 @@ export class BlindingContext<E extends GroupElement> {
   /**
    * The class of the integers `0 … ORDER − 1` of the group, `<SUITE_NAME>Scalar`: the
    * class of the blinding factors, and the base of the classes of the values. The same
-   * object for every context over the same group. It does not await the validation.
+   * object for every context over the same group, on every read. A getter: it does not
+   * await the validation.
    */
-  boundedInt(): typeof GenericBoundedInt {
+  get boundedInt(): typeof GenericBoundedInt {
     return this.#scalar;
   }
 
