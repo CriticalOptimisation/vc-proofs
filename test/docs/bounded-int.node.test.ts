@@ -283,6 +283,26 @@ describe("docs/core/bounded-int.md, section The errors of a class", () => {
     expect(constants).toMatch(/`−308`, `COARSEST_SCALE`, to\s+`323`, `FINEST_SCALE`/);
   });
 
+  test("a class written by hand declares error as an object only, never a bare quantity, and its example gives what it says", () => {
+    expect(page).toMatch(
+      /\| `error` not an object `\{ bound\?, quadratic\?, term\? \}`, a quantity included +\| `TypeError` +\|/,
+    );
+    expect(page).toMatch(/A class written by hand declares `error` as an object of errors,/);
+    expect(page).toMatch(/never as a bare quantity/);
+    expect(page).toContain(
+      "`static override error = { bound: 0.25, quadratic: 0.25 }` gives three errors of 0.25",
+    );
+    const errors = exported.errors as (C: typeof BoundedInt) => unknown;
+    class Quarter extends BoundedInt {
+      static override error = { bound: 0.25, quadratic: 0.25 };
+    }
+    expect(errors(Quarter)).toStrictEqual({
+      bound: [25n, -2],
+      quadratic: [25n, -2],
+      term: [25n, -2],
+    });
+  });
+
   test("the display rounds at the first defined of term, quadratic and bound, else shows every digit", () => {
     const display = subsection("valueOf, toString and toLocaleString");
     expect(display).toMatch(/the first defined of `term`, `quadratic` and\s+`bound`, in steps/);
@@ -335,4 +355,4 @@ describe("docs/core/bounded-int.md, section For the other modules of the library
 // | #47    | the new members; the constants and the examples tables; The range of a class; a self-contained page (#44) |
 // | #51    | imports the generic BoundedInt of bounded-int.ts; placeholders of #47 removed (#49) |
 // | #53    | low and high; no order; The integers and The number of values; define without order (#52) |
-// | #59    | The errors of a class, its table against define; the display; the direct scale; For the other modules of the library; placeholders of #53 removed (#58) |
+// | #59    | The errors of a class, its table against define; the display; the direct scale; For the other modules of the library; a class written by hand declares error as an object only; placeholders of #53 removed (#58) |

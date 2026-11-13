@@ -508,6 +508,10 @@ describe("BoundedInt classes: the checks of a class written by hand", () => {
   //   }
   //   expect(() => ZeroOrder.fromValue(5n)).toThrow(RangeError);
   //   expect(() => NumberOrder.fromValue(5n)).toThrow(TypeError);
+  // REVIEW PLACEHOLDER (#58, review of #59: the constant error of a class is an ErrorSpec only)
+  //   class Negative extends BoundedInt {
+  //     static override error = -1n;
+  //   }
   test("min ≥ max, a fractional scale, a scale beyond −308 … 323 and a negative error are refused; the scale 23 is valid", () => {
     class Empty extends BoundedInt {
       static override min = 5n;
@@ -523,7 +527,7 @@ describe("BoundedInt classes: the checks of a class written by hand", () => {
       static override scale = -309;
     }
     class Negative extends BoundedInt {
-      static override error = -1n;
+      static override error = { bound: -1n };
     }
     class Fine extends BoundedInt {
       static override scale = 23;
@@ -629,3 +633,4 @@ describe("BoundedInt classes: a number only where 15 digits are enough", () => {
 // | #47    | new: the preliminary tests of the decimal classes; the bounds [min, max), kept exactly; the order and the error of a class (#44) |
 // | #51    | imports the generic BoundedInt of bounded-int.ts; placeholders of #47 removed (#49) |
 // | #53    | no order: no more values than the parent, low and high, define ignores order; its edge cases (#52) |
+// | #59    | a hand-written negative error as { bound: -1n } (#58) |

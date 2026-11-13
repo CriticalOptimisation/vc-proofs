@@ -94,11 +94,24 @@ describe("BoundedInt.define: the three errors, stored as decimals in the unit of
     expect(errorsOf(Hand)).toStrictEqual(three([5n, -2]));
   });
 
-  test("a class written by hand declares its error as a quantity or an object, under the same rules", () => {
+  // REVIEW PLACEHOLDER (#58, review of #59: the constant error of a class labels each error, an ErrorSpec only)
+  // a class written by hand declares its error as a quantity or an object, under the same rules
+  //   -> a class written by hand declares its error as an object only, under the same rules; a bare quantity is a TypeError
+  //   class Quarter extends BoundedInt {
+  //     static override error = 0.25;
+  //   }
+  test("a class written by hand declares its error as an object only, under the same rules; a bare quantity is a TypeError", () => {
     class Quarter extends BoundedInt {
-      static override error = 0.25;
+      static override error = { bound: 0.25, quadratic: 0.25 };
     }
     expect(errorsOf(Quarter)).toStrictEqual(three([25n, -2]));
+    class Bare extends BoundedInt {
+      static override error = 0.25 as never;
+    }
+    expect(() => Bare.fromValue(0n)).toThrow(TypeError);
+    expect(() => Bare.fromValue(0n)).toThrow(
+      /^Bare\.fromValue: Bare\.error must be an object \{ bound\?, quadratic\?, term\? \}$/,
+    );
     class Normal extends BoundedInt {
       static override error = { quadratic: 0.8 } as never;
     }
@@ -215,4 +228,4 @@ describe("BoundedInt classes: the display at the first defined of term, quadrati
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
-// | #59    | new: the three errors, their rules, getters, display; the exports of bounded-int.ts (#58) |
+// | #59    | new: the three errors, their rules, getters, display; the exports of bounded-int.ts; a hand-written error is an object only (#58) |

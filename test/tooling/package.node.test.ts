@@ -109,6 +109,7 @@ describe("after the build", { timeout: 120_000 }, () => {
 
   // REVIEW PLACEHOLDER (#58: error takes a quantity or an ErrorSpec; each getter may be undefined)
   //   expect(declarations).toContain("static readonly error?: Quantity;");
+  //   (then, in this PR) expect(declarations).toContain("static readonly error?: Quantity | ErrorSpec;");
   //   expect(declarations).toContain(`static get ${error}(): number;`);
   test("the declarations of bounded-int.ts declare the generic BoundedInt, its constants without integerOnly nor order, the quantities, from, fromValue, define typed as its class, low, high, the errors of the class, value, valueOf, toString and toLocaleString", () => {
     const declarations = readFileSync(`${root}dist/core/bounded-int.d.ts`, "utf8");
@@ -121,7 +122,8 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(declarations).not.toContain("integerOnly");
     expect(declarations).not.toMatch(/\border\b/);
     expect(declarations).not.toContain("BoundedIntOrder");
-    expect(declarations).toContain("static readonly error?: Quantity | ErrorSpec;");
+    expect(declarations).toContain("static readonly error?: ErrorSpec;");
+    expect(declarations).toContain("readonly error?: Quantity | ErrorSpec;");
     expect(declarations).toContain("static from(x: Quantity): BoundedInt;");
     expect(declarations).toContain("static fromValue(q: bigint): BoundedInt;");
     expect(declarations).toMatch(
@@ -184,4 +186,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #51    | ./core exports BoundedInt from ristretto.ts and declares it (#49) |
 // | #53    | declarations without order, RistrettoBoundedIntSpec or define override; low, high, define<T> (#52) |
 // | #55    | ./core exports no BoundedInt; the types Committed, Blinded, Group; a required group; blinding-context.ts names no ristretto255 (#48) |
-// | #59    | ./core exports the types Decimal and Quantity; get boundedInt; error and getters may be undefined; placeholders of #55 removed (#58) |
+// | #59    | ./core exports the types Decimal and Quantity; get boundedInt; the constant error is an ErrorSpec, the error of define a quantity or an ErrorSpec; getters may be undefined; placeholders of #55 removed (#58) |

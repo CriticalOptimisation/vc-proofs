@@ -167,15 +167,16 @@ by hand, `class Days extends BoundedInt { static override min = 0n; static overr
 it declares overrides that of `BoundedInt`, so TypeScript requires `override` under
 `noImplicitOverride`:
 
-| Constants                                                      | Error        |
-| -------------------------------------------------------------- | ------------ |
-| `min` without `max`, or `max` without `min`                    | `TypeError`  |
-| `min`, `max` or `error` not a quantity, `scale` not a `number` | `TypeError`  |
-| `error` an object with a key that is not a quantity            | `TypeError`  |
-| `min ≥ max`                                                    | `RangeError` |
-| `scale` not an integer from `−308` to `323`                    | `RangeError` |
-| more values than its parent, unless its parent is `BoundedInt` | `RangeError` |
-| an error below 0, or errors that break [the rules](#the-rules) | `RangeError` |
+| Constants                                                                  | Error        |
+| -------------------------------------------------------------------------- | ------------ |
+| `min` without `max`, or `max` without `min`                                | `TypeError`  |
+| `min` or `max` not a quantity, `scale` not a `number`                      | `TypeError`  |
+| `error` not an object `{ bound?, quadratic?, term? }`, a quantity included | `TypeError`  |
+| `error` an object with a key that is not a quantity                        | `TypeError`  |
+| `min ≥ max`                                                                | `RangeError` |
+| `scale` not an integer from `−308` to `323`                                | `RangeError` |
+| more values than its parent, unless its parent is `BoundedInt`             | `RangeError` |
+| an error below 0, or errors that break [the rules](#the-rules)             | `RangeError` |
 
 The constants are `static readonly`: TypeScript refuses to assign them, and a class made by
 `define` is frozen. A class written by hand is checked once, at its first use, and its
@@ -301,8 +302,11 @@ or `undefined`, in the unit of the values: `Mass.error.bound` is `[5n, -2]`, 0.0
 
 A class never takes the errors of its parent: the scale may differ, and half a step of
 the parent is not half a step of the class. A class that declares no `error` of its own
-has half its own step. A class written by hand may declare `error` as a quantity or as an
-object of errors; it goes through the same rules, at the first use of the class.
+has half its own step. A class written by hand declares `error` as an object of errors,
+`{ bound?, quadratic?, term? }`, never as a bare quantity: the constant of every class
+labels each of its errors, and only `define` takes the shorthand of a quantity. It goes
+through the same rules, at the first use of the class:
+`static override error = { bound: 0.25, quadratic: 0.25 }` gives three errors of 0.25.
 
 #### The getters
 
@@ -496,7 +500,8 @@ quantities and errors. `@criticaloptimisation/vc-proofs/core` exports only the t
 | type `Errors`             | `{ bound, quadratic, term }`, each a `Decimal` or `undefined`: the errors of a class                                                                                                       |
 
 `errors(C)` is the way to read the errors of a class: the constant `error` of a class
-written by hand may be a quantity, and a class that declares none has its own default.
+written by hand has not been through [the rules](#the-rules), which may fill in an error it
+leaves out, and a class that declares none has its own default.
 
 ## The BoundedInt of the entry point
 
@@ -518,5 +523,5 @@ Change History
 | #51 | notice: ./core exports a specialized subclass (#49) |
 | #53 | no order: a class holds no more values than its parent, unless its parent is BoundedInt; static low and high; define typed as its class, other keys ignored (#52) |
 | #55 | notice: ./core gives the subclass through the boundedInt() of a blinding context (#48) |
-| #59 | three errors { bound, quadratic, term } as decimals, their rules, never inherited, {} disables them; getters may be undefined; display at the first defined error; direct scale, never clamped; For the other modules of the library (#58) |
+| #59 | three errors { bound, quadratic, term } as decimals, their rules, never inherited, {} disables them; getters may be undefined; display at the first defined error; direct scale, never clamped; a class written by hand declares error as an object only; For the other modules of the library (#58) |
 -->

@@ -400,7 +400,13 @@ function constants(C: BoundedIntClass, where: string): Constants {
     }
   }
   // Only an own error: the errors of the parent are not those of C, whose scale may differ.
-  const own = Object.hasOwn(C, "error") ? C.error : undefined;
+  const own: unknown = Object.hasOwn(C, "error") ? C.error : undefined;
+  // The constant labels each error: only define takes the shorthand of a quantity.
+  if (own !== undefined && (typeof own !== "object" || own === null || Array.isArray(own))) {
+    throw new TypeError(
+      `${where}: ${C.name}.error must be an object { bound?, quadratic?, term? }`,
+    );
+  }
   const errors = normalizeErrors(own, scale, where, `${C.name}.error`);
   const result: Constants = {
     scale,
@@ -442,11 +448,12 @@ export class BoundedInt {
   /** The value just above the highest, excluded. */
   static readonly max: Quantity = MAX;
   /**
-   * The errors of the values, in their unit. `define` stores them as frozen `Errors`; a
-   * class written by hand may declare a quantity or an `ErrorSpec`. Never inherited: a
-   * class that declares none has half its own step. Read them with `errors(C)`.
+   * The errors of the values, in their unit, each labelled. `define` stores them as
+   * frozen `Errors`; a class written by hand declares an `ErrorSpec`, never a bare
+   * quantity. Never inherited: a class that declares none has half its own step. Read
+   * them with `errors(C)`.
    */
-  declare static readonly error?: Quantity | ErrorSpec;
+  declare static readonly error?: ErrorSpec;
 
   readonly #value: bigint;
 
@@ -678,4 +685,4 @@ export function errors(C: BoundedIntClass): Errors {
 // | #42    | new: BoundedInt, from, valueOf, toString, toPrimitive (#41)   |
 // | #47    | decimal classes: scale, the exact bounds [min, max), order, error; numbers rounded to 15 digits; from, fromValue, define; exact decimals on bigints; valueOf, toString, toLocaleString (#44) |
 // | #53    | no order: a class holds no more values than its parent, checked parent first; static low and high; define<T>(this: T) (#52) |
-// | #59    | three errors as frozen decimals, own and never inherited, under the rules; getters may be undefined; display at the first defined error; k = 1 - digits(n) - e, COARSEST_SCALE and FINEST_SCALE; exports decimal, MANTISSA, EXPONENT, errors, ErrorSpec, Errors (#58) |
+// | #59    | three errors as frozen decimals, own and never inherited, under the rules; the constant error is an ErrorSpec, a quantity only in define; getters may be undefined; display at the first defined error; k = 1 - digits(n) - e, COARSEST_SCALE and FINEST_SCALE; exports decimal, MANTISSA, EXPONENT, errors, ErrorSpec, Errors (#58) |

@@ -179,6 +179,8 @@ describe("errors(C): BoundedInt itself, and the errors of a class reused", () =>
     expect(errors(Hand)).toStrictEqual(three([5n, -2]));
   });
 
+  // REVIEW PLACEHOLDER (#58, review of #59: the constant error of a class is an ErrorSpec only)
+  //   static override error = 0.5;
   test("a class written by hand with its own scale: half its step by default, its error in the unit of the values", () => {
     class Cents extends BoundedInt {
       static override scale = 2;
@@ -186,18 +188,23 @@ describe("errors(C): BoundedInt itself, and the errors of a class reused", () =>
     expect(errors(Cents)).toStrictEqual(three([5n, -3]));
     class Coarse extends BoundedInt {
       static override scale = 2;
-      static override error = 0.5;
+      static override error = { term: 0.5, quadratic: 0.5 };
     }
     expect(errors(Coarse)).toStrictEqual(three([5n, -1]));
   });
 });
 
+// REVIEW PLACEHOLDER (#58, review of #59: a bare quantity is a TypeError, before its sign is read)
+//   ["-1", -1, RangeError],
 describe("a class written by hand whose errors are invalid is refused at its first use", () => {
   test.each<[string, unknown, typeof TypeError | typeof RangeError]>([
     ["{ bound: 1, quadratic: 1, term: 0.5 }", { bound: 1, quadratic: 1, term: 0.5 }, RangeError],
     ["{ quadratic: 2, bound: 1 }", { quadratic: 2, bound: 1 }, RangeError],
     ["{ term: -1 }", { term: -1 }, RangeError],
-    ["-1", -1, RangeError],
+    ["-1", -1, TypeError],
+    ["0.5, a bare quantity", 0.5, TypeError],
+    ["the decimal [5n, -1], a bare quantity", [5n, -1], TypeError],
+    ["null", null, TypeError],
     ["{ bound: '1' }", { bound: "1" }, TypeError],
     ["'x'", "x", TypeError],
   ])("error %s", (_, error, kind) => {
