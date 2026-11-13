@@ -348,6 +348,9 @@ await context.isOpeningOf(received); // whether the issuer's opening holds
 The encoding of these structures into bytes, and the signature of the issuer, belong to
 the [protocol](../protocol.md), not to the context.
 
+A [linear combination](linear-combination.md) takes one `Committed` per term and gives the
+commitment to the combination, or one `Blinded` per term and gives it with its opening.
+
 ## The group
 
 The context does its arithmetic only through its group, a value held in a field, and
