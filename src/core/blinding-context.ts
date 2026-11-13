@@ -16,7 +16,7 @@
  *   has one class of integers `0 … ORDER − 1`, `<SUITE_NAME>Scalar`, made at the first
  *   context over it and kept in a `WeakMap` (*The class of a group*). A value is checked
  *   by a read of its private integer, through the `value` getter of the generic class.
- * - Each context keeps its own queue of up to 10 pairs `(x, x·h)`, `x ≠ 0`, filled one
+ * - Each context keeps its own queue of up to 10 pairs `(x, x·h)`, `x` random, filled one
  *   pair per macrotask once the context is used, and taken by `blind` and `isOpeningOf`.
  *
  * The functions exported below the class are for the tests, not for the entry point.
@@ -61,7 +61,7 @@ export interface Group<E extends GroupElement> {
   randomScalar(): bigint;
 }
 
-/** A precomputed blinding: a random scalar `x ≠ 0` and `x·h`. */
+/** A precomputed blinding: a random scalar `x`, `0n` included, and `x·h`. */
 interface Pair<E> {
   readonly x: bigint;
   readonly xh: E;
@@ -86,7 +86,7 @@ export interface Blinded<E extends GroupElement> {
   readonly commitment: E;
   /** The value; its class is `value.constructor`. */
   readonly value: GenericBoundedInt;
-  /** The blinding factor, of the class of the group, `1 … ORDER − 1`. */
+  /** The blinding factor, of the class of the group, `0 … ORDER − 1`. */
   readonly blinding: GenericBoundedInt;
 }
 
@@ -346,8 +346,8 @@ export class BlindingContext<E extends GroupElement> {
 
   /**
    * The opening of a new commitment to `x`, frozen: `C = m·g + r·h`, `m` the integer of
-   * `x`, with a fresh random `r ≠ 0` of the class of the group, returned and never
-   * accepted.
+   * `x`, with a fresh random `r` of the class of the group, `0` included, returned and
+   * never accepted.
    * @throws RangeError, as a rejection, when `h` is not derived from the message, or when
    *   the class of `x` holds more integers than the group has scalars.
    * @throws TypeError, as a rejection, when `x` is not a bounded integer.
@@ -427,10 +427,9 @@ export class BlindingContext<E extends GroupElement> {
     return pair;
   }
 
-  /** A pair `(x, x·h)` with a random `x ≠ 0`, drawn by the `randomScalar()` of the group. */
+  /** A pair `(x, x·h)` with a random `x`, drawn once by the `randomScalar()` of the group. */
   #pair(): Pair<E> {
-    let x = this.#group.randomScalar();
-    while (x === 0n) x = this.#group.randomScalar();
+    const x = this.#group.randomScalar();
     return { x, xh: this.#h.multiplyScalar(x) };
   }
 
@@ -442,8 +441,7 @@ export class BlindingContext<E extends GroupElement> {
       this.#refilling = false;
       if (this.#queue.length < QUEUE_LENGTH) {
         const x = this.#group.randomScalar();
-        // A 0 is dropped at production: it would hide nothing.
-        if (x !== 0n) this.#queue.push({ x, xh: this.#h.multiplyScalar(x) });
+        this.#queue.push({ x, xh: this.#h.multiplyScalar(x) });
       }
       this.#refill();
     }, 0);
@@ -461,7 +459,7 @@ export class BlindingContext<E extends GroupElement> {
 
 /**
  * The commitment `m·g + r·h` to the `bigint` `scalar`, with the blinding factor drawn by
- * `draw`, called until it returns a non-zero scalar, both as `bigint`s. It awaits the
+ * `draw`, called once, both as `bigint`s. It awaits the
  * validation and bypasses the queue. Exported for the tests, not by the entry point.
  * @throws TypeError, as a rejection, when `context` is not a `BlindingContext`, or
  *   `scalar` or a draw is not a `bigint`.
@@ -475,14 +473,13 @@ export async function blindWith<E extends GroupElement>(
   const { ready, h, commit, checkScalar } = internals(context, "blindWith: context");
   await ready;
   const m = checkScalar(scalar, "blindWith: scalar");
-  let r = checkScalar(draw(), "blindWith: draw()");
-  while (r === 0n) r = checkScalar(draw(), "blindWith: draw()");
+  const r = checkScalar(draw(), "blindWith: draw()");
   return { commitment: commit(m, h.multiplyScalar(r)), blinding: r };
 }
 
 /**
- * `context.blind(x)` with the blinding factor drawn by `draw`, called until it returns a
- * non-zero scalar, then made a value of the class of the group. It awaits the validation
+ * `context.blind(x)` with the blinding factor drawn by `draw`, called once, then made a
+ * value of the class of the group. It awaits the validation
  * and bypasses the queue. Exported for the tests, not by the entry point.
  * @throws TypeError, as a rejection, when `context` is not a `BlindingContext`, `x` is
  *   not a bounded integer, or a draw is not a `bigint`.
@@ -501,8 +498,7 @@ export async function blindValueWith<E extends GroupElement>(
   );
   await ready;
   const m = checkValue(x, "blindValueWith: x");
-  let r = checkScalar(draw(), "blindValueWith: draw()");
-  while (r === 0n) r = checkScalar(draw(), "blindValueWith: draw()");
+  const r = checkScalar(draw(), "blindValueWith: draw()");
   return Object.freeze({
     commitment: commit(m, h.multiplyScalar(r)),
     value: x,
