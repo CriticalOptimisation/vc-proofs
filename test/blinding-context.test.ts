@@ -319,18 +319,12 @@ describe("context.boundedInt(): the class of a group", () => {
 });
 
 describe("BlindingContext: commitments", () => {
-  // REVIEW PLACEHOLDER (#48: blind takes a bounded integer, and resolves to its opening)
-  // blind gives C = m·g + r·h with the returned r, a bigint from 1 to ℓ − 1
-  //   -> blind(x) resolves to a frozen { commitment, value, blinding }: C = m·g + r·h, value is x, r a value of the class of the group from 1 to ℓ − 1
-  // test("blind gives C = m·g + r·h with the returned r, a bigint from 1 to ℓ − 1", async () => {
-  //   const context = ageCheckContext();
-  //   const m = 20000n;
-  //   const { commitment, blinding } = await context.blind(m);
-  //   expect(typeof blinding).toBe("bigint");
-  //   expect(blinding > 0n && blinding < L).toBe(true);
-  //   expect(commitment.equals(pedersen(m, blinding, await context.h()))).toBe(true);
-  // });
-  test("blind(x) resolves to a frozen { commitment, value, blinding }: C = m·g + r·h, value is x, r a value of the class of the group from 1 to ℓ − 1", async () => {
+  // REVIEW PLACEHOLDER (#56: a blinding factor may be 0)
+  //   blind(x) resolves to a frozen { commitment, value, blinding }: C = m·g + r·h, value is x, r a value of the class of the group from 1 to ℓ − 1
+  //   -> blind(x) resolves to a frozen { commitment, value, blinding }: C = m·g + r·h, value is x, r a value of the class of the group from 0 to ℓ − 1
+  //   The test is converted in place; its one changed assertion was:
+  //   expect(blinding.value > 0n && blinding.value < L).toBe(true);
+  test("blind(x) resolves to a frozen { commitment, value, blinding }: C = m·g + r·h, value is x, r a value of the class of the group from 0 to ℓ − 1", async () => {
     const context = ageCheckContext();
     const x = Days.from(20000n);
     const blinded = await context.blind(x);
@@ -341,7 +335,7 @@ describe("BlindingContext: commitments", () => {
     const { blinding } = blinded;
     expect(blinding).toBeInstanceOf(Scalar);
     expect(blinding.constructor).toBe(Scalar);
-    expect(blinding.value > 0n && blinding.value < L).toBe(true);
+    expect(blinding.value >= 0n && blinding.value < L).toBe(true);
     expect(blinded.commitment.equals(pedersen(20000n, blinding.value, await context.h()))).toBe(
       true,
     );
@@ -362,26 +356,6 @@ describe("BlindingContext: commitments", () => {
     expect(first.commitment.equals(second.commitment)).toBe(false);
   });
 
-  // REVIEW PLACEHOLDER (#48: blind takes a bounded integer, and refuses a bigint)
-  // a BoundedInt passes its value: blind(x.value) commits to x, and blind(x) and isOpeningOf(x, …) reject with a TypeError
-  //   -> blind of a bigint, of a number and of an object with a value rejects with a TypeError
-  //   -> blind(x) resolves to a frozen { commitment, value, blinding }: C = m·g + r·h, value is x, r a value of the class of the group from 1 to ℓ − 1
-  // test("a BoundedInt passes its value: blind(x.value) commits to x, and blind(x) and isOpeningOf(x, …) reject with a TypeError", async () => {
-  //   const context = ageCheckContext();
-  //   const x = BoundedInt.from(20000n);
-  //   const { commitment, blinding } = await context.blind(x.value);
-  //   expect(commitment.equals(pedersen(20000n, blinding, await context.h()))).toBe(true);
-  //   expect(await context.isOpeningOf(x.value, BoundedInt.from(blinding).value, commitment)).toBe(
-  //     true,
-  //   );
-  //   await expect(context.blind(x as never)).rejects.toBeInstanceOf(TypeError);
-  //   await expect(context.isOpeningOf(x as never, blinding, commitment)).rejects.toBeInstanceOf(
-  //     TypeError,
-  //   );
-  //   await expect(
-  //     context.isOpeningOf(20000n, BoundedInt.from(blinding) as never, commitment),
-  //   ).rejects.toBeInstanceOf(TypeError);
-  // });
   test.each<[string, unknown]>([
     ["a bigint", 20000n],
     ["a number", 20000],
@@ -404,26 +378,6 @@ describe("BlindingContext: commitments", () => {
     expect(message).not.toMatch(/\d{6}/);
   });
 
-  // REVIEW PLACEHOLDER (#48: isOpeningOf takes a Blinded; the class of a value bounds it)
-  // blind and isOpeningOf take any integer: m, m + ℓ and m − ℓ commit to the same value
-  //   -> blindWith takes any integer: m, m + ℓ and m − ℓ commit to the same value
-  //   -> a negative value is committed as it is: −12 of Reading gives (ℓ − 12)·g + r·h, and isOpeningOf accepts its opening
-  // test("blind and isOpeningOf take any integer: m, m + ℓ and m − ℓ commit to the same value", async () => {
-  //   expect(typeof seams.blindWith).toBe("function");
-  //   const vector = contextVectors.commitments[0];
-  //   if (vector === undefined) throw new Error("no commitment vector");
-  //   const m = littleEndian(fromHex(vector.mHex));
-  //   const r = littleEndian(fromHex(vector.r));
-  //   const context = seamContext();
-  //   for (const shifted of [m + L, m - L, m + 3n * L]) {
-  //     const blinded = await seams.blindWith?.(context, shifted, () => r);
-  //     expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(vector.commitment);
-  //   }
-  //   const commitment = RistrettoElement.decode(fromHex(vector.commitment));
-  //   expect(await context.isOpeningOf(m - L, r + L, commitment)).toBe(true);
-  //   expect(await context.isOpeningOf(m, r - 2n * L, commitment)).toBe(true);
-  //   expect(await context.isOpeningOf(m + 1n, r, commitment)).toBe(false);
-  // });
   test("blindWith takes any integer: m, m + ℓ and m − ℓ commit to the same value", async () => {
     expect(typeof seams.blindWith).toBe("function");
     const vector = contextVectors.commitments[0];
@@ -479,20 +433,39 @@ describe("BlindingContext: commitments", () => {
     },
   );
 
-  test("blindWith draws again when the draw is 0n", async () => {
+  // REVIEW PLACEHOLDER (#56: a draw of 0n is a blinding factor like any other)
+  //   blindWith draws again when the draw is 0n
+  //   -> blindWith uses a draw of 0n as it is: draw is called once, and the commitment is m·g
+  // test("blindWith draws again when the draw is 0n", async () => {
+  //   expect(typeof seams.blindWith).toBe("function");
+  //   const vector = contextVectors.commitments[0];
+  //   if (vector === undefined) throw new Error("no commitment vector");
+  //   const r = littleEndian(fromHex(vector.r));
+  //   const draws = [0n, r];
+  //   const draw = vi.fn(() => draws.shift() ?? 0n);
+  //   const blinded = await seams.blindWith?.(
+  //     seamContext(),
+  //     littleEndian(fromHex(vector.mHex)),
+  //     draw,
+  //   );
+  //   expect(draw).toHaveBeenCalledTimes(2);
+  //   expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(vector.commitment);
+  // });
+  test("blindWith uses a draw of 0n as it is: draw is called once, and the commitment is m·g", async () => {
     expect(typeof seams.blindWith).toBe("function");
     const vector = contextVectors.commitments[0];
     if (vector === undefined) throw new Error("no commitment vector");
     const r = littleEndian(fromHex(vector.r));
+    const m = littleEndian(fromHex(vector.mHex));
+    // A second draw, if any, would give the commitment of the vector instead.
     const draws = [0n, r];
     const draw = vi.fn(() => draws.shift() ?? 0n);
-    const blinded = await seams.blindWith?.(
-      seamContext(),
-      littleEndian(fromHex(vector.mHex)),
-      draw,
+    const blinded = await seams.blindWith?.(seamContext(), m, draw);
+    expect(draw).toHaveBeenCalledTimes(1);
+    expect(blinded?.blinding).toBe(0n);
+    expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(
+      hex(g().multiplyScalar(m).encode()),
     );
-    expect(draw).toHaveBeenCalledTimes(2);
-    expect(hex(blinded?.commitment.encode() ?? new Uint8Array())).toBe(vector.commitment);
   });
 });
 
@@ -666,3 +639,4 @@ describe("BlindingContext over another group", () => {
 // | #40    | new: the preliminary tests of BlindingContext, its group, bigint scalars, a BoundedInt's value (#39) |
 // | #51    | the blinding factor through BoundedInt itself, the integer of Z_ℓ (#49) |
 // | #55    | Committed and Blinded, ORDER, blind of a bounded integer, boundedInt(), a required group (#48) |
+// | #60    | blindWith uses a draw of 0n as it is; r from 0 to ℓ − 1 (#56) |

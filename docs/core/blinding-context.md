@@ -167,9 +167,10 @@ For the age-check context of [The generator h](../generator-h.md#vector-age-chec
   not the decimal it stands for;
 - `value` is `x` itself;
 - `blinding` is `r`, a bounded integer of [the class of the group](#the-class-of-a-group),
-  drawn at random for each commitment with the `randomScalar()` of the group, and never
-  0 (`C = m·g` would hide nothing). It is returned, since the holder needs it later for
-  the proofs. No method accepts an `r` chosen by the caller for a new commitment.
+  drawn uniformly at random for each commitment from the whole class of the group, `0`
+  included, with the `randomScalar()` of the group. The commitment hides `m` perfectly
+  only when `r` is uniform over all `ℓ` integers: leaving one out, `0` or any other,
+  would bias it. It is returned, since the holder needs it later for the proofs. No method accepts an `r` chosen by the caller for a new commitment.
 
 **The class of `x` must fit the group.** It holds the integers `low … high` of its class
 (see [The range of a class](bounded-int.md#the-range-of-a-class)), and the commitment
@@ -209,11 +210,11 @@ once, on receipt**, not at each use.
 
 Most of the cost of `blind` is the multiplication `r·h`, about three quarters of it;
 drawing `r` is negligible. Each context therefore keeps a queue of up to 10 pairs
-`(x, x·h)`, with `x` random and never 0, each used once, by `blind` (as `(r, r·h)`) or by
+`(x, x·h)`, with `x` random, each used once, by `blind` (as `(r, r·h)`) or by
 `isOpeningOf` (as `(s, s·h)`).
 
-- The scalars `x` come from the `randomScalar()` of the group; a draw of `0n` is
-  dropped.
+- The scalars `x` come from the `randomScalar()` of the group, each draw kept, `0n`
+  included.
 - The queue starts filling at the first call to `blind` or `isOpeningOf`, after the
   validation succeeded. A context that is invalid, or never used for them, holds no
   random scalar.
@@ -315,7 +316,7 @@ interface Committed<E> {
 interface Blinded<E> {
   readonly commitment: E;
   readonly value: BoundedInt; // its class is value.constructor
-  readonly blinding: BoundedInt; // of the class of the group, 1 … ℓ − 1
+  readonly blinding: BoundedInt; // of the class of the group, 0 … ℓ − 1
 }
 ```
 
@@ -424,4 +425,5 @@ Change History
 | #40 | new: BlindingContext, its group, validation, serialization and commitments, on bigint scalars; BoundedInt passes its value (#39) |
 | #47 | a subclass bounds and scales its value, with no salt (#44) |
 | #55 | Committed and Blinded; blind(x) of a bounded integer whose class fits the group; isOpeningOf(opening); boundedInt() and the class of a group; ORDER; the group of fromEncoded is required (#48) |
+| #60 | a blinding factor or a queued scalar may be 0: r is uniform over the whole class of the group (#56) |
 -->
