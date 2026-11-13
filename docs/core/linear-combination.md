@@ -114,6 +114,14 @@ the value of term `i`, exactly. `coefficients` gives the `a′ᵢ`, a frozen arr
 `0n`: the term adds nothing to the result, but its input is still checked. There is no
 alignment for no term: `coefficients` is empty.
 
+The scale of a term and the exponent of its coefficient add up: a decimal coefficient
+refines the step of the result, an integer coefficient with trailing zeros coarsens it.
+Take `x` in `[0, 0.09995)` at the step `10^-4`, the scale 4: its integers are `0 … 999`,
+0 to 0.0999. The coefficient `0.2` is the decimal `[2n, -1]`. The result `r = 0.2·x` has
+the scale `k = 4 − (−1) = 5`, the step `10^-5`, and `a′ = 2 · 10^(5 − 4 − 1) = 2n`: the
+combination is the equation `r = 2·x` between the integers, and the range of `r` is
+`0 … 1998`, 0 to 0.01998, which is `0.2 × 0.0999`.
+
 The coefficients grow with the spread of the exponents: a coefficient `[1n, -30]` on a
 class of scale 0 gives `k = 30`, and multiplies every other term by `10^30`. A `bigint`
 holds them exactly; the cost is in the size of the integers.
@@ -136,12 +144,8 @@ group has scalars, and [the group at use](#the-group-at-use) decides whether it 
   [The errors of a class](bounded-int.md#the-errors-of-a-class)) and the decimal
   coefficients `aᵢ`:
   - `bound = Σ |aᵢ| · boundᵢ`: the errors add up in the worst case;
-  - `quadratic = √Σ (aᵢ · quadraticᵢ)²`, for independent errors, rounded up to 15
-    significant digits. The root is never above `bound`, and equals it only for a single
-    term whose three errors are equal. When it is below `bound` and its rounding would
-    reach `bound`, it is rounded up with as many more digits as keep it below: a
-    `quadratic` equal to `bound` would require `term` to equal them too (see
-    [The rules](bounded-int.md#the-rules));
+  - `quadratic = √Σ (aᵢ · quadraticᵢ)²`, for independent errors: the root, rounded up
+    to 15 significant digits, so that it is a decimal;
   - `term = max |aᵢ| · termᵢ`: the error of the least accurate term.
 
   Each of them is `undefined` as soon as one term has it `undefined`: a sum with an
@@ -293,6 +297,7 @@ const Sensor = Scalar.define({
   step: 0.1,
   error: { quadratic: 0.08 },
 });
+const Fraction = Scalar.define({ name: "Fraction", min: 0, max: 0.09995, step: 0.0001 }); // 0 to 999, k = 4
 ```
 
 | Terms                               | `k` | `coefficients` | `low`      | `high`     | `bound`     | `quadratic`        | `term`      |
@@ -301,6 +306,7 @@ const Sensor = Scalar.define({
 | `[[2n, Mass], [-1n, Reading]]`      | 2   | `[20n, -1n]`   | `-1599n`   | `20799n`   | 0.105       | 0.100124921972504  | 0.1         |
 | `[[0.5, DayCount]]`                 | 1   | `[5n]`         | `0n`       | `1826250n` | 0.25        | 0.25               | 0.25        |
 | `[[1n, Sensor], [-1n, Mass]]`       | 1   | `[1n, -1n]`    | `-1000n`   | `1000n`    | `undefined` | 0.0943398113205661 | `undefined` |
+| `[[0.2, Fraction]]`                 | 5   | `[2n]`         | `0n`       | `1998n`    | 0.00001     | 0.00001            | 0.00001     |
 | `[]`                                | 0   | `[]`           | `0n`       | `0n`       | 0           | 0                  | 0           |
 
 - **`Age`**, the first row: two values of `DayCount`, each known to half a day. The
@@ -315,6 +321,9 @@ const Sensor = Scalar.define({
 - **`Sensor − Mass`**: `Sensor` knows only a quadratic error, so the result has no bound
   and no error of its least accurate term. Its values show the digits of its quadratic
   error.
+- **`0.2·Fraction`**: the worked example of [The coefficients](#the-coefficients), the
+  equation `r = 2·x` at the scale 5. `Fraction` is known to half its step, 0.00005, so
+  the result is known to `0.2 × 0.00005 = 0.00001`: half its own step.
 - **`[]`**: the empty combination, the constant 0.
 
 ## Errors
