@@ -311,6 +311,17 @@ describe("BlindingContext: commitments and openings", () => {
     expect(await context.isOpeningOf(blinded)).toBe(true);
   });
 
+  test("isOpeningOf accepts an opening built by the caller with a blinding factor of 0n: m·g opens with m, the identity with 0, and m·g + h does not", async () => {
+    const context = ageCheckContext();
+    const h = await context.h();
+    const m = 20000n;
+    expect(await context.isOpeningOf(opening(g().multiplyScalar(m), m, 0n))).toBe(true);
+    expect(await context.isOpeningOf(opening(RistrettoElement.identity(), 0n, 0n))).toBe(true);
+    expect(await context.isOpeningOf(opening(g().multiplyScalar(m).add(h), m, 0n))).toBe(false);
+    expect(await context.isOpeningOf(opening(g().multiplyScalar(m), m, 1n))).toBe(false);
+    expect(await context.isOpeningOf(opening(g().multiplyScalar(m), m + 1n, 0n))).toBe(false);
+  });
+
   const notValues: [string, unknown][] = [
     ["a bigint", 1n],
     ["a number", 1],
