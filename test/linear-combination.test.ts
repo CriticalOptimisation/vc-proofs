@@ -131,6 +131,8 @@ const Sensor = Scalar.define({
   step: 0.1,
   error: { quadratic: 0.08 },
 });
+/** x in [0, 0.09995) at the step 10^-4: the integers 0 … 999, scale 4. */
+const Fraction = Scalar.define({ name: "Fraction", min: 0, max: 0.09995, step: 0.0001 });
 
 const age = () =>
   combination({
@@ -189,6 +191,15 @@ describe("LinearCombination: the constructor and the class of the result", () =>
     }
   });
 
+  test("0.2·x, x of scale 4: the scales add up, k = 4 − (−1) = 5, and the combination is the integer equation r = 2·x, 0 … 1998, 0 to 0.01998", () => {
+    expect([Fraction.scale, Fraction.low, Fraction.high]).toEqual([4, 0n, 999n]);
+    const lc = combination({ name: "Fifth", terms: [[0.2, Fraction]] });
+    expect(lc.boundedInt.scale).toBe(5);
+    expect(lc.coefficients).toEqual([2n]);
+    expect([lc.boundedInt.low, lc.boundedInt.high]).toEqual([0n, 1998n]);
+    expect(lc.boundedInt.fromValue(1998n).toString()).toBe("0.01998");
+  });
+
   test("a coefficient of 0 is accepted: 0·Mass + Reading has coefficients [0n, 1n], k = 2, and the range of Reading alone", () => {
     const lc = combination({
       name: "OnlyReading",
@@ -244,6 +255,11 @@ describe("LinearCombination: the errors of the result", () => {
           ],
         }),
       { bound: undefined, quadratic: [943398113205661n, -16], term: undefined },
+    ],
+    [
+      "0.2·x: the three 0.2 × 0.00005 = 0.00001, half the step of the result",
+      () => combination({ name: "Fifth", terms: [[0.2, Fraction]] }),
+      { bound: [1n, -5], quadratic: [1n, -5], term: [1n, -5] },
     ],
     [
       "the empty combination: the three 0",

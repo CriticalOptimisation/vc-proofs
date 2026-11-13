@@ -132,7 +132,7 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(declarations).toContain("toLocaleString(");
   });
 
-  test("the declarations of linear-combination.ts declare LinearCombination, its class of the result and its coefficients, combine of Committed returning an element E, combineBlinded of Blinded returning a Blinded; ./core exports it; it imports blinding-context.ts for its types only", () => {
+  test("the declarations of linear-combination.ts declare LinearCombination, its class of the result and its coefficients, combine of Committed returning an element E, combineBlinded of Blinded returning a Blinded; ./core exports it; it imports blinding-context.ts for its types only, and the elements of a group from interfaces.ts", () => {
     const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
     expect(index).toContain('export { LinearCombination } from "./linear-combination.js";');
     const declarations = readFileSync(`${root}dist/core/linear-combination.d.ts`, "utf8");
@@ -142,11 +142,18 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(declarations).toContain("get coefficients(): readonly bigint[];");
     // A verifier's Committed gives an element; a Committed is no Blinded, so the type
     // checker refuses it to combineBlinded.
+    // GroupElement lives in interfaces.ts, the file of the core interfaces: no copy of it.
+    const interfaces = readFileSync(`${root}dist/core/interfaces.d.ts`, "utf8");
+    expect(interfaces).toMatch(/export interface GroupElement \{/);
     expect(declarations).toMatch(
-      /\n\s+combine<E extends \w+>\(context: BlindingContext<E>, committed: readonly Committed<E>\[\]\): E;/,
+      /import type \{[^}]*\bGroupElement\b[^}]*\} from "\.\/interfaces\.js";/,
+    );
+    expect(declarations).not.toMatch(/interface \w*Element\b/);
+    expect(declarations).toMatch(
+      /\n\s+combine<E extends GroupElement>\(context: BlindingContext<E>, committed: readonly Committed<E>\[\]\): E;/,
     );
     expect(declarations).toMatch(
-      /\n\s+combineBlinded<E extends \w+>\(context: BlindingContext<E>, openings: readonly Blinded<E>\[\]\): Blinded<E>;/,
+      /\n\s+combineBlinded<E extends GroupElement>\(context: BlindingContext<E>, openings: readonly Blinded<E>\[\]\): Blinded<E>;/,
     );
     expect(readFileSync(`${root}dist/core/linear-combination.js`, "utf8")).not.toContain(
       "./blinding-context.js",

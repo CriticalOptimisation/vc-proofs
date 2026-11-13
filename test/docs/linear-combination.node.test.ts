@@ -69,6 +69,8 @@ const Sensor = Scalar.define({
   step: 0.1,
   error: { quadratic: 0.08 },
 });
+/** x in [0, 0.09995) at the step 10^-4: the integers 0 … 999, scale 4. */
+const Fraction = Scalar.define({ name: "Fraction", min: 0, max: 0.09995, step: 0.0001 });
 
 /** The text of the section `## <title>`, up to the next `## ` heading. */
 function section(title: string): string {
@@ -144,6 +146,7 @@ describe("docs/core/linear-combination.md, section Examples", () => {
         [-1n, Mass],
       ],
     ],
+    ["[[0.2, Fraction]]", [[0.2, Fraction]]],
     ["[]", []],
   ];
 
