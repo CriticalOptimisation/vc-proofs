@@ -670,7 +670,7 @@ describe("BlindingContext: the queues of blindings", () => {
     const blinded = await seams.blindValueWith(context, x, () => draws.shift() ?? 0n);
     expect(draws).toEqual([0n, 5n]);
     expect(blinded.blinding.value).toBe(0n);
-    expect(blinded.blinding.constructor).toBe(context.boundedInt());
+    expect(blinded.blinding.constructor).toBe(context.boundedInt);
     expect(blinded.commitment.equals(g().multiplyScalar(x.value))).toBe(true);
     expect(Object.isFrozen(blinded)).toBe(true);
     expect(await context.isOpeningOf(blinded)).toBe(true);
