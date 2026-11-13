@@ -425,4 +425,5 @@ Change History
 | #40 | new: BlindingContext, its group, validation, serialization and commitments, on bigint scalars; BoundedInt passes its value (#39) |
 | #47 | a subclass bounds and scales its value, with no salt (#44) |
 | #55 | Committed and Blinded; blind(x) of a bounded integer whose class fits the group; isOpeningOf(opening); boundedInt() and the class of a group; ORDER; the group of fromEncoded is required (#48) |
+| #60 | a blinding factor or a queued scalar may be 0: r is uniform over the whole class of the group (#56) |
 -->
