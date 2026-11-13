@@ -64,29 +64,22 @@ describe("after the build", { timeout: 120_000 }, () => {
     });
   }
 
-  // REVIEW PLACEHOLDER (#48: ./core exports no BoundedInt; the class of the group comes from context.boundedInt())
-  // the declarations of ./core export BoundedInt from ristretto.ts: a class that extends the generic one, with its own min and max only
-  //   -> the declarations of ./core export no BoundedInt, and the types Committed, Blinded and Group of blinding-context.ts; ristretto.ts declares no BoundedInt
-  // test("the declarations of ./core export BoundedInt from ristretto.ts: a class that extends the generic one, with its own min and max only", () => {
-  //   const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
-  //   expect(index).toMatch(/export \{[^}]*\bBoundedInt\b[^}]*\} from "\.\/ristretto\.js";/);
+  // REVIEW PLACEHOLDER (#58: ./core exports the types Decimal and Quantity of bounded-int.ts; boundedInt is a getter)
+  // the declarations of ./core export no BoundedInt, and the types Committed, Blinded and Group of blinding-context.ts; ristretto.ts declares no BoundedInt
+  //   -> the declarations of ./core export no BoundedInt, the types Committed, Blinded and Group of blinding-context.ts, and the types Decimal and Quantity of bounded-int.ts; ristretto.ts declares no BoundedInt; boundedInt is a getter
   //   expect(index).not.toContain("./bounded-int.js");
-  //   const declarations = readFileSync(`${root}dist/core/ristretto.d.ts`, "utf8");
-  //   expect(declarations).toMatch(
-  //     /import \{ BoundedInt as (\w+)\b[^}]*\} from "\.\/bounded-int\.js";/,
-  //   );
-  //   const base = /import \{ BoundedInt as (\w+)/.exec(declarations)?.[1] ?? "";
-  //   expect(declarations).toContain(`export declare class BoundedInt extends ${base} {`);
-  //   expect(declarations).toContain("static readonly min: Quantity;");
-  //   expect(declarations).toContain("static readonly max: Quantity;");
-  //   const own = /export declare class BoundedInt extends \w+ \{([^}]*)\}/.exec(declarations);
-  //   expect(own?.[1]).not.toMatch(/order|define/);
-  //   expect(declarations).not.toContain("RistrettoBoundedIntSpec");
-  // });
-  test("the declarations of ./core export no BoundedInt, and the types Committed, Blinded and Group of blinding-context.ts; ristretto.ts declares no BoundedInt", () => {
+  //   expect(context).toMatch(/\n\s+boundedInt\(\): typeof \w+;/);
+  test("the declarations of ./core export no BoundedInt, the types Committed, Blinded and Group of blinding-context.ts, and the types Decimal and Quantity of bounded-int.ts; ristretto.ts declares no BoundedInt; boundedInt is a getter", () => {
     const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
     expect(index).not.toMatch(/\bBoundedInt\b/);
-    expect(index).not.toContain("./bounded-int.js");
+    const numbers = /export type \{([^}]*)\} from "\.\/bounded-int\.js";/.exec(index)?.[1];
+    expect(
+      numbers
+        ?.split(",")
+        .map((name) => name.trim())
+        .sort(),
+    ).toEqual(["Decimal", "Quantity"]);
+    expect(index).not.toMatch(/export \{[^}]*\} from "\.\/bounded-int\.js";/);
     const types = /export type \{([^}]*)\} from "\.\/blinding-context\.js";/.exec(index)?.[1];
     expect(
       types
@@ -100,7 +93,7 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(context).toMatch(/export interface Committed<E/);
     expect(context).toMatch(/export interface Blinded<E/);
     expect(context).not.toMatch(/static boundedInt/);
-    expect(context).toMatch(/\n\s+boundedInt\(\): typeof \w+;/);
+    expect(context).toMatch(/\n\s+get boundedInt\(\): typeof \w+;/);
     // The group of fromEncoded is required: one signature, with no optional group.
     expect(context).toMatch(
       /static fromEncoded<E extends \w+>\(h: Uint8Array, message: Uint8Array, group: Group<E>\): BlindingContext<E>;/,
@@ -114,6 +107,10 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(context).toMatch(/readonly ORDER: bigint;/);
   });
 
+  // REVIEW PLACEHOLDER (#58: error takes a quantity or an ErrorSpec; each getter may be undefined)
+  //   expect(declarations).toContain("static readonly error?: Quantity;");
+  //   (then, in this PR) expect(declarations).toContain("static readonly error?: Quantity | ErrorSpec;");
+  //   expect(declarations).toContain(`static get ${error}(): number;`);
   test("the declarations of bounded-int.ts declare the generic BoundedInt, its constants without integerOnly nor order, the quantities, from, fromValue, define typed as its class, low, high, the errors of the class, value, valueOf, toString and toLocaleString", () => {
     const declarations = readFileSync(`${root}dist/core/bounded-int.d.ts`, "utf8");
     expect(declarations).toContain("export declare class BoundedInt {");
@@ -125,7 +122,8 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(declarations).not.toContain("integerOnly");
     expect(declarations).not.toMatch(/\border\b/);
     expect(declarations).not.toContain("BoundedIntOrder");
-    expect(declarations).toContain("static readonly error?: Quantity;");
+    expect(declarations).toContain("static readonly error?: ErrorSpec;");
+    expect(declarations).toContain("readonly error?: Quantity | ErrorSpec;");
     expect(declarations).toContain("static from(x: Quantity): BoundedInt;");
     expect(declarations).toContain("static fromValue(q: bigint): BoundedInt;");
     expect(declarations).toMatch(
@@ -135,7 +133,7 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(declarations).toContain("static get high(): bigint;");
     expect(declarations).not.toContain("defineRaw");
     for (const error of ["errorBound", "quadraticError", "termError"]) {
-      expect(declarations).toContain(`static get ${error}(): number;`);
+      expect(declarations).toContain(`static get ${error}(): number | undefined;`);
     }
     expect(declarations).toContain("get value(): bigint;");
     expect(declarations).toContain("valueOf(): number;");
@@ -188,3 +186,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #51    | ./core exports BoundedInt from ristretto.ts and declares it (#49) |
 // | #53    | declarations without order, RistrettoBoundedIntSpec or define override; low, high, define<T> (#52) |
 // | #55    | ./core exports no BoundedInt; the types Committed, Blinded, Group; a required group; blinding-context.ts names no ristretto255 (#48) |
+// | #59    | ./core exports the types Decimal and Quantity; get boundedInt; the constant error is an ErrorSpec, the error of define a quantity or an ErrorSpec; getters may be undefined; placeholders of #55 removed (#58) |

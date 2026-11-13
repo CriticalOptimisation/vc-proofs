@@ -314,9 +314,10 @@ export class BlindingContext<E extends GroupElement> {
   /**
    * The class of the integers `0 … ORDER − 1` of the group, `<SUITE_NAME>Scalar`: the
    * class of the blinding factors, and the base of the classes of the values. The same
-   * object for every context over the same group. It does not await the validation.
+   * object for every context over the same group, on every read. A getter: it does not
+   * await the validation.
    */
-  boundedInt(): typeof GenericBoundedInt {
+  get boundedInt(): typeof GenericBoundedInt {
     return this.#scalar;
   }
 
@@ -520,4 +521,5 @@ export function queuedBlindings<E extends GroupElement>(context: BlindingContext
 // |--------|---------------------------------------------------------------|
 // | #40    | new: BlindingContext, its group, validation, queue and seams; bigint scalars (#39) |
 // | #55    | ORDER; the group is required; boundedInt(); blind and isOpeningOf of bounded integers; Committed, Blinded; blindValueWith (#48) |
+// | #59    | get boundedInt() (#58) |
 // | #60    | a draw of 0n is kept: #pair, #refill, blindWith and blindValueWith draw once (#56) |

@@ -54,9 +54,9 @@ BoundedInt.from(-1); // RangeError: below BoundedInt.min
 | `static define(spec)`                | a new subclass                                                     | see [define](#define)                |
 | `static low`                         | the lowest integer of the class, a `bigint`                        | as the constants                     |
 | `static high`                        | the highest integer of the class, a `bigint`                       | as the constants                     |
-| `static errorBound`                  | the bound of the error of a value, relative to `max − min`         | as the constants                     |
-| `static quadraticError`              | the quadratic error of a value, relative to `max − min`            | as the constants                     |
-| `static termError`                   | the error of the least accurate term, relative to `max − min`      | as the constants                     |
+| `static errorBound`                  | the bound of the error, relative to `max − min`, or `undefined`    | as the constants                     |
+| `static quadraticError`              | the quadratic error, relative to `max − min`, or `undefined`       | as the constants                     |
+| `static termError`                   | the error of the least accurate term, relative, or `undefined`     | as the constants                     |
 | `value`                              | the integer, a `bigint`                                            | none                                 |
 | `valueOf()`                          | the value, the nearest `number`, without its meaningless digits    | `RangeError` where it is `±Infinity` |
 | `toString()`                         | the exact decimal of the value, with the digits that carry meaning | none                                 |
@@ -105,19 +105,22 @@ A class whose values need more than 15 digits takes no `number` (see [from](#fro
 A class is described by its constants, which every member reads from the class of the
 call (`this` in a static member, `this.constructor` in an instance member):
 
-| Constant | Meaning                                                                | On `BoundedInt` |
-| -------- | ---------------------------------------------------------------------- | --------------- |
-| `scale`  | the integer `k` of the factor `10^k`: the step of the class is `10^-k` | `0`             |
-| `min`    | the lowest value, included, a quantity                                 | `0n`            |
-| `max`    | the value just above the highest, excluded, a quantity                 | `32767.5`       |
-| `error`  | the accuracy of the values, in the unit of the values, a quantity      | absent: ½ step  |
+| Constant | Meaning                                                                     | On `BoundedInt` |
+| -------- | --------------------------------------------------------------------------- | --------------- |
+| `scale`  | the integer `k` of the factor `10^k`: the step of the class is `10^-k`      | `0`             |
+| `min`    | the lowest value, included, a quantity                                      | `0n`            |
+| `max`    | the value just above the highest, excluded, a quantity                      | `32767.5`       |
+| `error`  | the three errors of the values, `{ bound, quadratic, term }`, in their unit | absent: ½ step  |
 
-- **The scale is a power of ten.** `k` is an integer from `−308` to `323`, the powers of
-  ten whose step `10^-k` a `number` can write. A step of `0.01` is `k = 2`, a step of 1000
-  is `k = −3`. The integer of a value `x` counts steps: `q = x · 10^k`, rounded. The
-  decimal that `q` stands for is `D(q) = q · 10^-k`.
-  A class that declares none of the constants inherits those of its base. A class that
-  declares one bound must declare both.
+- **The scale is a power of ten.** `k` is an integer from `−308`, `COARSEST_SCALE`, to
+  `323`, `FINEST_SCALE`: the powers of ten whose step `10^-k` a `number` can write, from
+  `10^308` down to `10^-323`. A step of `0.01` is `k = 2`, a step of 1000 is `k = −3`. The
+  integer of a value `x` counts steps: `q = x · 10^k`, rounded. The decimal that `q`
+  stands for is `D(q) = q · 10^-k`.
+  A class that declares none of the constants inherits those of its base, except `error`:
+  a class never takes the errors of its parent (see
+  [The errors of a class](#the-errors-of-a-class)). A class that declares one bound must
+  declare both.
 
 #### The range of a class
 
@@ -164,14 +167,16 @@ by hand, `class Days extends BoundedInt { static override min = 0n; static overr
 it declares overrides that of `BoundedInt`, so TypeScript requires `override` under
 `noImplicitOverride`:
 
-| Constants                                                      | Error        |
-| -------------------------------------------------------------- | ------------ |
-| `min` without `max`, or `max` without `min`                    | `TypeError`  |
-| `min`, `max` or `error` not a quantity, `scale` not a `number` | `TypeError`  |
-| `min ≥ max`                                                    | `RangeError` |
-| `scale` not an integer from `−308` to `323`                    | `RangeError` |
-| more values than its parent, unless its parent is `BoundedInt` | `RangeError` |
-| `error` below 0                                                | `RangeError` |
+| Constants                                                                  | Error        |
+| -------------------------------------------------------------------------- | ------------ |
+| `min` without `max`, or `max` without `min`                                | `TypeError`  |
+| `min` or `max` not a quantity, `scale` not a `number`                      | `TypeError`  |
+| `error` not an object `{ bound?, quadratic?, term? }`, a quantity included | `TypeError`  |
+| `error` an object with a key that is not a quantity                        | `TypeError`  |
+| `min ≥ max`                                                                | `RangeError` |
+| `scale` not an integer from `−308` to `323`                                | `RangeError` |
+| more values than its parent, unless its parent is `BoundedInt`             | `RangeError` |
+| an error below 0, or errors that break [the rules](#the-rules)             | `RangeError` |
 
 The constants are `static readonly`: TypeScript refuses to assign them, and a class made by
 `define` is frozen. A class written by hand is checked once, at its first use, and its
@@ -229,33 +234,102 @@ to.
 
 ### The errors of a class
 
-A class carries the accuracy of its values, `error`, in the unit of the values: the unit in
-which `from` takes `x` and `define` takes the bounds, the kilogram for `Mass`, not steps of
-the class. It is a class constant like its scale, set when the class is made, never by a
-value. It is half a step when it is left
-out, the error of the rounding. It describes how the values of the class are obtained: a
-clock that reads exactly 12 is no more accurate than when it reads 12.3.
+A class carries the accuracy of its values as three errors, in the unit of the values: the
+unit in which `from` takes `x` and `define` takes the bounds, the kilogram for `Mass`, not
+steps of the class. They are class constants like its scale, set when the class is made,
+never by a value. They describe how the values of the class are obtained: a clock that
+reads exactly 12 is no more accurate than when it reads 12.3.
 
-The three getters report it **relative to the full scale**, `max − min`, as a `number`:
-an error in absolute terms only means something next to the size of the range.
+- **`bound`** is a guaranteed bound: the true value is within `bound` of `D(q)`.
+- **`quadratic`** combines independent errors, as the square root of the sum of their
+  squares.
+- **`term`** is the error of the least accurate term. It decides which digits carry
+  meaning (see [valueOf, toString and toLocaleString](#valueof-tostring-and-tolocalestring)).
 
-- **`errorBound`** is a guaranteed bound: the true value is within
-  `errorBound · (max − min)` of `D(q)`.
-- **`quadraticError`** combines independent errors; for the values of one class, it is
-  the bound.
-- **`termError`** is the error of the least accurate term; for the values of one class,
-  it is the bound. It decides which digits carry meaning.
+For the values of one class, measured or rounded once, the three are equal. A class whose
+values are made from several terms has three different errors.
 
-`termError ≤ quadraticError ≤ errorBound` always holds.
+An error may be `undefined`: one the class does not know. A normal distribution, for
+instance, has a quadratic error but no bound.
+
+#### Given to define
+
+`define` takes the errors as `error`, in one of three forms:
+
+- **left out**: each of the three is half a step of the class, `½ · 10^-k`, the error of
+  the rounding;
+- **a quantity**, 0 or more: the three are equal to it;
+- **an object** `{ bound?, quadratic?, term? }` of quantities: each error given is kept,
+  and the others are `undefined`, unless [the rules](#the-rules) fill them in. A key left
+  out and a key set to `undefined` mean the same thing. Any other key is ignored. An
+  array is not this form: it is a decimal `[n, e]`, a quantity.
+
+`{}` leaves the three `undefined`: the class has no error, and its values show every
+digit. This disables what is computed from the errors.
+
+#### The rules
+
+The errors given are compared exactly, as decimals. A broken rule is a `RangeError`.
+
+- `0 ≤ term ≤ quadratic ≤ bound`, between any two that are defined.
+- If two are equal, the third is equal to them: when it is defined it must be, and when
+  it is `undefined` it takes their value. Two equal errors mean a single term, and the
+  three errors of a single term are equal.
+- Otherwise, an `undefined` error stays `undefined`: with one error given, the other two
+  stay `undefined`.
+
+| `error`, for a class of scale `k`         | `bound`        | `quadratic`    | `term`         |
+| ----------------------------------------- | -------------- | -------------- | -------------- |
+| left out                                  | `[5n, −1 − k]` | `[5n, −1 − k]` | `[5n, −1 − k]` |
+| `0.5`                                     | `0.5`          | `0.5`          | `0.5`          |
+| `{}`                                      | `undefined`    | `undefined`    | `undefined`    |
+| `{ bound: 1 }`                            | `1`            | `undefined`    | `undefined`    |
+| `{ quadratic: 0.8 }`                      | `undefined`    | `0.8`          | `undefined`    |
+| `{ bound: 1, quadratic: 1 }`              | `1`            | `1`            | `1`            |
+| `{ quadratic: 0.8, term: 0.8 }`           | `0.8`          | `0.8`          | `0.8`          |
+| `{ bound: 1, term: 0.5 }`                 | `1`            | `undefined`    | `0.5`          |
+| `{ bound: 3, quadratic: 2, term: 1 }`     | `3`            | `2`            | `1`            |
+| `{ bound: 1, quadratic: 1, term: 0.5 }`   | `RangeError`   |                |                |
+| `{ bound: 1, quadratic: 0.5, term: 0.5 }` | `RangeError`   |                |                |
+| `{ bound: 1, term: 2 }`                   | `RangeError`   |                |                |
+| `{ term: -1 }`                            | `RangeError`   |                |                |
+
+#### Kept as decimals
+
+`define` stores the errors as the class constant `error`, a frozen object
+`{ bound, quadratic, term }`, each an exact decimal `[n, e]` without trailing zeros, frozen,
+or `undefined`, in the unit of the values: `Mass.error.bound` is `[5n, -2]`, 0.05 kg.
+
+A class never takes the errors of its parent: the scale may differ, and half a step of
+the parent is not half a step of the class. A class that declares no `error` of its own
+has half its own step. A class written by hand declares `error` as an object of errors,
+`{ bound?, quadratic?, term? }`, never as a bare quantity: the constant of every class
+labels each of its errors, and only `define` takes the shorthand of a quantity. It goes
+through the same rules, at the first use of the class:
+`static override error = { bound: 0.25, quadratic: 0.25 }` gives three errors of 0.25.
+
+#### The getters
+
+`errorBound`, `quadraticError` and `termError` give `bound`, `quadratic` and `term`
+**relative to the full scale**, `max − min`, as a `number`: an error in absolute terms only
+means something next to the size of the range. Each is `undefined` where its error is.
+
+- **`errorBound`**: the true value is within `errorBound · (max − min)` of `D(q)`.
+- **`quadraticError`**: the quadratic error, relative.
+- **`termError`**: the error of the least accurate term, relative.
+
+Among those that are defined, `termError ≤ quadraticError ≤ errorBound` always holds.
 
 ### valueOf, toString and toLocaleString
 
 The three write the same decimal: `D(q)`, without the digits that the error makes
 meaningless.
 
-1. **The position.** With the error `ε` in steps, `j` is the largest integer `j ≥ 1` with
-   `10^j ≤ 2ε`, or 0 when there is none. Rounding at `10^j` moves the value by at most
-   `½ · 10^j ≤ ε` steps: it never adds more error than there is.
+1. **The position.** The error `ε` is the first defined of `term`, `quadratic` and
+   `bound`, in steps. `j` is the largest integer `j ≥ 1` with `10^j ≤ 2ε`, or 0 when
+   there is none. Rounding at `10^j` moves the value by at most `½ · 10^j ≤ ε` steps: it
+   never adds more error than there is. When the three errors are `undefined`, `j` is 0:
+   every digit is shown.
 2. **The rounding.** `n` is `q / 10^j`, rounded to the nearest integer, ties to even, in
    `bigint`s. With `j = 0`, `n` is `q`. The decimal shown is `n · 10^(j−k)`, with
    `k − j` decimals.
@@ -306,11 +380,19 @@ class it is called on, its parent, and is typed as that class:
 - `name` is the name of the class, a non-empty string, used in the messages;
 - `min` and `max` are the bounds `[min, max)`, quantities, with `min < max`; the class
   keeps them as they are given, and compares the values with them exactly;
-- `step` is the accuracy, a quantity above 0. The scale `k` is the smallest integer, from
-  `−308` to `323`, with `10^-k ≤ step`, compared exactly: a step of `0.1` gives `k = 1`, a
-  step of `0.025` gives `k = 2`, a step of 1000 gives `k = −3`. Without `step`, `k = 0`;
+- `step` is the accuracy, a quantity above 0. The scale `k` is the smallest integer with
+  `10^-k ≤ step`, computed at once, with no search: for `step = [n, e]`, with `digits(n)`
+  the number of decimal digits of `n`, `10^(digits(n) + e − 1) ≤ step < 10^(digits(n) + e)`,
+  so `k = 1 − digits(n) − e`. A step of `0.1` gives `k = 1`, a step of `0.025` gives
+  `k = 2`, a step of 1000 gives `k = −3`, and a light-year in metres, `[9461n, 12]`, gives
+  `k = −15`. `k` must lie from `−308` to `323` (see [The class constants](#the-class-constants)):
+  a step of `10^309` or more, or below `10^-323`, is a `RangeError`. It is never brought
+  back to the nearest limit: the scale would not match the step, and neither would the
+  default error, half a step. `digits(n)` writes `n` in decimal, once per call of `define`:
+  a cost to watch where `define` runs often. Without `step`, `k = 0`;
 - `error` is the accuracy of the values, in the unit of the values (the unit of `min` and
-  `max`), a quantity, 0 or more; half a step when it is left out.
+  `max`): left out, a quantity 0 or more, or an object `{ bound?, quadratic?, term? }`
+  (see [Given to define](#given-to-define)); half a step when it is left out.
 
 Any other key of `spec` is ignored. The new class holds no more values than its parent,
 unless its parent is `BoundedInt` (see [The range of a class](#the-range-of-a-class)).
@@ -318,9 +400,10 @@ unless its parent is `BoundedInt` (see [The range of a class](#the-range-of-a-cl
 | `spec`                                                         | Error        |
 | -------------------------------------------------------------- | ------------ |
 | `name` not a non-empty string; a quantity of another type      | `TypeError`  |
+| `error` neither a quantity nor an object of quantities         | `TypeError`  |
 | `min ≥ max`; `step` not above 0                                | `RangeError` |
-| a `step` below `10^-323`                                       | `RangeError` |
-| `error` below 0                                                | `RangeError` |
+| a `step` below `10^-323`, or of `10^309` or more               | `RangeError` |
+| an error below 0, or errors that break [the rules](#the-rules) | `RangeError` |
 | more values than its parent, unless its parent is `BoundedInt` | `RangeError` |
 
 ## Rounding
@@ -400,11 +483,31 @@ the kilogram. In `Rough.from(4.5)`, 4.5 is a tie, and goes to 4.
 Its constructor is `protected`, and its instances are not frozen, so that a subclass can
 call it and add fields of its own.
 
+## For the other modules of the library
+
+`bounded-int.ts` also exports what the other modules of the library need to read
+quantities and errors. `@criticaloptimisation/vc-proofs/core` exports only the types
+`Quantity` and `Decimal`, which its signatures name.
+
+| Export                    | What it is                                                                                                                                                                                 |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `decimal(x, where, what)` | `x` as an exact decimal `[n, e]`: a `bigint` or a `number` converted as in [Quantities](#quantities), a decimal as it is; else a `TypeError` that names `where` and `what`                 |
+| `MANTISSA`, `EXPONENT`    | `0` and `1`: the indices of `n` and `e` in a decimal `[n, e]`                                                                                                                              |
+| `errors(C)`               | the frozen errors `{ bound, quadratic, term }` of the class `C`, in the unit of its values, as `define` stores them, for a class written by hand too; it throws as the constants of `C` do |
+| type `Quantity`           | a `bigint`, a `number` or a decimal `[n, e]`                                                                                                                                               |
+| type `Decimal`            | an exact decimal `[n, e]`                                                                                                                                                                  |
+| type `ErrorSpec`          | `{ bound?, quadratic?, term? }`, of quantities: the object form of `error`                                                                                                                 |
+| type `Errors`             | `{ bound, quadratic, term }`, each a `Decimal` or `undefined`: the errors of a class                                                                                                       |
+
+`errors(C)` is the way to read the errors of a class: the constant `error` of a class
+written by hand has not been through [the rules](#the-rules), which may fill in an error it
+leaves out, and a class that declares none has its own default.
+
 ## The BoundedInt of the entry point
 
 `@criticaloptimisation/vc-proofs/core` does not export the class of this page. It gives a
 subclass of it instead, specialized for the mathematics of the elliptic curve of the
-library: the `boundedInt()` of a blinding context. Its bounds are its own, and no class made from
+library: the `boundedInt` of a blinding context. Its bounds are its own, and no class made from
 it, by `define` or by hand, holds more values than it does. The examples of
 `BoundedInt.from` above run on the class of this page. The specialized class is
 documented with the blinding context: see the list of pages of the
@@ -420,4 +523,5 @@ Change History
 | #51 | notice: ./core exports a specialized subclass (#49) |
 | #53 | no order: a class holds no more values than its parent, unless its parent is BoundedInt; static low and high; define typed as its class, other keys ignored (#52) |
 | #55 | notice: ./core gives the subclass through the boundedInt() of a blinding context (#48) |
+| #59 | three errors { bound, quadratic, term } as decimals, their rules, never inherited, {} disables them; getters may be undefined; display at the first defined error; direct scale, never clamped; a class written by hand declares error as an object only; For the other modules of the library (#58) |
 -->

@@ -58,7 +58,7 @@ const macrotasks = async (n: number) => {
 };
 
 /** The class of ristretto255, `Ristretto255Scalar`. */
-const Scalar = ageCheckContext().boundedInt();
+const Scalar = ageCheckContext().boundedInt;
 /** A class of values made from it. */
 const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
 /** An opening built by hand, with the integers of its value and of its blinding factor. */
@@ -226,7 +226,7 @@ describe("BlindingContext: an invalid context", () => {
 
   test("still gives its group, and the class of its group, which awaits nothing", () => {
     expect(invalidContext().group).toBe(RistrettoElement);
-    expect(invalidContext().boundedInt()).toBe(Scalar);
+    expect(invalidContext().boundedInt).toBe(Scalar);
   });
 });
 
@@ -494,13 +494,13 @@ describe("BlindingContext: the class of a group", () => {
   test("one class per group object: two plain groups of the same name and order have two classes", () => {
     const first = ristrettoGroup();
     const second = ristrettoGroup();
-    const a = BlindingContext.fromEncoded(ageCheck().h, ageCheck().message, first).boundedInt();
-    const b = BlindingContext.fromEncoded(ageCheck().h, ageCheck().message, second).boundedInt();
+    const a = BlindingContext.fromEncoded(ageCheck().h, ageCheck().message, first).boundedInt;
+    const b = BlindingContext.fromEncoded(ageCheck().h, ageCheck().message, second).boundedInt;
     expect(a.name).toBe("Ristretto255Scalar");
     expect(b.name).toBe("Ristretto255Scalar");
     expect(a).not.toBe(b);
     expect(a).not.toBe(Scalar);
-    expect(BlindingContext.fromEncoded(abc().h, abc().message, first).boundedInt()).toBe(a);
+    expect(BlindingContext.fromEncoded(abc().h, abc().message, first).boundedInt).toBe(a);
   });
 
   test("the class of a group of order 2 is 0 … 1, and of a huge order 0 … ORDER − 1", () => {
@@ -510,7 +510,7 @@ describe("BlindingContext: the class of a group", () => {
         SUITE_NAME: `Order${String(String(order).length)}`,
         ORDER: order,
       };
-      const Z = BlindingContext.fromEncoded(ageCheck().h, ageCheck().message, group).boundedInt();
+      const Z = BlindingContext.fromEncoded(ageCheck().h, ageCheck().message, group).boundedInt;
       expect([Z.scale, Z.low, Z.high]).toEqual([0, 0n, order - 1n]);
       expect(Object.isFrozen(Z)).toBe(true);
       expect(Object.getPrototypeOf(Z)).toBe(GenericBoundedInt);
@@ -526,7 +526,7 @@ describe("BlindingContext: the class of a group", () => {
     );
     expect(define).toHaveBeenCalledTimes(1);
     define.mockRestore();
-    const Z = BlindingContext.fromEncoded(ageCheck().h, ageCheck().message, group).boundedInt();
+    const Z = BlindingContext.fromEncoded(ageCheck().h, ageCheck().message, group).boundedInt;
     expect([Z.scale, Z.low, Z.high]).toEqual([0, 0n, L - 1n]);
   });
 
@@ -534,7 +534,7 @@ describe("BlindingContext: the class of a group", () => {
     const group = { ...ristrettoGroup(), SUITE_NAME: "Twin", GENERATOR_DST: "vc-proofs-test-twin" };
     const twin = BlindingContext.fromEncoded(await hashOf(group), edgeMessage(), group);
     const blinded = await twin.blind(Scalar.fromValue(5n));
-    expect(blinded.blinding.constructor).toBe(twin.boundedInt());
+    expect(blinded.blinding.constructor).toBe(twin.boundedInt);
     expect(await twin.isOpeningOf(blinded)).toBe(true);
     const age = ageCheckContext();
     await expect(age.isOpeningOf(blinded)).rejects.toThrow(
@@ -559,7 +559,7 @@ describe("BlindingContext: the queues of blindings", () => {
     const validated = seamContext();
     await validated.h();
     await validated.serialize();
-    validated.boundedInt();
+    expect(validated.boundedInt).toBe(Scalar);
     const invalid = seams.BlindingContext.fromEncoded(
       abc().h,
       ageCheck().message,
@@ -670,7 +670,7 @@ describe("BlindingContext: the queues of blindings", () => {
     const blinded = await seams.blindValueWith(context, x, () => draws.shift() ?? 0n);
     expect(draws).toEqual([0n, 5n]);
     expect(blinded.blinding.value).toBe(0n);
-    expect(blinded.blinding.constructor).toBe(context.boundedInt());
+    expect(blinded.blinding.constructor).toBe(context.boundedInt);
     expect(blinded.commitment.equals(g().multiplyScalar(x.value))).toBe(true);
     expect(Object.isFrozen(blinded)).toBe(true);
     expect(await context.isOpeningOf(blinded)).toBe(true);
@@ -745,7 +745,7 @@ describe("BlindingContext over a group of its own", () => {
     await expect(context.blind(1n as unknown as GenericBoundedInt)).rejects.toThrow(
       /^BlindingContext\.blind: x must be a bounded integer$/,
     );
-    const Z = context.boundedInt();
+    const Z = context.boundedInt;
     expect(Z.name).toBe("EdgeScalar");
     const bad = {
       commitment: {} as RistrettoElement,
@@ -802,7 +802,7 @@ describe("BlindingContext over a group of its own", () => {
       randomScalar: () => RistrettoElement.randomScalar() % 7n,
     });
     const context = BlindingContext.fromEncoded(await hOf(group), message(), group);
-    const Z = context.boundedInt();
+    const Z = context.boundedInt;
     expect([Z.name, Z.low, Z.high]).toEqual(["SevenScalar", 0n, 6n]);
     const Week = Z.define({ name: "Week", min: -0.5, max: 6.5 });
     const blinded = await context.blind(Week.from(3n));
@@ -831,7 +831,7 @@ describe("BlindingContext over a group of its own", () => {
     expect(age.group).toBe(RistrettoElement);
     expect(new TextDecoder().decode((await other.serialize()).subarray(0, 4))).toBe("Edge");
     expect(hex(await age.serialize())).toBe(contextVectors.context.serialized);
-    expect(other.boundedInt()).not.toBe(age.boundedInt());
+    expect(other.boundedInt).not.toBe(age.boundedInt);
     const x = Days.from(5n);
     const fromOther = await other.blind(x);
     const fromAge = await age.blind(x);
@@ -871,7 +871,7 @@ describe("BlindingContext over a group of its own", () => {
     expectTypeOf<Awaited<ReturnType<Context["blind"]>>>().toEqualTypeOf<Opening>();
     expectTypeOf<Opening["blinding"]>().toEqualTypeOf<GenericBoundedInt>();
     expectTypeOf<Parameters<Context["isOpeningOf"]>[0]>().toEqualTypeOf<Opening>();
-    expectTypeOf(age.boundedInt()).toEqualTypeOf<typeof GenericBoundedInt>();
+    expectTypeOf(age.boundedInt).toEqualTypeOf<typeof GenericBoundedInt>();
     // The group is required: fromEncoded takes exactly three parameters, none optional.
     expectTypeOf<Parameters<typeof BlindingContext.fromEncoded>["length"]>().toEqualTypeOf<3>();
     const group = plainGroup();
@@ -913,4 +913,5 @@ describe("bigint scalars far beyond ℓ, through blindWith", () => {
 // |--------|---------------------------------------------------------------|
 // | #40    | new: the edge cases of BlindingContext, of its group, of bigint scalars (#39) |
 // | #55    | values are bounded integers; a missing group, bad ORDER, wrong classes, the class of a group, order 7 (#48) |
+// | #59    | context.boundedInt, a getter; placeholders of #55 removed (#58) |
 // | #60    | a draw of 0n is kept, by the seams and by the group; isOpeningOf of a blinding factor of 0n (#56) |

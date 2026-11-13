@@ -71,7 +71,7 @@ gh attestation verify criticaloptimisation-vc-proofs-<version>.tgz -R CriticalOp
   why nobody knows its discrete logarithm.
 - [The blinding context](docs/core/blinding-context.md): `BlindingContext`, the
   constants of one application and the Pedersen commitments made with them, and
-  `context.boundedInt()`, the integers of Z_ℓ, from which the classes of the values are
+  `context.boundedInt`, the integers of Z_ℓ, from which the classes of the values are
   made.
 - [Development guide](docs/development.md).
 
@@ -98,4 +98,5 @@ Change History
 | #47 | Bounded integers: classes with a decimal scale and exact bounds [min, max) (#44) |
 | #51 | the page of the group lists BoundedInt, the integer of Z_ℓ (#49) |
 | #55 | the blinding context gives context.boundedInt(), the integers of Z_ℓ; ./core exports no BoundedInt (#48) |
+| #59 | context.boundedInt, a getter (#58) |
 -->

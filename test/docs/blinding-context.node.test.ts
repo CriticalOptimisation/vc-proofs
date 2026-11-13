@@ -24,7 +24,7 @@ interface Blinded {
 
 interface Context {
   serialize(): Promise<Uint8Array>;
-  boundedInt?: () => typeof GenericBoundedInt;
+  readonly boundedInt?: unknown;
   blind(x: GenericBoundedInt): Promise<Blinded>;
   isOpeningOf(opening: Blinded): Promise<boolean>;
 }
@@ -113,7 +113,7 @@ describe("docs/core/blinding-context.md, section Committed and Blinded", () => {
 
   test("its example runs as written: blind, isOpeningOf, and an opening rebuilt from bytes", async () => {
     const text = section("Committed and Blinded");
-    expect(text).toContain("const Scalar = context.boundedInt();");
+    expect(text).toContain("const Scalar = context.boundedInt;");
     expect(text).toContain("opening.value.constructor === Days; // true");
     expect(text).toContain("await context.isOpeningOf(opening); // true");
     if (BlindingContext === undefined) throw new Error("no BlindingContext");
@@ -122,9 +122,14 @@ describe("docs/core/blinding-context.md, section Committed and Blinded", () => {
       fromHex(vectors.context.messageHex),
       RistrettoElement,
     );
-    expect(typeof context.boundedInt).toBe("function");
-    const Scalar = context.boundedInt?.();
-    if (Scalar === undefined) return;
+    // REVIEW PLACEHOLDER (#58: context.boundedInt is a getter)
+    //   the example used to call context.boundedInt(), and checked only that it was a function,
+    //   which a class is too: it now reads the class and checks it.
+    //   expect(typeof context.boundedInt).toBe("function");
+    //   const Scalar = context.boundedInt?.();
+    //   if (Scalar === undefined) return;
+    const Scalar = context.boundedInt as typeof GenericBoundedInt;
+    expect(Object.getPrototypeOf(Scalar)).toBe(GenericBoundedInt);
     const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
     const opening = await context.blind(Days.from(20000n));
     expect(opening.value.constructor).toBe(Days);
@@ -170,8 +175,26 @@ test("docs/core/blinding-context.md quotes the RangeError of blind, which prints
   expect((error as Error).message).toBe(quoted?.replace(/\s+/g, " "));
 });
 
+test("the pages and the README call no boundedInt(): context.boundedInt is a getter; the change histories keep what was", () => {
+  for (const file of [
+    "README.md",
+    "docs/core/blinding-context.md",
+    "docs/core/bounded-int.md",
+    "docs/core/ristretto255.md",
+  ]) {
+    const text = read(file);
+    const history = text.lastIndexOf("Change History");
+    const body = history === -1 ? text : text.slice(0, history);
+    expect(body, file).not.toContain("boundedInt()");
+  }
+  expect(section("BlindingContext")).toMatch(/\| `boundedInt` +\|/);
+  expect(page).toMatch(/`context\.boundedInt`, a getter, is the class/);
+  expect(page).toMatch(/every read, on any context over the same group, gives the same object/);
+});
+
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #40    | new: the page names every public member, and the serialization (#39) |
 // | #55    | boundedInt; the example of Committed and Blinded; the RangeError of blind; a required group (#48) |
+// | #59    | context.boundedInt, a getter; no boundedInt() in the pages (#58) |

@@ -29,10 +29,24 @@ describe("BoundedInt.define: the ends of the scales", () => {
     );
   });
 
-  test("the step 10^308 gives the scale −308, and a coarser one too: it is the coarsest", () => {
+  // REVIEW PLACEHOLDER (#58: the scale is computed at once, k = 1 − digits(n) − e, and never clamped)
+  // the step 10^308 gives the scale −308, and a coarser one too: it is the coarsest
+  //   -> the step 10^308 gives the scale −308; a step of 10^309 or more is refused, never brought back to −308
+  //   expect(BoundedInt.define({ name: "X", min: 0, max: 1, step: [1n, 400] }).scale).toBe(-308);
+  test("the step 10^308 gives the scale −308; a step of 10^309 or more is refused, never brought back to −308", () => {
     expect(wide(-308).scale).toBe(-308);
-    expect(BoundedInt.define({ name: "X", min: 0, max: 1, step: [1n, 400] }).scale).toBe(-308);
     expect(BoundedInt.define({ name: "X", min: 0, max: 1, step: 1e308 }).scale).toBe(-308);
+    // 9.9 · 10^308: k = 1 − 2 − 307 = −308.
+    expect(BoundedInt.define({ name: "X", min: 0, max: 1, step: [99n, 307] }).scale).toBe(-308);
+    // A light-year in metres, 9.461 · 10^15: k = 1 − 4 − 12 = −15.
+    expect(BoundedInt.define({ name: "X", min: 0, max: 1, step: [9461n, 12] }).scale).toBe(-15);
+    for (const step of [
+      [1n, 309],
+      [1n, 400],
+      [10n, 308],
+    ] as const) {
+      expect(() => BoundedInt.define({ name: "X", min: 0, max: 1, step })).toThrow(RangeError);
+    }
   });
 
   test("the scales ±22 and ±23 have no special meaning", () => {
@@ -253,3 +267,4 @@ describe("BoundedInt classes: the error decides the digits shown, at every scale
 // |--------|---------------------------------------------------------------|
 // | #47    | new: the edge cases of the decimal classes; the exact decimal of a number, the ends of the scales, the error of a class (#44) |
 // | #51    | imports the generic BoundedInt of bounded-int.ts; placeholders of #47 removed (#49) |
+// | #59    | a step of 10^309 or more is refused, never clamped; [99n, 307] and [9461n, 12] (#58) |

@@ -9,13 +9,15 @@
  * class `RistrettoElement`, whose scalars are `bigint`s (docs/core/ristretto255.md).
  * The values of the commitments are bounded integers (docs/core/bounded-int.md): the
  * generic class of `bounded-int.ts` is not exported, and neither is any subclass. A
- * blinding context gives the class of the integers of its group, `context.boundedInt()`,
+ * blinding context gives the class of the integers of its group, `context.boundedInt`,
  * from which the classes of the values are made (docs/core/blinding-context.md, *The
  * class of a group*). `Committed` and `Blinded`, the two forms of a commitment, are
- * exported as types.
+ * exported as types, and so are `Decimal` and `Quantity`, the quantities its signatures
+ * name; the helpers of `bounded-int.ts` for the other modules are not exported.
  */
 export { BlindingContext } from "./blinding-context.js";
 export type { Blinded, Committed, Group } from "./blinding-context.js";
+export type { Decimal, Quantity } from "./bounded-int.js";
 export { requestHash } from "./request-hash.js";
 export { RistrettoElement } from "./ristretto.js";
 
@@ -30,3 +32,4 @@ export { RistrettoElement } from "./ristretto.js";
 // | #51    | export BoundedInt from ristretto.ts, not the generic class (#49) |
 // | #53    | header: the BoundedInt of Z_ℓ holds at most ℓ integers, as every class made from it (#52) |
 // | #55    | export the types Blinded and Committed; no BoundedInt (#48) |
+// | #59    | export the types Decimal and Quantity; context.boundedInt (#58) |
