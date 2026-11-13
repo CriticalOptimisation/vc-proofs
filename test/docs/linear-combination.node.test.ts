@@ -159,7 +159,8 @@ describe("docs/core/linear-combination.md, section Examples", () => {
       .map((cell) => cell.trim());
     const lc = combination({ name: "Row", terms });
     const R = lc.boundedInt;
-    const e = errors(R);
+    // The errors as stored, the quadratic error squared: see The errors of the result.
+    const e = errors(R) as unknown as Record<string, Decimal | undefined>;
     expect(cells).toEqual([
       `\`${label}\``,
       String(R.scale),
@@ -167,7 +168,7 @@ describe("docs/core/linear-combination.md, section Examples", () => {
       `\`${String(R.low)}n\``,
       `\`${String(R.high)}n\``,
       written(e.bound),
-      written(e.quadratic),
+      written(e.quadraticSquared),
       written(e.term),
     ]);
   });
@@ -204,6 +205,25 @@ describe("docs/core/linear-combination.md, section Examples", () => {
     expect(page).toContain("`20 · 23 − (−12) = 472n`, 4.72");
     expect(page).toContain('it shows `"4.7"`');
   });
+});
+
+test("docs/core/linear-combination.md works the errors of 2·Mass − Reading and of 0.2·x as the code stores them, the quadratic error squared", () => {
+  const stored = (terms: unknown[]) =>
+    errors(combination({ name: "Worked", terms }).boundedInt) as unknown as Record<
+      string,
+      Decimal | undefined
+    >;
+  const worked = stored([
+    [2n, Mass],
+    [-1n, Reading],
+  ]);
+  expect(worked).toEqual({ bound: [105n, -3], quadraticSquared: [10025n, -6], term: [1n, -1] });
+  expect(page).toContain("`[105n, -3]`, 0.105");
+  expect(page).toContain("`[10025n, -6]`, 0.010025");
+  expect(page).toContain("`[1n, -1]`, 0.1");
+  const fifth = stored([[0.2, Fraction]]);
+  expect(fifth).toEqual({ bound: [1n, -5], quadraticSquared: [1n, -10], term: [1n, -5] });
+  expect(page).toContain("that is `[1n, -10]`");
 });
 
 test("docs/core/linear-combination.md quotes the message of a combination that does not fit its group, as the code writes it", () => {

@@ -142,19 +142,63 @@ group has scalars, and [the group at use](#the-group-at-use) decides whether it 
   It holds `high − low + 1 = 1 + Σ |a′ᵢ| · (highᵢ − lowᵢ)` integers.
 - **Its errors**, in the unit of the result, from the errors of the terms (see
   [The errors of a class](bounded-int.md#the-errors-of-a-class)) and the decimal
-  coefficients `aᵢ`:
-  - `bound = Σ |aᵢ| · boundᵢ`: the errors add up in the worst case;
-  - `quadratic = √Σ (aᵢ · quadraticᵢ)²`, for independent errors: the root, rounded up
-    to 15 significant digits, so that it is a decimal;
-  - `term = max |aᵢ| · termᵢ`: the error of the least accurate term.
-
-  Each of them is `undefined` as soon as one term has it `undefined`: a sum with an
-  unknown part is unknown. They keep `term ≤ quadratic ≤ bound`, and they decide the
-  digits the values of the result show (see
-  [valueOf, toString and toLocaleString](bounded-int.md#valueof-tostring-and-tolocalestring)).
-
+  coefficients `aᵢ`: `bound = Σ |aᵢ| · boundᵢ`, the worst case; the quadratic error
+  `√Σ (aᵢ · quadraticᵢ)²`, for independent errors; `term = max |aᵢ| · termᵢ`, the least
+  accurate term. See [The errors of the result](#the-errors-of-the-result).
 - **Its name** is the `name` given to the constructor. It is frozen, as every class made
   by `define`.
+
+### The errors of the result
+
+The three errors are exact decimals `[n, e]`, absolute, in the unit of the values. The
+quadratic error is kept **squared**, as `quadraticSquared`: a square root is seldom a
+decimal, while a square of a decimal always is. So the combination computes every error
+with products, sums and comparisons of decimals, and never takes a root. Only a person
+sees the root: the digits a value shows, which its class decides (see
+[valueOf, toString and toLocaleString](bounded-int.md#valueof-tostring-and-tolocalestring)).
+
+The operations, on `bigint`s:
+
+| Operation      | On decimals                                                                        |
+| -------------- | ---------------------------------------------------------------------------------- |
+| product        | `[n, e] · [n′, e′] = [n·n′, e + e′]`                                               |
+| square         | `[n, e]² = [n², 2e]`                                                               |
+| sum            | align on `m = min(e, e′)`, adding trailing zeros: `[n·10^(e−m) + n′·10^(e′−m), m]` |
+| largest        | the `compare` of bounded integers, exact                                           |
+| trailing zeros | removed at the end: `[50n, -2]` is `[5n, -1]`                                      |
+
+For each term, with `|aᵢ| = [|nᵢ|, eᵢ]` and the errors of its class `Tᵢ`, as it stores
+them:
+
+1. `boundᵢ′ = |aᵢ| · boundᵢ`, and `bound = Σ boundᵢ′`, aligned and added in order;
+2. `qᵢ′ = |aᵢ|² · quadraticSquaredᵢ = [nᵢ² · n_q, 2eᵢ + e_q]`, and
+   `quadraticSquared = Σ qᵢ′`, aligned and added the same way: the squares are added as
+   they are stored, so their exponents are already those of squares, and their alignment
+   is that of any sum;
+3. `termᵢ′ = |aᵢ| · termᵢ`, and `term` is the largest of them.
+
+An error is `undefined` as soon as one term has it `undefined`: a sum with an unknown
+part is unknown. With no term, the three are 0: the constant is exact. A coefficient of 0
+adds 0 to each.
+
+**Worked: `2·Mass − Reading`.** `Mass` is known to half its step, 0.05: `bound` and `term`
+`[5n, -2]`, `quadraticSquared` `[25n, -4]`. `Reading` likewise, at 0.005: `[5n, -3]` and
+`[25n, -6]`. The coefficients are `|2| = [2n, 0]` and `|−1| = [1n, 0]`.
+
+- `bound`: `[2n, 0] · [5n, -2] = [10n, -2]`, and `[5n, -3]`; aligned on `−3`,
+  `100 + 5 = 105`: `[105n, -3]`, 0.105.
+- `quadraticSquared`: `[2n, 0]² · [25n, -4] = [4n, 0] · [25n, -4] = [100n, -4]`, and
+  `[25n, -6]`; aligned on `−6`, `10000 + 25 = 10025`: `[10025n, -6]`, 0.010025. Its root,
+  about 0.1001, is never computed.
+- `term`: the larger of `[10n, -2]` and `[5n, -3]`: `[1n, -1]`, 0.1.
+
+The rules `term ≤ quadratic ≤ bound` are checked on squares: `0.01 ≤ 0.010025 ≤ 0.011025`.
+
+**Worked: `0.2·x`**, the example of [The coefficients](#the-coefficients). `x` is known to
+`[5n, -5]`, squared `[25n, -10]`; `|0.2| = [2n, -1]`. `bound` and `term` are
+`[2n, -1] · [5n, -5] = [10n, -6]`, that is `[1n, -5]`; `quadraticSquared` is
+`[4n, -2] · [25n, -10] = [100n, -12]`, that is `[1n, -10]`, the square of `10^-5`. All three
+are half the step of the result.
 
 The class of the result is a class of bounded integers like any other: it is a valid
 term of a further combination, over any group.
@@ -300,17 +344,17 @@ const Sensor = Scalar.define({
 const Fraction = Scalar.define({ name: "Fraction", min: 0, max: 0.09995, step: 0.0001 }); // 0 to 999, k = 4
 ```
 
-| Terms                               | `k` | `coefficients` | `low`      | `high`     | `bound`     | `quadratic`        | `term`      |
+| Terms                               | `k` | `coefficients` | `low`      | `high`     | `bound`     | `quadraticSquared` | `term`      |
 | ----------------------------------- | --- | -------------- | ---------- | ---------- | ----------- | ------------------ | ----------- |
-| `[[1n, DayCount], [-1n, DayCount]]` | 0   | `[1n, -1n]`    | `-365250n` | `365250n`  | 1           | 0.707106781186548  | 0.5         |
-| `[[2n, Mass], [-1n, Reading]]`      | 2   | `[20n, -1n]`   | `-1599n`   | `20799n`   | 0.105       | 0.100124921972504  | 0.1         |
-| `[[0.5, DayCount]]`                 | 1   | `[5n]`         | `0n`       | `1826250n` | 0.25        | 0.25               | 0.25        |
-| `[[1n, Sensor], [-1n, Mass]]`       | 1   | `[1n, -1n]`    | `-1000n`   | `1000n`    | `undefined` | 0.0943398113205661 | `undefined` |
-| `[[0.2, Fraction]]`                 | 5   | `[2n]`         | `0n`       | `1998n`    | 0.00001     | 0.00001            | 0.00001     |
+| `[[1n, DayCount], [-1n, DayCount]]` | 0   | `[1n, -1n]`    | `-365250n` | `365250n`  | 1           | 0.5                | 0.5         |
+| `[[2n, Mass], [-1n, Reading]]`      | 2   | `[20n, -1n]`   | `-1599n`   | `20799n`   | 0.105       | 0.010025           | 0.1         |
+| `[[0.5, DayCount]]`                 | 1   | `[5n]`         | `0n`       | `1826250n` | 0.25        | 0.0625             | 0.25        |
+| `[[1n, Sensor], [-1n, Mass]]`       | 1   | `[1n, -1n]`    | `-1000n`   | `1000n`    | `undefined` | 0.0089             | `undefined` |
+| `[[0.2, Fraction]]`                 | 5   | `[2n]`         | `0n`       | `1998n`    | 0.00001     | 0.0000000001       | 0.00001     |
 | `[]`                                | 0   | `[]`           | `0n`       | `0n`       | 0           | 0                  | 0           |
 
 - **`Age`**, the first row: two values of `DayCount`, each known to half a day. The
-  bound is a day; the quadratic error, `√(0.5² + 0.5²) = √0.5`, rounded up.
+  bound is a day; the square of the quadratic error is `0.5² + 0.5² = 0.5`.
 - **`2·Mass − Reading`**: the steps are 0.1 and 0.01, so `k = 2`, and `Mass` counts 10
   steps of the result for each of its own. `Mass.from(2.3)` is `23n` and
   `Reading.from(-0.125)` is `-12n`: the integer of the result is
@@ -319,8 +363,8 @@ const Fraction = Scalar.define({ name: "Fraction", min: 0, max: 0.09995, step: 0
 - **`0.5·DayCount`**: the coefficient `[5n, -1]` brings the scale to 1. Half a day count
   is known to a quarter of a day.
 - **`Sensor − Mass`**: `Sensor` knows only a quadratic error, so the result has no bound
-  and no error of its least accurate term. Its values show the digits of its quadratic
-  error.
+  and no error of its least accurate term: `0.08² + 0.05² = 0.0089`. Its values show the
+  digits of its quadratic error.
 - **`0.2·Fraction`**: the worked example of [The coefficients](#the-coefficients), the
   equation `r = 2·x` at the scale 5. `Fraction` is known to half its step, 0.00005, so
   the result is known to `0.2 × 0.00005 = 0.00001`: half its own step.

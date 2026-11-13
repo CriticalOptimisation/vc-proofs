@@ -154,6 +154,18 @@ const massMinusReading = () =>
 /** `x mod ℓ`, from 0 to ℓ − 1. */
 const modL = (x: bigint) => ((x % L) + L) % L;
 
+/**
+ * The errors of a class as they are stored, the quadratic error squared
+ * (docs/core/linear-combination.md, The errors of the result): exact decimals, with no
+ * square root. Read through `errors`, whose type does not name them yet.
+ */
+interface StoredErrors {
+  readonly bound: readonly [bigint, number] | undefined;
+  readonly quadraticSquared: readonly [bigint, number] | undefined;
+  readonly term: readonly [bigint, number] | undefined;
+}
+const stored = (C: BoundedIntClass): StoredErrors => errors(C) as unknown as StoredErrors;
+
 /** The `Committed` of an opening. */
 const committedOf = (b: Blinded): Committed => ({
   commitment: b.commitment,
@@ -228,24 +240,24 @@ describe("LinearCombination: the constructor and the class of the result", () =>
 
 describe("LinearCombination: the errors of the result", () => {
   /** The rows of the table of the examples, with the errors as decimals. */
-  const rows: [string, () => Combination, ReturnType<typeof errors>][] = [
+  const rows: [string, () => Combination, StoredErrors][] = [
     [
-      "Age: bound 1, quadratic √0.5 rounded up to 0.707106781186548, term 0.5",
+      "Age: bound 1, the square of the quadratic error 0.5² + 0.5² = 0.5, term 0.5",
       age,
-      { bound: [1n, 0], quadratic: [707106781186548n, -15], term: [5n, -1] },
+      { bound: [1n, 0], quadraticSquared: [5n, -1], term: [5n, -1] },
     ],
     [
-      "2·Mass − Reading: bound 0.105, quadratic √0.010025 rounded up to 0.100124921972504, term 0.1",
+      "2·Mass − Reading: bound 0.105, the square of the quadratic error 0.1² + 0.005² = 0.010025, term 0.1",
       massMinusReading,
-      { bound: [105n, -3], quadratic: [100124921972504n, -15], term: [1n, -1] },
+      { bound: [105n, -3], quadraticSquared: [10025n, -6], term: [1n, -1] },
     ],
     [
       "0.5·DayCount: the three 0.25",
       () => combination({ name: "Half", terms: [[0.5, DayCount]] }),
-      { bound: [25n, -2], quadratic: [25n, -2], term: [25n, -2] },
+      { bound: [25n, -2], quadraticSquared: [625n, -4], term: [25n, -2] },
     ],
     [
-      "Sensor − Mass: Sensor knows only a quadratic error, so bound and term are undefined, and quadratic is √0.0089 rounded up to 0.0943398113205661",
+      "Sensor − Mass: Sensor knows only a quadratic error, so bound and term are undefined, and the square of the quadratic error is 0.08² + 0.05² = 0.0089",
       () =>
         combination({
           name: "SensorMinusMass",
@@ -254,22 +266,22 @@ describe("LinearCombination: the errors of the result", () => {
             [-1n, Mass],
           ],
         }),
-      { bound: undefined, quadratic: [943398113205661n, -16], term: undefined },
+      { bound: undefined, quadraticSquared: [89n, -4], term: undefined },
     ],
     [
       "0.2·x: the three 0.2 × 0.00005 = 0.00001, half the step of the result",
       () => combination({ name: "Fifth", terms: [[0.2, Fraction]] }),
-      { bound: [1n, -5], quadratic: [1n, -5], term: [1n, -5] },
+      { bound: [1n, -5], quadraticSquared: [1n, -10], term: [1n, -5] },
     ],
     [
       "the empty combination: the three 0",
       () => combination({ name: "Nothing", terms: [] }),
-      { bound: [0n, 0], quadratic: [0n, 0], term: [0n, 0] },
+      { bound: [0n, 0], quadraticSquared: [0n, 0], term: [0n, 0] },
     ],
   ];
 
   test.each(rows)("%s", (_, make, expected) => {
-    expect(errors(make().boundedInt)).toEqual(expected);
+    expect(stored(make().boundedInt)).toEqual(expected);
   });
 
   test("the getters keep termError ≤ quadraticError ≤ errorBound on the class of the result", () => {
@@ -290,7 +302,7 @@ describe("LinearCombination: the errors of the result", () => {
 });
 
 describe("LinearCombination: a result as a term of a further combination", () => {
-  test("Age + DayCount: −365250 … 730500, bound 1.5, quadratic from the stored quadratic of Age, term 0.5", () => {
+  test("Age + DayCount: −365250 … 730500, bound 1.5, the square of the quadratic error 0.5 + 0.25 = 0.75, term 0.5", () => {
     const Age = age();
     const later = combination({
       name: "Later",
@@ -301,9 +313,9 @@ describe("LinearCombination: a result as a term of a further combination", () =>
     });
     expect(later.coefficients).toEqual([1n, 1n]);
     expect([later.boundedInt.low, later.boundedInt.high]).toEqual([-365250n, 730500n]);
-    expect(errors(later.boundedInt)).toEqual({
+    expect(stored(later.boundedInt)).toEqual({
       bound: [15n, -1],
-      quadratic: [86602540378444n, -14],
+      quadraticSquared: [75n, -2],
       term: [5n, -1],
     });
   });
