@@ -239,7 +239,7 @@ defined for every integer `n`, in any group.
   application knows how a value of its own, such as a day count, is bounded and scaled.
   That conversion belongs to the [bounded integers](bounded-int.md) made from the
   integers of Z_ℓ (see [The integers of Z_ℓ](#the-integers-of-z_ℓ)). The group takes their
-  `value`: with `Scalar = context.boundedInt()`, for a context over `RistrettoElement`,
+  `value`: with `Scalar = context.boundedInt`, for a context over `RistrettoElement`,
   `P.multiplyScalar(Scalar.from(5n).value)` is `P.multiplyScalar(5n)`, and
   `P.multiplyScalar(Scalar.from(5n))` is a `TypeError`.
 - **Ranges.** Whether a linear combination of committed values can wrap around `ℓ`
@@ -252,7 +252,7 @@ defined for every integer `n`, in any group.
 ## The integers of Z_ℓ
 
 The bounded integers of ristretto255, the integers `0 … ℓ − 1` and the classes made from
-them, come from the blinding context, which commits to them: `context.boundedInt()`, for
+them, come from the blinding context, which commits to them: `context.boundedInt`, for
 a context over `RistrettoElement` (see
 [The class of a group](blinding-context.md#the-class-of-a-group)).
 

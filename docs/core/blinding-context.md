@@ -16,7 +16,7 @@ import to say what its context is for.
 The library knows nothing about the values it commits to. The application maps its own
 numbers, such as a day count, to [bounded integers](bounded-int.md): a class that bounds
 and scales them, made from [the class of the group](#the-class-of-a-group), which
-`context.boundedInt()` gives. A commitment holds the value, its class and its blinding
+`context.boundedInt` gives. A commitment holds the value, its class and its blinding
 factor (see [Committed and Blinded](#committed-and-blinded)).
 
 ```ts
@@ -25,7 +25,7 @@ import { BlindingContext, RistrettoElement } from "@criticaloptimisation/vc-proo
 const context = BlindingContext.fromEncoded(publishedH, message, RistrettoElement); // synchronous
 const pin = await context.serialize(); // rejects if h is not derived from message
 
-const Scalar = context.boundedInt(); // the integers of Z_ℓ, for ristretto255
+const Scalar = context.boundedInt; // the integers of Z_ℓ, for ristretto255
 const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
 
 const opening = await context.blind(Days.from(20000n)); // { commitment, value, blinding }
@@ -57,7 +57,7 @@ const opens = await context.isOpeningOf(opening); // true
 | --------------------------------------- | --------------------------------------------------------------- |
 | `static fromEncoded(h, message, group)` | a new context, whose validation has started                     |
 | `group`                                 | the group of the context, given to `fromEncoded`                |
-| `boundedInt()`                          | the class of the integers of the group of the context           |
+| `boundedInt`                            | the class of the integers of the group of the context           |
 | `h()`                                   | a promise: the generator `h`, once validated                    |
 | `serialize()`                           | a promise: the 44 bytes that identify the suite, once validated |
 | `blind(x)`                              | a promise: a commitment to `x`, with its opening                |
@@ -106,7 +106,7 @@ that is not the generator derived from the message. It does **not**:
 by the context. Every member that yields `h`, or anything computed from `h`, awaits it
 first: `h()`, `serialize()`, `blind()` and `isOpeningOf()`. When the check fails, each of
 them rejects with the same `RangeError`, every time it is called, before it looks at its
-argument; nothing else of the context runs. `group` and `boundedInt()` do not await it:
+argument; nothing else of the context runs. `group` and `boundedInt` do not await it:
 `g` is defined by its value, which the group publishes (RFC 9496 for ristretto255), and
 the class of the group depends on its order only.
 
@@ -124,11 +124,11 @@ unhandled rejection.
 
 ### boundedInt
 
-`context.boundedInt()` is the class of the integers of the group of the context, for
-ristretto255 the integers of Z_ℓ: the class of the blinding factors, and the base of the
-classes of the values (see [The class of a group](#the-class-of-a-group)). It is made
-once for the group, at the first context over it, and shared by all of its contexts:
-every call, on any context over the same group, returns the same object.
+`context.boundedInt`, a getter, is the class of the integers of the group of the
+context, for ristretto255 the integers of Z_ℓ: the class of the blinding factors, and the
+base of the classes of the values (see [The class of a group](#the-class-of-a-group)). It
+is made once for the group, at the first context over it, and shared by all of its
+contexts: every read, on any context over the same group, gives the same object.
 
 ### serialize
 
@@ -230,17 +230,17 @@ drawing `r` is negligible. Each context therefore keeps a queue of up to 10 pair
 The values a context commits to, and its blinding factors, are
 [bounded integers](bounded-int.md). Their base is the class of the group, which
 [boundedInt](#boundedint) gives: the integers `0 … ℓ − 1`, `ℓ` the `ORDER` of the group.
-For ristretto255, it is `Ristretto255Scalar`, the `context.boundedInt()` of a context over
+For ristretto255, it is `Ristretto255Scalar`, the `context.boundedInt` of a context over
 `RistrettoElement`. It is a subclass of the class of [bounded integers](bounded-int.md):
 that page documents every member it inherits, `define` included, and only its constants
 differ.
 
-| Constant | On `Ristretto255Scalar`                 |
-| -------- | --------------------------------------- |
-| `scale`  | `0`                                     |
-| `min`    | `-0.5`                                  |
-| `max`    | `ℓ − 0.5`, kept as `[10n * ℓ - 5n, -1]` |
-| `error`  | absent: ½ step                          |
+| Constant | On `Ristretto255Scalar`                                 |
+| -------- | ------------------------------------------------------- |
+| `scale`  | `0`                                                     |
+| `min`    | `-0.5`                                                  |
+| `max`    | `ℓ − 0.5`, kept as `[10n * ℓ - 5n, -1]`                 |
+| `error`  | ½ step: `bound`, `quadratic` and `term` each `[5n, -1]` |
 
 - **The bounds** `[−0.5, ℓ − 0.5)` are `ℓ` equal buckets of width 1, one for each integer
   from 0 to `ℓ − 1`: every value of `[i − 0.5, i + 0.5)` rounds to `i`. The bounds
@@ -275,7 +275,7 @@ import { BlindingContext, RistrettoElement } from "@criticaloptimisation/vc-proo
 
 const ℓ = RistrettoElement.ORDER;
 const context = BlindingContext.fromEncoded(publishedH, message, RistrettoElement);
-const Scalar = context.boundedInt(); // Ristretto255Scalar
+const Scalar = context.boundedInt; // Ristretto255Scalar
 Scalar.from(19_000n).value; // 19000n
 Scalar.from([15n, -1]).value; // 2n: 1.5, rounded to the step, ties to even
 Scalar.from([-5n, -1]).value; // 0n: −0.5, a tie, goes to 0
@@ -326,7 +326,7 @@ the blinding factor as bytes signed by the issuer; it keeps those bytes and the 
 for its proofs, since it cannot sign them again, and builds a `Blinded` for its own use:
 
 ```ts
-const Scalar = context.boundedInt();
+const Scalar = context.boundedInt;
 const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
 
 const opening = await context.blind(Days.from(20000n));
