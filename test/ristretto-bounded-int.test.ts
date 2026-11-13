@@ -42,14 +42,39 @@ const Scalar = (
 ).boundedInt?.() as typeof GenericBoundedInt;
 
 describe("context.boundedInt() of ristretto255: the integer of Z_ℓ", () => {
-  test("its constants: scale 0, the bounds [−0.5, ℓ − 0.5), no order, no error; low 0n, high ℓ − 1n; the class is frozen", () => {
+  // REVIEW PLACEHOLDER (#58: define stores the errors of every class it makes, half a step by default)
+  // its constants: scale 0, the bounds [−0.5, ℓ − 0.5), no order, no error; low 0n, high ℓ − 1n; the class is frozen
+  //   -> its constants: scale 0, the bounds [−0.5, ℓ − 0.5), no order, the errors of half a step; low 0n, high ℓ − 1n; the class is frozen
+  //   expect(Scalar.error).toBeUndefined();
+  test("its constants: scale 0, the bounds [−0.5, ℓ − 0.5), no order, the errors of half a step; low 0n, high ℓ − 1n; the class is frozen", () => {
     expect(Scalar.scale).toBe(0);
     expect(Scalar.min).toBe(-0.5);
     expect(Scalar.max).toEqual(MAX);
     expect("order" in Scalar).toBe(false);
     expect([Scalar.low, Scalar.high]).toEqual([0n, L - 1n]);
-    expect(Scalar.error).toBeUndefined();
+    expect(Scalar.error as unknown).toStrictEqual({
+      bound: [5n, -1],
+      quadratic: [5n, -1],
+      term: [5n, -1],
+    });
     expect(Object.isFrozen(Scalar)).toBe(true);
+  });
+
+  test("context.boundedInt is a getter: it gives the class itself, the same object for every read and for every context over ristretto255", () => {
+    const read = () =>
+      (
+        BlindingContext.fromEncoded(
+          fromHex(ageCheck.h),
+          fromHex(ageCheck.messageHex),
+          RistrettoElement,
+        ) as unknown as { readonly boundedInt: unknown }
+      ).boundedInt;
+    const first = read();
+    expect(first).toBe(Scalar);
+    expect(read()).toBe(first);
+    expect((first as typeof GenericBoundedInt).fromValue(5n).value).toBe(5n);
+    const getter = Object.getOwnPropertyDescriptor(BlindingContext.prototype, "boundedInt");
+    expect(typeof getter?.get).toBe("function");
   });
 
   test("fromValue takes the ℓ integers 0 … ℓ − 1, and refuses −1 and ℓ", () => {

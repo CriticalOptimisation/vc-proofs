@@ -5,7 +5,8 @@
  * class does not define.
  */
 import { describe, expect, test } from "vitest";
-import { BoundedInt } from "../../src/core/bounded-int.js";
+import * as module from "../../src/core/bounded-int.js";
+import { BoundedInt, type Decimal } from "../../src/core/bounded-int.js";
 import { classes, examples } from "../helpers/bounded-int-examples.js";
 import { read } from "./markdown.js";
 
@@ -37,10 +38,6 @@ function members(): string[] {
 }
 
 describe("docs/core/bounded-int.md, section BoundedInt", () => {
-  // REVIEW PLACEHOLDER (#52: the static getters low and high)
-  // the class has its public members: from, fromValue, define, the three errors, value, valueOf, toString, toLocaleString, toPrimitive
-  //   -> the class has its public members: from, fromValue, define, low, high, the three errors, value, valueOf, toString, toLocaleString, toPrimitive
-  //   the list gains "static low" and "static high".
   test("the class has its public members: from, fromValue, define, low, high, the three errors, value, valueOf, toString, toLocaleString, toPrimitive", () => {
     expect(members().sort()).toEqual(
       [
@@ -72,19 +69,6 @@ describe("docs/core/bounded-int.md, section The class constants", () => {
   const text = () =>
     page.slice(page.indexOf("\n### The class constants\n"), page.indexOf("\n### from\n"));
 
-  // REVIEW PLACEHOLDER (#52: no order)
-  // the table names scale, min, max, order and error, and BoundedInt has the constants it shows
-  //   -> the table names scale, min, max and error, not order, and BoundedInt has the constants it shows
-  //   expect(text()).toMatch(/\| `order` .*\| absent: no limit +\|/);
-  //   expect(BoundedInt.order).toBeUndefined();
-  // the subsection The range of a class makes the bounds semi-open, explains the order with a byte, and the table of checks refuses more values than order
-  //   -> the subsection The range of a class makes the bounds semi-open, gives low and high, counts the values of a byte, and refuses more values than the parent
-  //   -> the example of The range of a class gives what it says
-  //   expect(range).toContain("order: 256n");
-  //   expect(range).toContain("The constant `order` is a limit on that number, and it is inherited");
-  //   expect(text()).toMatch(
-  //     /\| `order` not above 0, or more distinct values than `order` +\| `RangeError` \|/,
-  //   );
   test("the table names scale, min, max and error, not order, and BoundedInt has the constants it shows", () => {
     for (const name of CONSTANTS) expect(text()).toMatch(new RegExp(`\\| \`${name}\` +\\|`));
     expect(text()).not.toContain("integerOnly");
@@ -214,6 +198,130 @@ describe("docs/core/bounded-int.md, section Examples", () => {
       .split("\n")
       .filter((text) => text.startsWith("| `"));
     expect(rows).toHaveLength(examples.length);
+  });
+});
+
+/** The exports of `bounded-int.ts`, by name, read so that this file compiles before they exist. */
+const exported = module as unknown as Record<string, unknown>;
+
+/** The text of the subsection `### <title>`, up to the next `### ` or `## ` heading. */
+function subsection(title: string): string {
+  const start = page.indexOf(`\n### ${title}\n`);
+  expect(start).toBeGreaterThan(-1);
+  const next = [page.indexOf("\n### ", start + 1), page.indexOf("\n## ", start + 1)].filter(
+    (i) => i !== -1,
+  );
+  return page.slice(start, Math.min(...next));
+}
+
+describe("docs/core/bounded-int.md, section The errors of a class", () => {
+  const text = () => subsection("The errors of a class");
+
+  test("it gives the three errors, the three forms of error, {} that disables them, and the rules", () => {
+    for (const name of ["bound", "quadratic", "term"]) expect(text()).toContain(`**\`${name}\`**`);
+    expect(text()).toContain("\n#### Given to define\n");
+    expect(text()).toMatch(/\*\*left out\*\*: each of the three is half a step of the class/);
+    expect(text()).toMatch(/\*\*a quantity\*\*, 0 or more: the three are equal to it/);
+    expect(text()).toMatch(/\*\*an object\*\* `\{ bound\?, quadratic\?, term\? \}`/);
+    expect(text()).toMatch(/`\{\}` leaves the three `undefined`: the class has no error/);
+    expect(text()).toContain("\n#### The rules\n");
+    expect(text()).toContain("- `0 ≤ term ≤ quadratic ≤ bound`, between any two that are defined.");
+    expect(text()).toMatch(/If two are equal, the third is equal to them/);
+    expect(text()).toMatch(/an `undefined` error stays `undefined`/);
+    expect(text()).toMatch(/A class never takes the errors of its parent/);
+    expect(text()).toMatch(/Each is `undefined` where its error is\./);
+  });
+
+  test("its table gives what define gives, for a class of scale 1", () => {
+    const errors = exported.errors as
+      ((C: typeof BoundedInt) => Record<string, unknown>) | undefined;
+    expect(typeof errors).toBe("function");
+    const rows = text()
+      .split("\n")
+      .filter(
+        (line) =>
+          line.startsWith("| left out") || line.startsWith("| `{") || line.startsWith("| `0"),
+      )
+      .map((line) =>
+        line
+          .split("|")
+          .slice(1, -1)
+          .map((cell) => cell.trim().replace(/^`|`$/g, "")),
+      );
+    expect(rows).toHaveLength(13);
+    /** A cell as the number it shows, or `undefined`. */
+    const shown = (d: unknown) =>
+      d === undefined
+        ? "undefined"
+        : String(Number(`${String((d as Decimal)[0])}e${String((d as Decimal)[1])}`));
+    for (const [error, bound, quadratic, term] of rows) {
+      const spec: Record<string, unknown> = { name: "E", min: 0, max: 100.05, step: 0.1 };
+      if (error !== "left out") {
+        spec.error = JSON.parse((error ?? "").replace(/(\w+):/g, '"$1":')) as unknown;
+      }
+      if (bound === "RangeError") {
+        expect(() => BoundedInt.define(spec as never), error).toThrow(RangeError);
+        continue;
+      }
+      const got = errors?.(BoundedInt.define(spec as never));
+      const expected = [bound, quadratic, term].map((cell) =>
+        cell === "[5n, −1 − k]" ? "0.05" : cell,
+      );
+      expect([shown(got?.bound), shown(got?.quadratic), shown(got?.term)], error).toEqual(expected);
+    }
+  });
+
+  test("the class constants say that error holds the three errors, never inherited", () => {
+    const constants = page.slice(
+      page.indexOf("\n### The class constants\n"),
+      page.indexOf("\n#### The range of a class\n"),
+    );
+    expect(constants).toMatch(
+      /\| `error` +\| the three errors of the values, `\{ bound, quadratic, term \}`/,
+    );
+    expect(constants).toMatch(/inherits those of its base, except `error`/);
+    expect(constants).toMatch(/`−308`, `COARSEST_SCALE`, to\s+`323`, `FINEST_SCALE`/);
+  });
+
+  test("the display rounds at the first defined of term, quadratic and bound, else shows every digit", () => {
+    const display = subsection("valueOf, toString and toLocaleString");
+    expect(display).toMatch(/the first defined of `term`, `quadratic` and\s+`bound`, in steps/);
+    expect(display).toMatch(
+      /When the three errors are `undefined`, `j` is 0:\s+every digit is shown/,
+    );
+  });
+});
+
+describe("docs/core/bounded-int.md, section define: the direct scale and the errors", () => {
+  test("the scale is k = 1 − digits(n) − e, refused outside −308 … 323, never brought back; error takes three forms", () => {
+    const text = subsection("define");
+    expect(text).toContain("so `k = 1 − digits(n) − e`");
+    expect(text).toMatch(/`\[9461n, 12\]`, gives\s+`k = −15`/);
+    expect(text).toMatch(/It is never brought\s+back to the nearest limit/);
+    expect(text).toMatch(/a cost to watch where `define` runs often/);
+    expect(text).toMatch(
+      /\| a `step` below `10\^-323`, or of `10\^309` or more +\| `RangeError` \|/,
+    );
+    expect(text).toMatch(
+      /\| `error` neither a quantity nor an object of quantities +\| `TypeError` +\|/,
+    );
+    expect(text).toMatch(
+      /\| an error below 0, or errors that break \[the rules\]\(#the-rules\) +\| `RangeError` \|/,
+    );
+  });
+});
+
+describe("docs/core/bounded-int.md, section For the other modules of the library", () => {
+  test("it names each export of bounded-int.ts for the other modules, and each exists", () => {
+    const text = section("For the other modules of the library");
+    for (const name of ["decimal", "MANTISSA", "EXPONENT", "errors"]) {
+      expect(text).toMatch(new RegExp("\\| `" + name + "[`(]"));
+      expect(name in exported, name).toBe(true);
+    }
+    for (const type of ["Quantity", "Decimal", "ErrorSpec", "Errors"]) {
+      expect(text).toContain(`| type \`${type}\``);
+    }
+    expect(text).toMatch(/exports only the types\s+`Quantity` and `Decimal`/);
   });
 });
 
