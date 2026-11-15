@@ -60,6 +60,29 @@ export function headings(text: string): string[] {
 }
 
 /**
+ * The text of the part of `text` under the heading `title`, at any level, from that
+ * heading up to the next heading of the same level or above, outside fenced code
+ * blocks; `undefined` when there is no such heading (#62).
+ */
+export function part(text: string, title: string): string | undefined {
+  const lines = text.split("\n");
+  const plain = withoutFences(text).split("\n");
+  const level = (line: string): number => /^(#{1,6})\s/.exec(line)?.[1]?.length ?? 0;
+  const start = plain.findIndex((line) => level(line) > 0 && headings(line)[0] === title);
+  if (start === -1) return undefined;
+  const depth = level(plain[start] ?? "");
+  const next = plain.findIndex((line, i) => i > start && level(line) > 0 && level(line) <= depth);
+  return lines.slice(start, next === -1 ? undefined : next).join("\n");
+}
+
+/** The levels and titles of the headings of `text`, outside fenced code blocks (#62). */
+export function outline(text: string): string[] {
+  return withoutFences(text)
+    .split("\n")
+    .filter((line) => /^#{1,6}\s/.test(line));
+}
+
+/**
  * The anchor GitHub gives a heading: its text without Markdown emphasis or code
  * marks, in lower case, with every character other than a letter, a digit, a
  * space, a hyphen or an underscore dropped, and each space turned into a hyphen.
@@ -140,3 +163,4 @@ export function hosts(text: string): string[] {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #28    | helpers of the documentation checks (#27)                     |
+// | #63    | part and outline: the sections at any level (#62) |

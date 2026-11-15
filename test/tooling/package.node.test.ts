@@ -20,7 +20,7 @@ const tsc = require.resolve("typescript/bin/tsc");
  */
 const surface: Record<string, string[]> = {
   "": [],
-  "/core": ["BlindingContext", "LinearCombination", "RistrettoElement", "requestHash"],
+  "/core": ["BlindingContext", "LinearCombination", "NO_ERROR_PROCESSING", "RistrettoElement", "requestHash"],
 };
 const entries = Object.keys(surface);
 
@@ -64,7 +64,7 @@ describe("after the build", { timeout: 120_000 }, () => {
     });
   }
 
-  test("the declarations of ./core export no BoundedInt, the types Committed, Blinded and Group of blinding-context.ts, and the types Decimal and Quantity of bounded-int.ts; ristretto.ts declares no BoundedInt; boundedInt is a getter", () => {
+  test("the declarations of ./core export no BoundedInt, the types Committed, Blinded and Group of blinding-context.ts, the types Decimal and Quantity and the value NO_ERROR_PROCESSING of bounded-int.ts; ristretto.ts declares no BoundedInt; boundedInt is a getter", () => {
     const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
     expect(index).not.toMatch(/\bBoundedInt\b/);
     const numbers = /export type \{([^}]*)\} from "\.\/bounded-int\.js";/.exec(index)?.[1];
@@ -74,7 +74,9 @@ describe("after the build", { timeout: 120_000 }, () => {
         .map((name) => name.trim())
         .sort(),
     ).toEqual(["Decimal", "Quantity"]);
-    expect(index).not.toMatch(/export \{[^}]*\} from "\.\/bounded-int\.js";/);
+    expect(/export \{([^}]*)\} from "\.\/bounded-int\.js";/.exec(index)?.[1]?.trim()).toBe(
+      "NO_ERROR_PROCESSING",
+    );
     const types = /export type \{([^}]*)\} from "\.\/blinding-context\.js";/.exec(index)?.[1];
     expect(
       types
@@ -102,7 +104,7 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(context).toMatch(/readonly ORDER: bigint;/);
   });
 
-  test("the declarations of bounded-int.ts declare the generic BoundedInt, its constants without integerOnly nor order, the quantities, from, fromValue, define typed as its class, low, high, the errors of the class, value, valueOf, toString and toLocaleString", () => {
+  test("the declarations of bounded-int.ts declare the generic BoundedInt, its constants without integerOnly nor order, the quantities, from, fromValue, define typed as its class, low, high, the errors of the class with quadraticSquared, NO_ERROR_PROCESSING, value, valueOf, toString and toLocaleString", () => {
     const declarations = readFileSync(`${root}dist/core/bounded-int.d.ts`, "utf8");
     expect(declarations).toContain("export declare class BoundedInt {");
     expect(declarations).toContain("protected constructor(value: bigint);");
@@ -114,6 +116,9 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(declarations).not.toMatch(/\border\b/);
     expect(declarations).not.toContain("BoundedIntOrder");
     expect(declarations).toContain("static readonly error?: ErrorSpec;");
+    expect(declarations).toMatch(/export declare const NO_ERROR_PROCESSING: Errors;/);
+    expect(declarations).toMatch(/readonly quadraticSquared\?: Quantity \| undefined;/);
+    expect(declarations).toMatch(/readonly quadraticSquared: Decimal \| undefined;/);
     expect(declarations).toContain("readonly error?: Quantity | ErrorSpec;");
     expect(declarations).toContain("static from(x: Quantity): BoundedInt;");
     expect(declarations).toContain("static fromValue(q: bigint): BoundedInt;");
@@ -206,3 +211,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #53    | declarations without order, RistrettoBoundedIntSpec or define override; low, high, define<T> (#52) |
 // | #55    | ./core exports no BoundedInt; the types Committed, Blinded, Group; a required group; blinding-context.ts names no ristretto255 (#48) |
 // | #59    | ./core exports the types Decimal and Quantity; get boundedInt; the constant error is an ErrorSpec, the error of define a quantity or an ErrorSpec; getters may be undefined; placeholders of #55 removed (#58) |
+// | #63    | ./core exports NO_ERROR_PROCESSING; the declarations of quadraticSquared and NO_ERROR_PROCESSING (#62) |
