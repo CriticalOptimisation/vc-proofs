@@ -332,14 +332,32 @@ describe("BoundedInt classes: the getters, relative to max − min, or undefined
     expect(C.quadraticError).toBe(Math.SQRT2);
   });
 
-  test("quadraticError is errorBound or termError itself when quadraticSquared is the square of bound or of term", () => {
+  // REVIEW PLACEHOLDER (#62: the rules make the three errors of a class equal when quadraticSquared is the square of bound or of term)
+  // quadraticError is errorBound or termError itself when quadraticSquared is the square of bound or of term
+  //   -> quadraticError is errorBound or termError itself when quadraticSquared is the square of bound or of term, a single term; with three different errors, a RangeError
+  //   const B = make({ min: 0, max: 3, error: { bound: 0.7, quadraticSquared: 0.49, term: 0.1 } });
+  //   expect(B.quadraticError).toBe(B.errorBound);
+  //   const T = make({ min: 0, max: 3, error: { bound: 0.7, quadraticSquared: 0.01, term: 0.1 } });
+  //   expect(T.quadraticError).toBe(T.termError);
+  test("quadraticError is errorBound or termError itself when quadraticSquared is the square of bound or of term, a single term; with three different errors, a RangeError", () => {
     const { Mass, Reading } = classes();
     expect(Mass.quadraticError).toBe(Mass.errorBound);
     expect(Reading.quadraticError).toBe(Reading.termError);
-    const B = make({ min: 0, max: 3, error: { bound: 0.7, quadraticSquared: 0.49, term: 0.1 } });
+    // bound² = quadraticSquared fills in term = bound; quadraticSquared = term² fills in bound = term.
+    const B = make({ min: 0, max: 3, error: { bound: 0.7, quadraticSquared: 0.49 } });
     expect(B.quadraticError).toBe(B.errorBound);
-    const T = make({ min: 0, max: 3, error: { bound: 0.7, quadraticSquared: 0.01, term: 0.1 } });
+    const T = make({ min: 0, max: 3, error: { quadraticSquared: 0.01, term: 0.1 } });
     expect(T.quadraticError).toBe(T.termError);
+    expect(() =>
+      make({ min: 0, max: 3, error: { bound: 0.7, quadraticSquared: 0.49, term: 0.1 } }),
+    ).toThrow(
+      /^BoundedInt\.define: error\.term must equal error\.bound and error\.quadraticSquared, which are equal$/,
+    );
+    expect(() =>
+      make({ min: 0, max: 3, error: { bound: 0.7, quadraticSquared: 0.01, term: 0.1 } }),
+    ).toThrow(
+      /^BoundedInt\.define: error\.bound must equal error\.quadraticSquared and error\.term, which are equal$/,
+    );
   });
 
   test("quadraticError does not underflow: half a step of 1e-200 over a range of 1 is 5e-201", () => {
