@@ -218,3 +218,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #55    | ./core exports no BoundedInt; the types Committed, Blinded, Group; a required group; blinding-context.ts names no ristretto255 (#48) |
 // | #59    | ./core exports the types Decimal and Quantity; get boundedInt; the constant error is an ErrorSpec, the error of define a quantity or an ErrorSpec; getters may be undefined; placeholders of #55 removed (#58) |
 // | #63    | ./core exports NO_ERROR_PROCESSING; the declarations of quadraticSquared and NO_ERROR_PROCESSING (#62) |
+// | #64    | ./core exports LinearCombination, and declares it; placeholders of #63 removed (#50) |

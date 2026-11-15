@@ -329,3 +329,4 @@ export class LinearCombination {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
+// | #64    | new: LinearCombination, combine and combineBlinded (#50) |

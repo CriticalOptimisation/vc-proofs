@@ -572,3 +572,4 @@ describe("LinearCombination: the empty combination", () => {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
+// | #64    | new: preliminary tests of LinearCombination (#50) |

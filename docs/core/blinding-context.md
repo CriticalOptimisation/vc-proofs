@@ -480,4 +480,5 @@ Change History
 | #59 | context.boundedInt is a getter; the errors of Ristretto255Scalar, ½ step each (#58) |
 | #60 | a blinding factor or a queued scalar may be 0: r is uniform over the whole class of the group (#56) |
 | #63 | For users, For developers, For Maintainers; the errors of Ristretto255Scalar keep quadraticSquared; the copies, immutability, the promise, the blinding factors, the masks and the type parameter explained in For Maintainers only (#62) |
+| #64 | a linear combination takes Committed or Blinded (#50) |
 -->

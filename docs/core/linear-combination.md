@@ -463,4 +463,5 @@ Change History
 
 | PR  | Summary |
 |-----|---------|
+| #64 | new: LinearCombination, its coefficients, the class of the result and its errors, the group at use, combine, combineBlinded (#50) |
 -->

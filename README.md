@@ -102,4 +102,5 @@ Change History
 | #51 | the page of the group lists BoundedInt, the integer of Z_ℓ (#49) |
 | #55 | the blinding context gives context.boundedInt(), the integers of Z_ℓ; ./core exports no BoundedInt (#48) |
 | #59 | context.boundedInt, a getter (#58) |
+| #64 | links Linear combinations (#50) |
 -->

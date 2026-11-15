@@ -342,3 +342,4 @@ test("docs/core/linear-combination.md quotes the message of a combination that d
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
+// | #64    | new: the page of LinearCombination, its parts, members, examples and message (#50) |

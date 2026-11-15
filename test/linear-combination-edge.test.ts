@@ -399,3 +399,4 @@ describe("LinearCombination: errors that the rules of define fill in, and long e
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
+// | #64    | new: edge cases of LinearCombination (#50) |

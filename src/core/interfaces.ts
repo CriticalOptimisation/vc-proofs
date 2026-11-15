@@ -19,3 +19,4 @@ export interface GroupElement {
 // --- Change History -------------------------------------------------------
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
+// | #64    | new: GroupElement, moved from blinding-context.ts (#50) |
