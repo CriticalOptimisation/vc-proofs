@@ -120,9 +120,16 @@ describe("docs/core/blinding-context.md, section The class of a group", () => {
     );
   });
 
-  test("it is the class of the blinding factors, checked by the context: scale 0, low 0n, high ℓ − 1n", () => {
+  // REVIEW PLACEHOLDER (#62, review of #63: how the context checks its class is For Maintainers)
+  // it is the class of the blinding factors, checked by the context: scale 0, low 0n, high ℓ − 1n
+  //   -> it is the class of the blinding factors; For Maintainers says that the context checks it: scale 0, low 0n, high ℓ − 1n
+  //   expect(text).toMatch(/\*\*The class of the blinding factors\.\*\*/);
+  //   expect(text).toMatch(/`scale` 0, `low` `0n` and `high` `ℓ − 1n`/);
+  test("it is the class of the blinding factors; For Maintainers says that the context checks it: scale 0, low 0n, high ℓ − 1n", () => {
     expect(text).toMatch(/\*\*The class of the blinding factors\.\*\*/);
-    expect(text).toMatch(/`scale` 0, `low` `0n` and `high` `ℓ − 1n`/);
+    expect(section(page, "The blinding factors")).toMatch(
+      /`scale` 0, `low` `0n` and\s+`high` `ℓ − 1n`/,
+    );
   });
 
   test("define is the generic define, typed as the class it is called on", () => {
@@ -235,4 +242,4 @@ describe("docs/core/bounded-int.md: the notice of the BoundedInt of the entry po
 // | #53    | no order; low and high; own members min and max; the generic define (#52) |
 // | #55    | the class of a group in blinding-context.md, from context.boundedInt() (#48) |
 // | #59    | own error of ½ step; context.boundedInt, a getter (#58) |
-// | #63    | quadraticSquared in the errors of the class; the notice ends For developers (#62) |
+// | #63    | quadraticSquared in the errors of the class; the notice ends For developers; the check of the class of the blinding factors in For Maintainers (#62) |

@@ -102,14 +102,43 @@ describe("docs/core/blinding-context.md: three parts, for users, for developers,
     const text = section("For Maintainers");
     for (const title of [
       "The constructor",
+      "Immutability",
+      "The promise of the validation",
+      "The blinding factors",
       "The queue of blindings",
       "Constant time",
+      "The type parameter",
       "Test vectors",
     ]) {
       expect(part(text, title), title).toBeDefined();
     }
     expect(section("The constructor")).toMatch(/1\. it copies `h` and `message`, synchronously/);
-    expect(section("The validation")).toMatch(/\(see \[The constructor\]\(#the-constructor\)\)/);
+    expect(section("The constructor")).toMatch(
+      /The copies are intended, and must not be optimized away/,
+    );
+  });
+
+  test("For developers states what a caller relies on; why the implementation is correct and robust is For Maintainers", () => {
+    const developers = section("For developers");
+    for (const moved of [
+      /copies/,
+      /may change freely/,
+      /unhandled\s+rejection/,
+      /WebCrypto/,
+      /hides `m` perfectly/,
+      /`\(r \+ s\)·h − s·h`/,
+      /exists only for the type checker/,
+    ]) {
+      expect(developers).not.toMatch(moved);
+    }
+    const maintainers = section("For Maintainers");
+    expect(section("Immutability")).toMatch(/Every byte array it returns/);
+    expect(section("The promise of the validation")).toMatch(
+      /does not cause an unhandled\s+rejection/,
+    );
+    expect(section("The blinding factors")).toMatch(/hides `m` perfectly only when `r` is uniform/);
+    expect(maintainers).toMatch(/`\(r \+ s\)·h − s·h`/);
+    expect(section("The type parameter")).toMatch(/exists only for the type checker/);
   });
 });
 
@@ -239,4 +268,4 @@ test("the pages and the README call no boundedInt(): context.boundedInt is a get
 // | #40    | new: the page names every public member, and the serialization (#39) |
 // | #55    | boundedInt; the example of Committed and Blinded; the RangeError of blind; a required group (#48) |
 // | #59    | context.boundedInt, a getter; no boundedInt() in the pages (#58) |
-// | #63    | three parts: For users, For developers, For Maintainers (#62) |
+// | #63    | three parts: For users, For developers, For Maintainers; For developers holds no proof of correctness (#62) |

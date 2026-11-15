@@ -121,6 +121,33 @@ describe("docs/core/bounded-int.md: three parts, for users, for developers, and 
       expect(maintainers).toContain(`| type \`${type}\``);
     }
   });
+
+  test("For developers states what a caller relies on; why the implementation is exact and correct is For Maintainers", () => {
+    const developers = section("For developers");
+    for (const moved of [
+      /private field/,
+      /all the arithmetic is done/i,
+      /no root is taken/,
+      /would hide the\s+sign/,
+      /The accuracy of the errors/,
+      /first two/,
+      /rounds correctly/,
+      /without converting/,
+      /Without this method/,
+      /Why integers and powers of ten/,
+    ]) {
+      expect(developers).not.toMatch(moved);
+    }
+    const maintainers = section("For Maintainers");
+    for (const title of [
+      "The accuracy of the errors",
+      "The conversions and the display",
+      "Integers and powers of ten",
+    ]) {
+      expect(part(maintainers, title), title).toBeDefined();
+    }
+    expect(section("The conversions and the display")).toMatch(/Without it, `x \+ 1n`/);
+  });
 });
 
 describe("docs/core/bounded-int.md, section BoundedInt", () => {
@@ -316,7 +343,7 @@ describe("docs/core/bounded-int.md, section The errors of a class", () => {
     for (const name of ["bound", "quadratic", "quadraticSquared", "term"]) {
       expect(text()).toContain(`**\`${name}\`**`);
     }
-    expect(text()).toMatch(/The class never\s+takes that root/);
+    expect(section("Kept as decimals")).toMatch(/It never takes a root/);
     expect(section("Given to define")).toBeDefined();
     expect(text()).toMatch(/\*\*left out\*\*: each of the three is half a step of the class/);
     expect(text()).toMatch(/\*\*a quantity\*\*, 0 or more: the three are equal to it/);
@@ -460,7 +487,10 @@ describe("docs/core/bounded-int.md, section The errors of a class", () => {
     expect(display).toMatch(
       /When the\s+three errors are `undefined`, `j` is 0: every digit is shown/,
     );
-    expect(display).toMatch(/Only the first two\s+significant digits of the error decide `j`/);
+    expect(display).not.toMatch(/first two/);
+    expect(section("The display position")).toMatch(
+      /finds `j` from a rough error of two significant digits, never from the exact one/,
+    );
   });
 
   test("the table of the display with Kilo shows what the code gives", () => {
@@ -561,4 +591,4 @@ describe("docs/core/bounded-int.md, For Maintainers: the display position and th
 // | #51    | imports the generic BoundedInt of bounded-int.ts; placeholders of #47 removed (#49) |
 // | #53    | low and high; no order; The integers and The number of values; define without order (#52) |
 // | #59    | The errors of a class, its table against define; the display; the direct scale; For the other modules of the library; a class written by hand declares error as an object only; placeholders of #53 removed (#58) |
-// | #63    | three parts; quadraticSquared, the rules on squares, NO_ERROR_PROCESSING; the display position and the quadratic error getter; product and sum (#62) |
+// | #63    | three parts; quadraticSquared, the rules on squares, NO_ERROR_PROCESSING; the display position and the quadratic error getter; product and sum; For developers holds no proof of correctness (#62) |

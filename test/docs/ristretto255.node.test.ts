@@ -47,6 +47,33 @@ describe("docs/core/ristretto255.md: three parts, for users, for developers, and
     );
   });
 
+  test("For developers states what a caller relies on; how the class is correct and robust is For Maintainers", () => {
+    const developers = section("For developers");
+    for (const moved of [
+      /may change\s+freely/,
+      /Both arrays are read at\s+the call/,
+      /fixed-window/,
+      /scalar 1 in place of 0/,
+      /Fp\.cmov/,
+      /extended Euclid/,
+      /as an optimization/,
+      /no test vector/,
+    ]) {
+      expect(developers).not.toMatch(moved);
+    }
+    const maintainers = section("For Maintainers");
+    for (const title of [
+      "Copies and new arrays",
+      "The reduction of scalars",
+      "The multiplication of a point",
+      "What the classes do for constant time",
+    ]) {
+      expect(part(maintainers, title), title).toBeDefined();
+    }
+    expect(section("What the classes do for constant time")).toMatch(/`Fp\.cmov`/);
+    expect(section("Checked against libsodium")).toMatch(/no test\s+vector/);
+  });
+
   test("For developers holds RistrettoElement, Scalars, The integers of Z_ℓ and Constant time; For Maintainers, the checks against libsodium", () => {
     const text = section("For developers");
     for (const title of ["RistrettoElement", "Scalars", "The integers of Z_ℓ", "Constant time"]) {
@@ -96,8 +123,16 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
     expect(subsection("SUITE_NAME and randomScalar")).toMatch(/needs the order\s+`ℓ`/);
   });
 
-  test("multiplyScalar documents that it multiplies for a scalar that reduces to 0 too", () => {
-    const text = subsection("multiplyScalar");
+  // REVIEW PLACEHOLDER (#62, review of #63: how multiplyScalar runs is For Maintainers)
+  // multiplyScalar documents that it multiplies for a scalar that reduces to 0 too
+  //   -> For Maintainers documents that multiplyScalar multiplies for a scalar that reduces to 0 too
+  //   const text = subsection("multiplyScalar");
+  //   expect(text).toMatch(/still calls\s+it, with the scalar 1 in place of 0/);
+  //   expect(text).toMatch(/runs for every scalar/);
+  //   expect(text).not.toMatch(/returns the identity before/);
+  test("For Maintainers documents that multiplyScalar multiplies for a scalar that reduces to 0 too", () => {
+    expect(part(section("For Maintainers"), "The multiplication of a point")).toBeDefined();
+    const text = subsection("The multiplication of a point");
     expect(text).toMatch(/still calls\s+it, with the scalar 1 in place of 0/);
     expect(text).toMatch(/runs for every scalar/);
     expect(text).not.toMatch(/returns the identity before/);
@@ -125,4 +160,4 @@ describe("docs/core/ristretto255.md documents scalars as bigints", () => {
 // | #53    | Ranges: no class made from BoundedInt holds more than ℓ integers; placeholder of #49 removed (#52) |
 // | #55    | Scalars through context.boundedInt() (#48) |
 // | #59    | context.boundedInt, a getter; placeholders of #55 removed (#58) |
-// | #63    | three parts: For users, For developers, For Maintainers (#62) |
+// | #63    | three parts: For users, For developers, For Maintainers; For developers holds no proof of correctness; multiplyScalar of 0 in For Maintainers (#62) |

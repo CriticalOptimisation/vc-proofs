@@ -45,8 +45,7 @@ The low-level entry point, `@criticaloptimisation/vc-proofs/core`, exports the c
 ### Values and errors
 
 - **Immutable.** No method changes its instance or its arguments. Each operation returns a
-  new instance, and every `encode()` returns a new array, which the caller may change
-  freely.
+  new instance.
 - **No public constructor.** Instances come only from the static factories below. A
   method that receives anything other than an element where it expects one, or anything
   other than a `bigint` where it expects a scalar, throws a `TypeError`. Every scalar
@@ -108,9 +107,7 @@ that reads it. Such a caller checks `isIdentity()` after `decode`.
 #### equals
 
 `equals` is the equality of
-[RFC 9496, Section 4.3.3](https://www.rfc-editor.org/rfc/rfc9496.html#section-4.3.3), as
-`@noble/curves` implements it: it computes both of the RFC's comparisons before it
-combines them, and it does not encode either element.
+[RFC 9496, Section 4.3.3](https://www.rfc-editor.org/rfc/rfc9496.html#section-4.3.3).
 
 #### multiplyScalar
 
@@ -119,17 +116,8 @@ of `n` copies of `P` for `n > 0`, the identity for `n = 0`, and `(−n)·(−P)`
 It throws a `TypeError` when `n` is not a `bigint`: a `number` and a `BoundedInt` are
 refused too (see [Scalars](#scalars)).
 
-Since `ℓ·P` is the identity, `n·P` depends only on `n mod ℓ`. So `multiplyScalar`
-first reduces `n` mod `ℓ`, with the `Fn` of `@noble/curves`, and multiplies by the
-reduced value only: `multiplyScalar(n + ℓ)` and `multiplyScalar(n − ℓ)` equal
-`multiplyScalar(n)`. That is an optimization, not a part of the definition.
-
-It then uses the fixed-window multiplication of `@noble/curves`, whose sequence of
-point operations does not depend on the scalar (see [Constant time](#constant-time)).
-That multiplication refuses 0. So when `n mod ℓ` is zero, `multiplyScalar` still calls
-it, with the scalar 1 in place of 0, does not use its product, and returns the identity.
-The multiplication thus runs for every scalar: its timing does not reveal whether
-`n mod ℓ` is zero, as a return before the call would.
+Since `ℓ·P` is the identity, `n·P` depends only on `n mod ℓ`: `multiplyScalar(n + ℓ)`
+and `multiplyScalar(n − ℓ)` equal `multiplyScalar(n)`.
 
 libsodium's `crypto_scalarmult_ristretto255` refuses a result equal to the identity;
 `multiplyScalar` returns it.
@@ -155,8 +143,7 @@ element is not uniformly distributed.
 hashToGroup(message, dst) = fromUniformBytes(expand_message_xmd(SHA-512, message, dst, 64))
 ```
 
-SHA-512 comes from WebCrypto, so `hashToGroup` returns a promise. Both arrays are read at
-the call: a change to them while the promise runs does not change the result.
+SHA-512 comes from WebCrypto, so `hashToGroup` returns a promise.
 
 `message` may have any length. `dst` must have from 1 to 255 bytes; the promise rejects
 with a `RangeError`:
@@ -169,11 +156,6 @@ with a `RangeError`:
   error says so.
 
 It rejects with a `TypeError` when `message` or `dst` is not a `Uint8Array`.
-
-RFC 9380 publishes no test vector for `hash_to_ristretto255`. Its two stages have
-vectors of their own: `expand_message_xmd` in RFC 9380, Appendix K.3, and the element
-derivation in RFC 9496, Appendix A.3. The whole chain is checked on the vectors of
-[The generator h](../generator-h.md#test-vectors), which three implementations agree on.
 
 #### deriveGenerator and GENERATOR_DST
 
@@ -202,10 +184,9 @@ With `SUITE_NAME` and `randomScalar`, the class `RistrettoElement` is a
 [group](blinding-context.md#the-group) for a blinding context, which uses no other group
 by default. `SUITE_NAME` is the string `Ristretto255`, which begins the serialization of
 a context. `randomScalar()` gives the random scalars a context draws. It needs the order
-`ℓ` of the group, like the four members below: it reduces 64 random bytes mod `ℓ`, with
-the `Fn` of `@noble/curves` (see [Scalars](#scalars)). It belongs to `RistrettoElement`
-for the same reason as they do, `ℓ`; unlike them, it is also a member of the group of a
-blinding context.
+`ℓ` of the group, like the four members below (see [Scalars](#scalars)). It belongs to
+`RistrettoElement` for the same reason as they do, `ℓ`; unlike them, it is also a member
+of the group of a blinding context.
 
 #### ORDER, encodeScalar, decodeScalar and invertScalar
 
@@ -229,9 +210,7 @@ the order `ℓ` of the group. They are pure operations on `bigint`s; they belong
 - **`invertScalar(n)`** returns the inverse of `n mod ℓ` in the field of scalars, from
   `1n` to `ℓ − 1`: `n · invertScalar(n) ≡ 1 (mod ℓ)`. This is not the inverse in the
   integers, which exists only for `±1`. It throws a `RangeError` when `n ≡ 0 (mod ℓ)`,
-  which has no inverse, and a `TypeError` when `n` is not a `bigint`. It computes
-  `(n mod ℓ)^(ℓ − 2)` with the `Fn` of `@noble/curves`: the exponent is public, unlike
-  the steps of an extended Euclid, which depend on `n`.
+  which has no inverse, and a `TypeError` when `n` is not a `bigint`.
 
 ### Scalars
 
@@ -241,16 +220,12 @@ number of additions, so `n` is any non-negative integer. And since `−P` is the
 `Q` such that `Q + P` is the identity, `n·P` for `n < 0` is `(−n)·(−P)`. So `n·P` is
 defined for every integer `n`, in any group.
 
-- **Reduction.** Every operation that uses a scalar reduces it mod `ℓ` before anything
-  else, as an optimization (see [multiplyScalar](#multiplyscalar)). A caller never needs
-  to reduce a scalar itself, and may pass negative and large values.
 - **Arithmetic.** The sum, difference and product of scalars are the `+`, `−` and `*` of
   `bigint`. Besides them, `RistrettoElement` gives the operations that need `ℓ`:
   `invertScalar`, `encodeScalar` and `decodeScalar` (see
   [ORDER, encodeScalar, decodeScalar and invertScalar](#order-encodescalar-decodescalar-and-invertscalar)).
-- **`randomScalar()`** reads 64 bytes from `crypto.getRandomValues` as a little-endian
-  integer, and reduces it mod `ℓ`: a `bigint` from `0` to `ℓ − 1`. Reducing 512 bits mod
-  `ℓ` leaves a bias below `2⁻²⁵⁹`. It may return `0n`, with probability `1/ℓ`; a caller
+- **`randomScalar()`** gives a `bigint` from `0` to `ℓ − 1`, uniformly distributed but for
+  a bias below `2⁻²⁵⁹`. It may return `0n`, with probability `1/ℓ`; a caller
   that needs a non-zero scalar draws again.
 - **`bigint`s in, `bigint`s out.** Where a scalar is expected, anything other than a
   `bigint` is a `TypeError`, an integer `number` included. Every scalar returned is a
@@ -280,18 +255,8 @@ a context over `RistrettoElement` (see
 
 No JavaScript code can promise constant time: `bigint` operations, the JIT compiler and
 the garbage collector all have timings that depend on data. The classes do what can be
-done above that:
-
-- every operation on field elements is a method of the `Fp` (the field of edwards25519)
-  of `@noble/curves`; the reduction of a scalar mod `ℓ`, `randomScalar`, `encodeScalar`,
-  `decodeScalar` and `invertScalar` are methods of its `Fn`, never operations of our own
-  on `bigint`;
-- the selections of RFC 9496 (`CT_SELECT`, `CT_ABS`) use `Fp.cmov`, not a JavaScript
-  conditional;
-- `multiplyScalar` uses the fixed-window multiplication of `@noble/curves`, whose sequence
-  of point operations does not depend on the scalar, and runs it for every scalar, a
-  scalar that reduces to 0 included (see [multiplyScalar](#multiplyscalar));
-- `equals` computes both comparisons of RFC 9496 before it combines them.
+done above that (see
+[What the classes do for constant time](#what-the-classes-do-for-constant-time)).
 
 `@noble/curves` states two limits, which therefore apply here:
 
@@ -309,12 +274,53 @@ attacker one timing per secret, which is not enough for the attack.
 
 The `+`, `−` and `*` that callers write on scalars are the `bigint` arithmetic of
 JavaScript (see [Scalars](#scalars)), whose timing depends on the size of its operands.
-The reduction mod `ℓ` at the start of each multiplication bounds the size of what the
-multiplication itself works on.
 
 ## For Maintainers
 
-This part documents how the class is checked, for the maintainers of the library.
+This part documents how the class works and how it is checked, for the maintainers of the
+library.
+
+### Copies and new arrays
+
+Every `encode()`, and every array a member returns, is a new one, so that a caller that
+changes it changes nothing in an element. `hashToGroup` reads both of its arrays at the
+call: a change to them while the promise runs does not change the result.
+
+### The reduction of scalars
+
+Every operation that uses a scalar reduces it mod `ℓ` before anything else, with the `Fn`
+of `@noble/curves`, so that a caller never needs to reduce a scalar itself and may pass
+negative and large values. That is an optimization, not a part of the definition of
+`n·P`. The reduction also bounds the size of what each multiplication works on.
+
+`randomScalar()` reads 64 bytes from `crypto.getRandomValues` as a little-endian integer,
+and reduces it mod `ℓ` with the same `Fn`: reducing 512 bits mod `ℓ` leaves a bias below
+`2⁻²⁵⁹`. `invertScalar(n)` computes `(n mod ℓ)^(ℓ − 2)` with that `Fn`: the exponent is
+public, unlike the steps of an extended Euclid, which depend on `n`.
+
+### The multiplication of a point
+
+`multiplyScalar` multiplies by the reduced scalar with the fixed-window multiplication of
+`@noble/curves`, whose sequence of point operations does not depend on the scalar. That
+multiplication refuses 0. So when `n mod ℓ` is zero, `multiplyScalar` still calls
+it, with the scalar 1 in place of 0, does not use its product, and returns the identity.
+The multiplication thus runs for every scalar: its timing does not reveal whether
+`n mod ℓ` is zero, as a return before the call would.
+
+### What the classes do for constant time
+
+Above the limits that [Constant time](#constant-time) states:
+
+- every operation on field elements is a method of the `Fp` (the field of edwards25519)
+  of `@noble/curves`; the reduction of a scalar mod `ℓ`, `randomScalar`, `encodeScalar`,
+  `decodeScalar` and `invertScalar` are methods of its `Fn`, never operations of our own
+  on `bigint`;
+- the selections of RFC 9496 (`CT_SELECT`, `CT_ABS`) use `Fp.cmov`, not a JavaScript
+  conditional;
+- `multiplyScalar` runs its fixed-window multiplication for every scalar, a scalar that
+  reduces to 0 included (see [The multiplication of a point](#the-multiplication-of-a-point));
+- `equals` is the equality of RFC 9496 as `@noble/curves` implements it: it computes both
+  of the RFC's comparisons before it combines them, and it does not encode either element.
 
 ### Checked against libsodium
 
@@ -342,8 +348,11 @@ cannot import it.
   `decodeScalar` reads libsodium's encodings back.
 
 Expected values come either from the text of an RFC or from libsodium, never from code
-of vc-proofs. libsodium has no `hash_to_ristretto255`; `hashToGroup` is checked as
-[hashToGroup](#hashtogroup) says.
+of vc-proofs. libsodium has no `hash_to_ristretto255`, and RFC 9380 publishes no test
+vector for it. Its two stages have vectors of their own: `expand_message_xmd` in RFC 9380,
+Appendix K.3, and the element derivation in RFC 9496, Appendix A.3. The whole chain is
+checked on the vectors of [The generator h](../generator-h.md#test-vectors), which three
+implementations agree on.
 
 <!--
 Change History
@@ -357,5 +366,5 @@ Change History
 | #53 | section BoundedInt: no order; low and high; no class made from it holds more than ℓ integers; the generic define (#52) |
 | #55 | section The integers of Z_ℓ, moved to the blinding context; Scalars through context.boundedInt() (#48) |
 | #59 | context.boundedInt, a getter (#58) |
-| #63 | For users, For developers, For Maintainers (#62) |
+| #63 | For users, For developers, For Maintainers; the copies, the reduction, the multiplication of a point and constant time inside explained in For Maintainers only (#62) |
 -->

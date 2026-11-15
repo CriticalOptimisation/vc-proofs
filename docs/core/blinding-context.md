@@ -54,10 +54,7 @@ The low-level entry point, `@criticaloptimisation/vc-proofs/core`, exports the c
 
 ### Values and errors
 
-- **Immutable.** A context never changes once built. Every byte array it returns is a new
-  one, which the caller may change freely.
-- **Copied inputs.** The constructor copies its inputs before anything else, and works
-  only on its copies (see [The validation](#the-validation)).
+- **Immutable.** A context never changes once built.
 - **No public constructor.** Contexts come only from the static factory below.
 - **Values are bounded integers.** A method that receives anything other than a bounded
   integer where it expects a value, a `bigint` and a `number` included, or than an
@@ -96,12 +93,7 @@ new context, synchronously, and the validation runs in the background.
 
 #### The validation
 
-`fromEncoded` copies `h` and `message` before anything else, and the validation runs
-on its copies only (see [The constructor](#the-constructor)). A caller that changes its
-arrays after `fromEncoded` returns, even before the validation ends, changes nothing in
-the context: neither what is checked nor what is held. The context keeps no field for the
-message, and has no member that gives it back: no party needs it again once the context
-is built.
+No member of the context gives the message back: a caller that needs it keeps its own.
 
 **The check**: `h` is valid when it equals `group.hashToGroup(message,
 group.GENERATOR_DST)`. For ristretto255, that is `hash_to_ristretto255(message,
@@ -116,18 +108,14 @@ that is not the generator derived from the message. It does **not**:
   70 ms in Node.js, where the check costs about 1 ms;
 - say who chose the message, nor anything about the offline searches for a weak `h`.
 
-**Who awaits it.** The validation hashes on WebCrypto, so its result is a promise, kept
-by the context. Every member that yields `h`, or anything computed from `h`, awaits it
-first: `h()`, `serialize()`, `blind()` and `isOpeningOf()`. When the check fails, each of
-them rejects with the same `RangeError`, every time it is called, before it looks at its
-argument; nothing else of the context runs. `group` and `boundedInt` do not await it:
-`g` is defined by its value, which the group publishes (RFC 9496 for ristretto255), and
-the class of the group depends on its order only.
+**Who awaits it.** The validation is asynchronous. Every member that yields `h`, or
+anything computed from `h`, awaits it first: `h()`, `serialize()`, `blind()` and
+`isOpeningOf()`. When the check fails, each of them rejects with the same `RangeError`,
+every time it is called, before it looks at its argument; nothing else of the context
+runs. `group` and `boundedInt` do not await it.
 
-A context is checked once: it is immutable, so nothing ever revalidates it. An
-application that wants to fail at load time awaits `serialize()` once, which it needs
-for its pin anyway. A context that fails its check and is never used does not cause an
-unhandled rejection.
+An application that wants to fail at load time awaits `serialize()` once, which it needs
+for its pin anyway.
 
 #### group
 
@@ -163,8 +151,7 @@ The serialization holds neither the message nor `GENERATOR_DST`. How `h` was obt
 the evidence that nothing is up anyone's sleeve, not a part of the suite: another
 deterministic, hash-like derivation from a published input that gave the same `h`
 would be equally good evidence, and the suite would not change. A bare "`h` is 0x…" is
-no evidence, since it has no input. The context uses the message for its check only: it
-neither keeps nor serializes it.
+no evidence, since it has no input.
 
 For the age-check context of [The generator h](../generator-h.md#vector-age-check):
 
@@ -182,9 +169,9 @@ For the age-check context of [The generator h](../generator-h.md#vector-age-chec
 - `value` is `x` itself;
 - `blinding` is `r`, a bounded integer of [the class of the group](#the-class-of-a-group),
   drawn uniformly at random for each commitment from the whole class of the group, `0`
-  included, with the `randomScalar()` of the group. The commitment hides `m` perfectly
-  only when `r` is uniform over all `ℓ` integers: leaving one out, `0` or any other,
-  would bias it. It is returned, since the holder needs it later for the proofs. No method accepts an `r` chosen by the caller for a new commitment.
+  included, with the `randomScalar()` of the group. It is returned, since the holder needs
+  it later for the proofs. No method accepts an `r` chosen by the caller for a new
+  commitment.
 
 **The class of `x` must fit the group.** It holds the integers `low … high` of its class
 (see [The range of a class](bounded-int.md#the-range-of-a-class)), and the commitment
@@ -215,10 +202,8 @@ not a bounded integer; when `opening.blinding` is not a bounded integer of exact
 when the `equals` of the group's elements refuses `opening.commitment`. It rejects with
 the `RangeError` of `blind` when the class of `opening.value` does not fit the group.
 
-It computes `r·h` as `(r + s)·h − s·h`, with a fresh random `s`, so that `h` is never
-multiplied by the long-lived `r` itself (see [Constant time](#constant-time)). `r + s`
-is a sum of `bigint`s, which the multiplication reduces mod `ℓ`. **Check a witness
-once, on receipt**, not at each use.
+**Check a witness once, on receipt**, not at each use, as
+[the rule for callers](ristretto255.md#constant-time) of ristretto255 asks.
 
 ### The class of a group
 
@@ -243,11 +228,8 @@ differ.
   just below it, such as `ℓ − 0.1`, round to `ℓ`.
 - **`low` and `high`** are `0n` and `ℓ − 1n`: the class holds `ℓ` integers, as many as the
   group has scalars, so the blinding factors drawn from the group cover all of them.
-- **The class of the blinding factors.** The context makes its blinding factors with
-  `fromValue` of this class, and refuses any other class as a blinding factor. The class
-  is made with a scale of 0, so that its integers are the scalars themselves, with no step
-  and no offset: the context checks it, `scale` 0, `low` `0n` and `high` `ℓ − 1n`, when it
-  makes it.
+- **The class of the blinding factors.** A blinding factor is an integer of this class,
+  and of no other: its integers are the scalars themselves, with no step and no offset.
 - **No class made from it holds more than `ℓ` integers.** A class holds no more values
   than its parent (see [The range of a class](bounded-int.md#the-range-of-a-class)), so
   every class made from the class of the group, by `define` or by hand, and every class
@@ -374,11 +356,8 @@ and `Blinded<E>`: the context names no group of its own. It is inferred from the
 given to `fromEncoded`, so a caller never writes it for a context: `h()` of a
 ristretto255 context is a `Promise<RistrettoElement>`, not an `any`, and the
 `commitment` of `blind` is a `RistrettoElement`. A caller that names one of these types
-writes its parameter: `Blinded<RistrettoElement>`. It exists only for the type checker:
-there is one class at run time, and the group in its field does all the work. A class
-held in a variable cannot be called with `new` when its constructor is private, as the
-constructor of `RistrettoElement` is; the context uses only the static members of its
-group. The entry point exports `Group`, `Committed` and `Blinded` as types.
+writes its parameter: `Blinded<RistrettoElement>`. The entry point exports `Group`,
+`Committed` and `Blinded` as types.
 
 ## For Maintainers
 
@@ -393,9 +372,38 @@ The constructor, which every factory calls, does three things, in this order:
 2. it decodes its copy of `h`;
 3. it starts the validation, on its copies only, and keeps the promise of its result.
 
-The copy of the message goes to the validation only. The validation is private. If it is
-ever made public, it must make local copies of its parameters in the same way, before its
-first `await`.
+The copies are intended, and must not be optimized away: a caller that changes its arrays
+after `fromEncoded` returns, even before the validation ends, changes nothing in the
+context, neither what is checked nor what is held. The copy of the message goes to the
+validation only: the context keeps no field for it, since no party needs it again once the
+context is built, and it neither keeps nor serializes it. The validation is private. If it
+is ever made public, it must make local copies of its parameters in the same way, before
+its first `await`.
+
+### Immutability
+
+A context never changes once built, so it is checked once: nothing ever revalidates it.
+Every byte array it returns, such as that of `serialize()`, is a new one, so that a caller
+that changes it changes nothing in the context.
+
+### The promise of the validation
+
+The validation hashes on WebCrypto, so its result is a promise, kept by the context.
+`group` and `boundedInt` do not await it: `g` is defined by its value, which the group
+publishes (RFC 9496 for ristretto255), and the class of the group depends on its order
+only. A context that fails its check and is never used does not cause an unhandled
+rejection.
+
+### The blinding factors
+
+A commitment hides `m` perfectly only when `r` is uniform over all `ℓ` integers of the
+class of the group: leaving one out, `0` or any other, would bias it. So `r` is drawn with
+`randomScalar()` from the whole class, `0` included.
+
+The context makes its blinding factors with `fromValue` of the class of the group, and
+refuses any other class as a blinding factor. The class is made with a scale of 0, so that
+its integers are the scalars themselves: the context checks it, `scale` 0, `low` `0n` and
+`high` `ℓ − 1n`, when it makes it.
 
 ### The queue of blindings
 
@@ -427,10 +435,20 @@ them:
   secret in `blind`;
 - the sum `r + s` of `isOpeningOf` is `bigint` arithmetic, whose timing depends on the
   sizes of `r` and `s`: both are below `ℓ`, as integers of the class of the group;
-- `isOpeningOf` masks the long-lived `r` of a witness with a fresh `s`, and is meant to
-  run once per witness;
+- `isOpeningOf` masks the long-lived `r` of a witness with a fresh `s`: it computes `r·h`
+  as `(r + s)·h − s·h`, so that `h` is never multiplied by `r` itself, and it is meant to
+  run once per witness. `r + s` is a sum of `bigint`s, which the multiplication reduces
+  mod `ℓ`;
 - the pairs of the queue are secret, like the blinding factors they become: they stay in
   the private fields of their context.
+
+### The type parameter
+
+The parameter `E` of `BlindingContext<E>`, `Group<E>`, `Committed<E>` and `Blinded<E>`
+exists only for the type checker: there is one class at run time, and the group in its
+field does all the work. A class held in a variable cannot be called with `new` when its
+constructor is private, as the constructor of `RistrettoElement` is; the context uses only
+the static members of its group.
 
 ### Test vectors
 
@@ -458,5 +476,5 @@ Change History
 | #55 | Committed and Blinded; blind(x) of a bounded integer whose class fits the group; isOpeningOf(opening); boundedInt() and the class of a group; ORDER; the group of fromEncoded is required (#48) |
 | #59 | context.boundedInt is a getter; the errors of Ristretto255Scalar, ½ step each (#58) |
 | #60 | a blinding factor or a queued scalar may be 0: r is uniform over the whole class of the group (#56) |
-| #63 | For users, For developers, For Maintainers; the errors of Ristretto255Scalar keep quadraticSquared (#62) |
+| #63 | For users, For developers, For Maintainers; the errors of Ristretto255Scalar keep quadraticSquared; the copies, immutability, the promise, the blinding factors, the masks and the type parameter explained in For Maintainers only (#62) |
 -->

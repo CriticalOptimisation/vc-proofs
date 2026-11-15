@@ -53,8 +53,7 @@ m + 1n; // TypeError: no implicit conversion, except to a string
 
 ### Values and errors
 
-- **Immutable.** The integer is held in a private field, read through a getter with no
-  setter. No method changes an instance. The classes made by `define` are frozen.
+- **Immutable.** No method changes an instance. The classes made by `define` are frozen.
 - **No public constructor.** Instances come only from `from` and `fromValue`, on a class
   of bounded integers.
 - **An integer, as it is.** The integer keeps its sign and its size. A value outside the
@@ -98,14 +97,14 @@ Every quantity a class takes, a value, a bound, a step or an error, is one of:
 - an exact decimal `[n, e]`, a `bigint` `n` and an integer `e`, worth `n · 10^e`:
   `[23n, -1]` is 2.3. The type `Decimal` names it, and the type `Quantity` names the three.
 
-It is converted at once to a decimal, and all the arithmetic is done on `bigint`s. A
-`bigint` and a decimal are kept exactly, with every digit. A `number` is a binary fraction,
-and every binary fraction is a decimal, but the converse does not hold: 0.3 is a finite
-decimal in base 10, but an endless one in base 2 (`0.0100110011…`). The `number` written
-`0.3` is exactly `0.299999999999999988897769753748434595763683319091796875`, but a `number`
-holds only 15 significant digits reliably: it cannot tell that value apart from the
-decimals around it, 0.3 among them. So the conversion keeps 15 digits, rounded once, and
-the `number` `0.3` is the decimal 0.3, as its writer meant (see
+It is converted at once to an exact decimal. A `bigint` and a decimal are kept exactly,
+with every digit. A `number` is a binary fraction, and every binary fraction is a
+decimal, but the converse does not hold: 0.3 is a finite decimal in base 10, but an
+endless one in base 2 (`0.0100110011…`). The `number` written `0.3` is exactly
+`0.299999999999999988897769753748434595763683319091796875`, but a `number` holds only
+15 significant digits reliably: it cannot tell that value apart from the decimals around
+it, 0.3 among them. So the conversion keeps 15 digits, rounded once, and the `number`
+`0.3` is the decimal 0.3, as its writer meant (see
 [The conversion of a number](#the-conversion-of-a-number)). A bound and a value written as
 the same `number` are the same decimal, and a decimal between 0.1 and the binary value of
 the `number` 0.1 is above the bound `max: 0.1`, as its writer meant.
@@ -247,8 +246,7 @@ reads exactly 12 is no more accurate than when it reads 12.3.
 - **`bound`** is a guaranteed bound: the true value is within `bound` of `D(q)`.
 - **`quadratic`** combines independent errors, as the square root of the sum of their
   squares. The class keeps its square, **`quadraticSquared`**, the sum of the squares
-  itself: a sum of squares of decimals is a decimal, its root seldom is. The class never
-  takes that root to keep it.
+  itself: a sum of squares of decimals is a decimal, its root seldom is.
 - **`term`** is the error of the least accurate term. It decides which digits carry
   meaning (see [valueOf, toString and toLocaleString](#valueof-tostring-and-tolocalestring)).
 
@@ -293,9 +291,7 @@ which is another class.
 
 ##### The rules
 
-The errors given are compared exactly, as decimals. The quadratic error is compared
-through its square, so no root is taken: `term` and `bound` are squared to meet it. A
-broken rule is a `RangeError`.
+The errors given are compared exactly. A broken rule is a `RangeError`.
 
 - `0 ≤ term² ≤ quadraticSquared ≤ bound²`, and `term ≤ bound`, between any two that are
   defined.
@@ -331,10 +327,9 @@ broken rule is a `RangeError`.
 | `{ quadratic: -1 }`                          | `RangeError`   |                    |                |
 | `{ quadraticSquared: -1 }`                   | `RangeError`   |                    |                |
 
-A negative `quadratic` is refused before it is squared, since its square would hide the
-sign. The messages name the key that was given: `error.quadratic` when `quadratic` was
-given, `error.quadraticSquared` when only `quadraticSquared` was, and `error` for a single
-quantity.
+A negative `quadratic` is refused, as any error below 0. The messages name the key that
+was given: `error.quadratic` when `quadratic` was given, `error.quadraticSquared` when
+only `quadraticSquared` was, and `error` for a single quantity.
 
 A class never takes the errors of its parent: the scale may differ, and half a step of
 the parent is not half a step of the class. A class that declares no `error` of its own
@@ -361,24 +356,6 @@ Each is the `number` nearest to its exact ratio, the root included, whatever the
 digits of the errors and of the bounds. Among those that are defined,
 `termError ≤ quadraticError ≤ errorBound` always holds.
 
-##### The accuracy of the errors
-
-The errors are exact where they are kept and combined, and approximate only where a
-`number` or a display needs them:
-
-| Where                                           | Form                                                 | Accuracy                                              |
-| ----------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------- |
-| given to `define` as a `bigint` or a decimal    | a quantity                                           | exact, every digit kept                               |
-| given to `define` as a `number`                 | a quantity                                           | 15 significant digits (see [Quantities](#quantities)) |
-| kept by the class, the constant `error`         | `bound`, `quadraticSquared`, `term`, frozen decimals | exact, every digit kept; no root taken                |
-| the rules                                       | compared on squares                                  | exact                                                 |
-| combined by the modules of the library          | sums and products of decimals                        | exact                                                 |
-| `errorBound`, `quadraticError`, `termError`     | a `number`, relative to `max − min`                  | the nearest `number`, about 16 digits                 |
-| the digits shown by `toString()` and the others | the position of the rounding                         | the position that the exact error gives               |
-
-Only the last two are approximate. Each is computed from the exact decimals, each time,
-and neither changes them.
-
 #### valueOf, toString and toLocaleString
 
 The three write the same decimal: `D(q)`, without the digits that the error makes
@@ -388,9 +365,7 @@ meaningless.
    `bound`, in steps; `quadratic` is the root of `quadraticSquared`. `j` is the largest
    integer `j ≥ 1` with `10^j ≤ 2ε`, or 0 when there is none. Rounding at `10^j` moves the
    value by at most `½ · 10^j ≤ ε` steps: it never adds more error than there is. When the
-   three errors are `undefined`, `j` is 0: every digit is shown. Only the first two
-   significant digits of the error decide `j`: a long error shows the digits that its
-   first two show (see [The display position](#the-display-position)).
+   three errors are `undefined`, `j` is 0: every digit is shown.
 2. **The rounding.** `n` is `q / 10^j`, rounded to the nearest integer, ties to even, in
    `bigint`s. With `j = 0`, `n` is `q`. The decimal shown is `n · 10^(j−k)`, with
    `k − j` decimals.
@@ -414,14 +389,13 @@ value 12.34 is the integer `123n`, and shows:
   `Mass.from(2)` gives `"2.0"`: the tenth of a kilogram carries meaning.
   `Int.from(10n ** 21n).toString()` is `"1000000000000000000000"`.
 - **`toLocaleString(locales?, options?)`** writes the same digits, exactly, in the form of
-  a locale, through `Intl.NumberFormat`, which formats a decimal string without converting
-  it to a `number`: `"1234.50"` is `"1,234.50"` in `en-US` and `"1 234,50"` in `fr-FR`.
+  a locale, through `Intl.NumberFormat`: `"1234.50"` is `"1,234.50"` in `en-US` and
+  `"1 234,50"` in `fr-FR`.
   `options` may set anything but the number of decimals; `Intl.NumberFormat` refuses more
   than 100 decimals with a `RangeError`.
 - **`valueOf()`** is an ordinary method: it returns the `number` nearest to that decimal,
-  read from its exact string `` `${n}e${j − k}` ``, which JavaScript rounds correctly at
-  any size. Where it would be `±Infinity`, it throws a `RangeError`: the precision may be
-  lost, never the order of magnitude. `Int.fromValue(2n ** 53n + 1n).valueOf()` is
+  at any size. Where it would be `±Infinity`, it throws a `RangeError`: the precision may
+  be lost, never the order of magnitude. `Int.fromValue(2n ** 53n + 1n).valueOf()` is
   `2 ** 53`.
 
 None of the three goes through another: a subclass that overrides one changes only that
@@ -437,10 +411,7 @@ a bounded integer converts to a string only:
   for the `number`, or to read `x.value` for the `bigint`.
 
 So `x + 1n`, `"x = " + x`, `x < 5n`, `x * 2n`, `Number(x)` and `Math.abs(x)` all throw.
-Without this method, `x + 1n` would give the string `"[object Object]1"`, and `x < 5n`
-would give `false`, with no error: in code that decides a sign, a silent wrong answer is
-the worst outcome. Since `[Symbol.toPrimitive]` comes first, JavaScript never calls
-`valueOf()` implicitly.
+JavaScript never calls `valueOf()` implicitly.
 
 `JSON.stringify(x)` gives `{}`: the class serializes nothing.
 
@@ -488,13 +459,6 @@ nearest integer. A tie, an exact half, goes to the even integer. Rounding is sym
 A tie needs `x · 10^k` to be exactly a half, as for `0.125` with `k = 2`: it gives 12.
 The `number` written `1.005` is the decimal 1.005, at 15 digits: a tie at `k = 2`, which
 gives `100`.
-
-**Why integers and powers of ten.** The base of a representation decides which numbers
-are finite decimals in it: in base 2, the base of the `number` type, 0.3 is not. Every
-number of base 2 is a decimal of base 10, not the converse. Rational numbers can be held
-as fractions, but a decimal can be held as a single number: an integer and a power of
-ten. A class counts its values in steps of `10^-k`, so that `D(q)` is a decimal, exact,
-and the rounding to the step is the only one.
 
 **What is guaranteed**, with the default error of `½`:
 
@@ -619,6 +583,52 @@ that gives `quadratic` gets `quadraticSquared` from `errors(C)`, never `quadrati
 `T² ≤ Q` and `Q ≤ B²`. It never takes a root. An object it has already returned,
 `NO_ERROR_PROCESSING` included, is returned as it is.
 
+The errors are compared exactly, as decimals: the quadratic error is compared through its
+square, and `term` and `bound` are squared to meet it. A negative `quadratic` is refused
+before it is squared, since its square would hide the sign.
+
+### The accuracy of the errors
+
+The errors are exact where they are kept and combined, and approximate only where a
+`number` or a display needs them:
+
+| Where                                           | Form                                                 | Accuracy                                              |
+| ----------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------- |
+| given to `define` as a `bigint` or a decimal    | a quantity                                           | exact, every digit kept                               |
+| given to `define` as a `number`                 | a quantity                                           | 15 significant digits (see [Quantities](#quantities)) |
+| kept by the class, the constant `error`         | `bound`, `quadraticSquared`, `term`, frozen decimals | exact, every digit kept; no root taken                |
+| the rules                                       | compared on squares                                  | exact                                                 |
+| combined by the modules of the library          | sums and products of decimals                        | exact                                                 |
+| `errorBound`, `quadraticError`, `termError`     | a `number`, relative to `max − min`                  | the nearest `number`, about 16 digits                 |
+| the digits shown by `toString()` and the others | the position of the rounding                         | the position that the exact error gives               |
+
+Only the last two are approximate. Each is computed from the exact decimals, each time,
+and neither changes them.
+
+### The conversions and the display
+
+The integer of an instance is held in a private field, read through a getter with no
+setter. All the arithmetic is done on `bigint`s, on the exact decimals of the quantities.
+
+`valueOf()` reads its `number` from the exact string `` `${n}e${j − k}` ``, which
+JavaScript rounds correctly at any size. `toLocaleString()` goes through
+`Intl.NumberFormat`, which formats a decimal string without converting it to a `number`.
+
+The `[Symbol.toPrimitive]` of a bounded integer throws for every hint but `"string"`.
+Without it, `x + 1n` would give the string `"[object Object]1"`, and `x < 5n` would give
+`false`, with no error: in code that decides a sign, a silent wrong answer is the worst
+outcome. Since `[Symbol.toPrimitive]` comes first, JavaScript never calls `valueOf()`
+implicitly.
+
+### Integers and powers of ten
+
+The base of a representation decides which numbers
+are finite decimals in it: in base 2, the base of the `number` type, 0.3 is not. Every
+number of base 2 is a decimal of base 10, not the converse. Rational numbers can be held
+as fractions, but a decimal can be held as a single number: an integer and a power of
+ten. A class counts its values in steps of `10^-k`, so that `D(q)` is a decimal, exact,
+and the rounding to the step is the only one.
+
 ### For the other modules of the library
 
 `bounded-int.ts` exports what the other modules of the library need to read quantities and
@@ -725,5 +735,5 @@ Change History
 | #53 | no order: a class holds no more values than its parent, unless its parent is BoundedInt; static low and high; define typed as its class, other keys ignored (#52) |
 | #55 | notice: ./core gives the subclass through the boundedInt() of a blinding context (#48) |
 | #59 | three errors { bound, quadratic, term } as decimals, their rules, never inherited, {} disables them; getters may be undefined; display at the first defined error; direct scale, never clamped; a class written by hand declares error as an object only; For the other modules of the library (#58) |
-| #63 | the quadratic error kept squared, quadraticSquared, its rules on squares; NO_ERROR_PROCESSING; product and sum exported; the display position from two digits; the quadratic error getter; For users, For developers, For Maintainers (#62) |
+| #63 | the quadratic error kept squared, quadraticSquared, its rules on squares; NO_ERROR_PROCESSING; product and sum exported; the display position from two digits; the quadratic error getter; For users, For developers, For Maintainers; what explains why the implementation is exact and correct moves to For Maintainers (#62) |
 -->
