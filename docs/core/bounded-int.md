@@ -15,7 +15,7 @@ The page has three parts:
   exports from this page;
 - [For developers](#for-developers): what the low-level entry point,
   `@criticaloptimisation/vc-proofs/core`, exports from this page;
-- [Internals](#internals): the rest, which only the modules of the library see.
+- [For Maintainers](#for-maintainers): the rest, which only the modules of the library see.
 
 ## For users
 
@@ -565,7 +565,7 @@ it, by `define` or by hand, holds more values than it does. The specialized clas
 documented with the blinding context: see the list of pages of the
 [README](../../README.md#documentation).
 
-## Internals
+## For Maintainers
 
 This part documents `src/core/bounded-int.ts` for the modules of the library. Nothing in it
 is exported by an entry point, except `NO_ERROR_PROCESSING`, which `./core` re-exports.

@@ -32,12 +32,12 @@ function members(cls: { readonly prototype: unknown }): string[] {
   return [...statics.map((name) => `static ${name}`), ...instance];
 }
 
-describe("docs/core/ristretto255.md: three parts, for users, for developers, and the internals", () => {
-  test("its parts are For users, For developers and Internals, in that order, each a section of level 2", () => {
+describe("docs/core/ristretto255.md: three parts, for users, for developers, and for maintainers", () => {
+  test("its parts are For users, For developers and For Maintainers, in that order, each a section of level 2", () => {
     expect(outline(page).filter((line) => line.startsWith("## "))).toEqual([
       "## For users",
       "## For developers",
-      "## Internals",
+      "## For Maintainers",
     ]);
   });
 
@@ -47,12 +47,12 @@ describe("docs/core/ristretto255.md: three parts, for users, for developers, and
     );
   });
 
-  test("For developers holds RistrettoElement, Scalars, The integers of Z_ℓ and Constant time; Internals, the checks against libsodium", () => {
+  test("For developers holds RistrettoElement, Scalars, The integers of Z_ℓ and Constant time; For Maintainers, the checks against libsodium", () => {
     const text = section("For developers");
     for (const title of ["RistrettoElement", "Scalars", "The integers of Z_ℓ", "Constant time"]) {
       expect(part(text, title), title).toBeDefined();
     }
-    expect(part(section("Internals"), "Checked against libsodium")).toBeDefined();
+    expect(part(section("For Maintainers"), "Checked against libsodium")).toBeDefined();
   });
 });
 

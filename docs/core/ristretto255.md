@@ -28,7 +28,7 @@ The page has three parts:
   exports from this page;
 - [For developers](#for-developers): what the low-level entry point,
   `@criticaloptimisation/vc-proofs/core`, exports from this page;
-- [Internals](#internals): the rest, which only the maintainers of the library need.
+- [For Maintainers](#for-maintainers): the rest, which only the maintainers of the library need.
 
 ## For users
 
@@ -312,7 +312,7 @@ JavaScript (see [Scalars](#scalars)), whose timing depends on the size of its op
 The reduction mod `ℓ` at the start of each multiplication bounds the size of what the
 multiplication itself works on.
 
-## Internals
+## For Maintainers
 
 This part documents how the class is checked, for the maintainers of the library.
 

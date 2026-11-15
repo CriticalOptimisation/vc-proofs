@@ -4,7 +4,7 @@
  * documentation fails here. The page is self-contained (#44): it names nothing that the
  * class does not define. It has three parts (#62): for users, what
  * `@criticaloptimisation/vc-proofs` exports; for developers, what `./core` exports; and the
- * internals, the rest.
+ * for maintainers, the rest.
  */
 import { describe, expect, test } from "vitest";
 import * as module from "../../src/core/bounded-int.js";
@@ -76,12 +76,12 @@ function rows(text: string, first: RegExp): string[][] {
     );
 }
 
-describe("docs/core/bounded-int.md: three parts, for users, for developers, and the internals", () => {
-  test("its parts are For users, For developers and Internals, in that order, each a section of level 2", () => {
+describe("docs/core/bounded-int.md: three parts, for users, for developers, and for maintainers", () => {
+  test("its parts are For users, For developers and For Maintainers, in that order, each a section of level 2", () => {
     expect(outline(page).filter((line) => line.startsWith("## "))).toEqual([
       "## For users",
       "## For developers",
-      "## Internals",
+      "## For Maintainers",
     ]);
   });
 
@@ -100,8 +100,8 @@ describe("docs/core/bounded-int.md: three parts, for users, for developers, and 
     expect(page).not.toMatch(/import \{[^}]*\bBoundedInt\b[^}]*\} from/);
   });
 
-  test("Internals documents every other export of bounded-int.ts, which For developers does not name", () => {
-    const internals = section("Internals");
+  test("For Maintainers documents every other export of bounded-int.ts, which For developers does not name", () => {
+    const maintainers = section("For Maintainers");
     const developers = section("For developers");
     for (const name of [
       "decimal",
@@ -113,12 +113,12 @@ describe("docs/core/bounded-int.md: three parts, for users, for developers, and 
       "product",
       "sum",
     ]) {
-      expect(internals).toMatch(new RegExp("\\| (?:`\\w+`, )*`" + name + "[`(]"));
+      expect(maintainers).toMatch(new RegExp("\\| (?:`\\w+`, )*`" + name + "[`(]"));
       expect(developers).not.toMatch(new RegExp("`" + name + "\\("));
       expect(name in exported, name).toBe(true);
     }
     for (const type of ["ErrorSpec", "Errors"]) {
-      expect(internals).toContain(`| type \`${type}\``);
+      expect(maintainers).toContain(`| type \`${type}\``);
     }
   });
 });
@@ -154,7 +154,7 @@ describe("docs/core/bounded-int.md, section BoundedInt", () => {
 describe("docs/core/bounded-int.md, section The class constants", () => {
   const text = () => section("The class constants");
 
-  // REVIEW PLACEHOLDER (#62: the constants of the generic class move to Internals, The generic class)
+  // REVIEW PLACEHOLDER (#62: the constants of the generic class move to For Maintainers, The generic class)
   // the table names scale, min, max and error, not order, and BoundedInt has the constants it shows
   //   -> the table names scale, min, max and error, not order; The generic class shows the constants of BoundedInt
   //   expect(text()).toMatch(/\| `scale` .*\| `0` +\|/);
@@ -174,7 +174,7 @@ describe("docs/core/bounded-int.md, section The class constants", () => {
     expect(BoundedInt.error).toBeUndefined();
   });
 
-  // REVIEW PLACEHOLDER (#62: the generic class and its exception move to Internals, The generic class)
+  // REVIEW PLACEHOLDER (#62: the generic class and its exception move to For Maintainers, The generic class)
   //   expect(range).toMatch(/`0n` and `32767n` on `BoundedInt`, `0n` and `1000n` on\s+`Mass`/);
   //   expect(range).toMatch(/A class whose\s+parent is `BoundedInt` is the exception/);
   //   expect(text()).toMatch(
@@ -394,7 +394,7 @@ describe("docs/core/bounded-int.md, section The errors of a class", () => {
     expect(given).toMatch(/It\s+does not say that the values are exact/);
   });
 
-  // REVIEW PLACEHOLDER (#62: the constant error is { bound, quadraticSquared, term }; COARSEST_SCALE and FINEST_SCALE move to Internals)
+  // REVIEW PLACEHOLDER (#62: the constant error is { bound, quadraticSquared, term }; COARSEST_SCALE and FINEST_SCALE move to For Maintainers)
   //   /\| `error` +\| the three errors of the values, `\{ bound, quadratic, term \}`/,
   //   expect(constants).toMatch(/`−308`, `COARSEST_SCALE`, to\s+`323`, `FINEST_SCALE`/);
   test("the class constants say that error holds the three errors, never inherited", () => {
@@ -532,7 +532,7 @@ describe("docs/core/bounded-int.md, section For the other modules of the library
   });
 });
 
-describe("docs/core/bounded-int.md, Internals: the display position and the quadratic error getter", () => {
+describe("docs/core/bounded-int.md, For Maintainers: the display position and the quadratic error getter", () => {
   test("The display position rounds the error down to n < 100 first, takes the root of the rough square, and says why nothing is lost", () => {
     const text = section("The display position");
     expect(text).toMatch(/\*\*Rounded down to `n < 100`\*\*, as the first step/);

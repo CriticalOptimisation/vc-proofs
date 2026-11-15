@@ -195,7 +195,7 @@ describe("docs/core/ristretto255.md: the integers of Z_ℓ link to the blinding 
 });
 
 describe("docs/core/bounded-int.md: the notice of the BoundedInt of the entry point", () => {
-  // REVIEW PLACEHOLDER (#62: the notice ends For developers, after Subclasses; the generic class is in Internals)
+  // REVIEW PLACEHOLDER (#62: the notice ends For developers, after Subclasses; the generic class is in For Maintainers)
   // it comes last, after the material of the generic class, and says that ./core gives a specialized subclass, the boundedInt of a blinding context
   //   -> it ends For developers, after Subclasses, and says that ./core gives a specialized subclass, the boundedInt of a blinding context
   //   expect(generic.indexOf("\n## The BoundedInt of the entry point\n")).toBeGreaterThan(

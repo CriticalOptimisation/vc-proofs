@@ -38,7 +38,7 @@ The page has three parts:
   exports from this page;
 - [For developers](#for-developers): what the low-level entry point,
   `@criticaloptimisation/vc-proofs/core`, exports from this page;
-- [Internals](#internals): the rest, which only the modules of the library see.
+- [For Maintainers](#for-maintainers): the rest, which only the modules of the library see.
 
 ## For users
 
@@ -380,7 +380,7 @@ held in a variable cannot be called with `new` when its constructor is private, 
 constructor of `RistrettoElement` is; the context uses only the static members of its
 group. The entry point exports `Group`, `Committed` and `Blinded` as types.
 
-## Internals
+## For Maintainers
 
 This part documents what `src/core/blinding-context.ts` does behind its members, for the
 maintainers of the library. Nothing in it is a member that an entry point exports.

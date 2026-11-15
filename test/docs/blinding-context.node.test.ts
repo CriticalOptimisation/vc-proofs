@@ -65,12 +65,12 @@ function members(cls: { readonly prototype: unknown } | undefined): string[] {
   return [...statics.map((name) => `static ${name}`), ...instance];
 }
 
-describe("docs/core/blinding-context.md: three parts, for users, for developers, and the internals", () => {
-  test("its parts are For users, For developers and Internals, in that order, each a section of level 2", () => {
+describe("docs/core/blinding-context.md: three parts, for users, for developers, and for maintainers", () => {
+  test("its parts are For users, For developers and For Maintainers, in that order, each a section of level 2", () => {
     expect(outline(page).filter((line) => line.startsWith("## "))).toEqual([
       "## For users",
       "## For developers",
-      "## Internals",
+      "## For Maintainers",
     ]);
   });
 
@@ -98,8 +98,8 @@ describe("docs/core/blinding-context.md: three parts, for users, for developers,
     );
   });
 
-  test("Internals holds the constructor, the queue of blindings, constant time and the test vectors", () => {
-    const text = section("Internals");
+  test("For Maintainers holds the constructor, the queue of blindings, constant time and the test vectors", () => {
+    const text = section("For Maintainers");
     for (const title of [
       "The constructor",
       "The queue of blindings",
