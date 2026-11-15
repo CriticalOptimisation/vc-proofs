@@ -20,7 +20,13 @@ const tsc = require.resolve("typescript/bin/tsc");
  */
 const surface: Record<string, string[]> = {
   "": [],
-  "/core": ["BlindingContext", "NO_ERROR_PROCESSING", "RistrettoElement", "requestHash"],
+  "/core": [
+    "BlindingContext",
+    "LinearCombination",
+    "NO_ERROR_PROCESSING",
+    "RistrettoElement",
+    "requestHash",
+  ],
 };
 const entries = Object.keys(surface);
 
@@ -64,10 +70,6 @@ describe("after the build", { timeout: 120_000 }, () => {
     });
   }
 
-  // REVIEW PLACEHOLDER (#62: ./core exports the value NO_ERROR_PROCESSING of bounded-int.ts)
-  // the declarations of ./core export no BoundedInt, the types Committed, Blinded and Group of blinding-context.ts, and the types Decimal and Quantity of bounded-int.ts; ristretto.ts declares no BoundedInt; boundedInt is a getter
-  //   -> the declarations of ./core export no BoundedInt, the types Committed, Blinded and Group of blinding-context.ts, the types Decimal and Quantity and the value NO_ERROR_PROCESSING of bounded-int.ts; ristretto.ts declares no BoundedInt; boundedInt is a getter
-  //   expect(index).not.toMatch(/export \{[^}]*\} from "\.\/bounded-int\.js";/);
   test("the declarations of ./core export no BoundedInt, the types Committed, Blinded and Group of blinding-context.ts, the types Decimal and Quantity and the value NO_ERROR_PROCESSING of bounded-int.ts; ristretto.ts declares no BoundedInt; boundedInt is a getter", () => {
     const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
     expect(index).not.toMatch(/\bBoundedInt\b/);
@@ -108,9 +110,6 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(context).toMatch(/readonly ORDER: bigint;/);
   });
 
-  // REVIEW PLACEHOLDER (#62: the errors keep quadraticSquared; NO_ERROR_PROCESSING)
-  // the declarations of bounded-int.ts declare the generic BoundedInt, its constants without integerOnly nor order, the quantities, from, fromValue, define typed as its class, low, high, the errors of the class, value, valueOf, toString and toLocaleString
-  //   -> the same, with quadraticSquared in ErrorSpec and Errors, and NO_ERROR_PROCESSING
   test("the declarations of bounded-int.ts declare the generic BoundedInt, its constants without integerOnly nor order, the quantities, from, fromValue, define typed as its class, low, high, the errors of the class with quadraticSquared, NO_ERROR_PROCESSING, value, valueOf, toString and toLocaleString", () => {
     const declarations = readFileSync(`${root}dist/core/bounded-int.d.ts`, "utf8");
     expect(declarations).toContain("export declare class BoundedInt {");
@@ -142,6 +141,34 @@ describe("after the build", { timeout: 120_000 }, () => {
     expect(declarations).toContain("valueOf(): number;");
     expect(declarations).toContain("toString(): string;");
     expect(declarations).toContain("toLocaleString(");
+  });
+
+  test("the declarations of linear-combination.ts declare LinearCombination, its class of the result and its coefficients, combine of Committed returning an element E, combineBlinded of Blinded returning a Blinded; ./core exports it; it imports blinding-context.ts for its types only, and the elements of a group from interfaces.ts", () => {
+    const index = readFileSync(`${root}dist/core/index.d.ts`, "utf8");
+    expect(index).toContain('export { LinearCombination } from "./linear-combination.js";');
+    const declarations = readFileSync(`${root}dist/core/linear-combination.d.ts`, "utf8");
+    expect(declarations).toContain("export declare class LinearCombination {");
+    expect(declarations).toMatch(/\n\s+constructor\(spec: \w+\);/);
+    expect(declarations).toContain("get boundedInt(): typeof BoundedInt;");
+    expect(declarations).toContain("get coefficients(): readonly bigint[];");
+    // A verifier's Committed gives an element; a Committed is no Blinded, so the type
+    // checker refuses it to combineBlinded.
+    // GroupElement lives in interfaces.ts, the file of the core interfaces: no copy of it.
+    const interfaces = readFileSync(`${root}dist/core/interfaces.d.ts`, "utf8");
+    expect(interfaces).toMatch(/export interface GroupElement \{/);
+    expect(declarations).toMatch(
+      /import type \{[^}]*\bGroupElement\b[^}]*\} from "\.\/interfaces\.js";/,
+    );
+    expect(declarations).not.toMatch(/interface \w*Element\b/);
+    expect(declarations).toMatch(
+      /\n\s+combine<E extends GroupElement>\(context: BlindingContext<E>, committed: readonly Committed<E>\[\]\): E;/,
+    );
+    expect(declarations).toMatch(
+      /\n\s+combineBlinded<E extends GroupElement>\(context: BlindingContext<E>, openings: readonly Blinded<E>\[\]\): Blinded<E>;/,
+    );
+    expect(readFileSync(`${root}dist/core/linear-combination.js`, "utf8")).not.toContain(
+      "./blinding-context.js",
+    );
   });
 
   test("a path outside the exports map does not resolve", () => {
@@ -191,3 +218,4 @@ describe("after the build", { timeout: 120_000 }, () => {
 // | #55    | ./core exports no BoundedInt; the types Committed, Blinded, Group; a required group; blinding-context.ts names no ristretto255 (#48) |
 // | #59    | ./core exports the types Decimal and Quantity; get boundedInt; the constant error is an ErrorSpec, the error of define a quantity or an ErrorSpec; getters may be undefined; placeholders of #55 removed (#58) |
 // | #63    | ./core exports NO_ERROR_PROCESSING; the declarations of quadraticSquared and NO_ERROR_PROCESSING (#62) |
+// | #64    | ./core exports LinearCombination, and declares it; placeholders of #63 removed (#50) |

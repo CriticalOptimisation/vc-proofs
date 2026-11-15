@@ -73,6 +73,9 @@ gh attestation verify criticaloptimisation-vc-proofs-<version>.tgz -R CriticalOp
   constants of one application and the Pedersen commitments made with them, and
   `context.boundedInt`, the integers of Z_ℓ, from which the classes of the values are
   made.
+- [Linear combinations](docs/core/linear-combination.md): `LinearCombination`, the
+  commitment to a linear combination of committed values, which a verifier computes from
+  the commitments and a holder with its opening.
 - [Development guide](docs/development.md).
 
 ## Development
@@ -99,4 +102,5 @@ Change History
 | #51 | the page of the group lists BoundedInt, the integer of Z_ℓ (#49) |
 | #55 | the blinding context gives context.boundedInt(), the integers of Z_ℓ; ./core exports no BoundedInt (#48) |
 | #59 | context.boundedInt, a getter (#58) |
+| #64 | links Linear combinations (#50) |
 -->
