@@ -39,10 +39,6 @@ const Scalar = BlindingContext.fromEncoded(
 ).boundedInt;
 
 describe("context.boundedInt of ristretto255: the integer of Z_ℓ", () => {
-  // REVIEW PLACEHOLDER (#58: define stores the errors of every class it makes, half a step by default)
-  // its constants: scale 0, the bounds [−0.5, ℓ − 0.5), no order, no error; low 0n, high ℓ − 1n; the class is frozen
-  //   -> its constants: scale 0, the bounds [−0.5, ℓ − 0.5), no order, the errors of half a step; low 0n, high ℓ − 1n; the class is frozen
-  //   expect(Scalar.error).toBeUndefined();
   test("its constants: scale 0, the bounds [−0.5, ℓ − 0.5), no order, the errors of half a step; low 0n, high ℓ − 1n; the class is frozen", () => {
     expect(Scalar.scale).toBe(0);
     expect(Scalar.min).toBe(-0.5);
@@ -51,7 +47,7 @@ describe("context.boundedInt of ristretto255: the integer of Z_ℓ", () => {
     expect([Scalar.low, Scalar.high]).toEqual([0n, L - 1n]);
     expect(Scalar.error as unknown).toStrictEqual({
       bound: [5n, -1],
-      quadratic: [5n, -1],
+      quadraticSquared: [25n, -2],
       term: [5n, -1],
     });
     expect(Object.isFrozen(Scalar)).toBe(true);
@@ -223,9 +219,6 @@ describe("the class of ristretto255: edge cases", () => {
     expect(top.valueOf()).toBe(Number(L - 1n));
   });
 
-  // REVIEW PLACEHOLDER (#58: errorBound is a number or undefined; undefined gives NaN, which fails)
-  // errorBound is ½ / ℓ: half a step over the ℓ steps of [−0.5, ℓ − 0.5)
-  //   expect(Math.abs(Scalar.errorBound - expected) / expected).toBeLessThan(1e-15);
   test("errorBound is ½ / ℓ: half a step over the ℓ steps of [−0.5, ℓ − 0.5)", () => {
     const expected = 0.5 / Number(L);
     expect(Math.abs((Scalar.errorBound ?? Number.NaN) - expected) / expected).toBeLessThan(1e-15);

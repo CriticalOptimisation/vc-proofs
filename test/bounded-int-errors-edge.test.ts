@@ -10,14 +10,35 @@ import { describe, expect, test } from "vitest";
 import {
   BoundedInt,
   type Decimal,
-  type Errors,
   type ErrorSpec,
   errors,
   type Quantity,
 } from "../src/core/bounded-int.js";
 
-/** The same error in each position. */
-const three = (d: Decimal | undefined): Errors => ({ bound: d, quadratic: d, term: d });
+/** The errors of a class, as `errors(C)` gives them (#62). */
+interface Errors {
+  readonly bound: Decimal | undefined;
+  readonly quadraticSquared: Decimal | undefined;
+  readonly term: Decimal | undefined;
+}
+
+/** The square of a decimal, normalized: `[5n, -2]` gives `[25n, -4]`. */
+function square([n, e]: Decimal): Decimal {
+  let [m, f] = [n * n, 2 * e];
+  if (m === 0n) return [0n, 0];
+  while (m % 10n === 0n) {
+    m /= 10n;
+    f++;
+  }
+  return [m, f];
+}
+
+/** The errors of a single term `d`: `bound` and `term` are `d`, `quadraticSquared` its square. */
+const three = (d: Decimal | undefined): Errors => ({
+  bound: d,
+  quadraticSquared: d === undefined ? undefined : square(d),
+  term: d,
+});
 
 /** A class of scale 1, `[0, 100.05)`, with the given `error`, or none when left out. */
 const make = (error?: unknown, spec: { min?: Quantity; max?: Quantity; step?: Quantity } = {}) =>
@@ -59,11 +80,12 @@ describe("BoundedInt.define: an error of the wrong type is a TypeError that name
   test("{ bound: undefined, quadratic: undefined, term: undefined } is the same as {}", () => {
     const C = make({ bound: undefined, quadratic: undefined, term: undefined });
     expect(errors(C)).toStrictEqual(three(undefined));
+    expect(errors(make({ quadraticSquared: undefined }))).toStrictEqual(three(undefined));
   });
 });
 
 describe("BoundedInt.define: the messages of a broken rule name the errors", () => {
-  test.each<[string, ErrorSpec, RegExp]>([
+  test.each<[string, unknown, RegExp]>([
     ["{ term: -1 }", { term: -1 }, /^BoundedInt\.define: error\.term must be 0 or more$/],
     [
       "{ bound: 1, term: 2 }",
@@ -97,22 +119,25 @@ describe("BoundedInt.define: errors of 0, in each position", () => {
   test("{ term: 0 } and { quadratic: 0 } stay alone; { bound: 0 } alone too", () => {
     expect(errors(make({ term: 0 }))).toStrictEqual({
       bound: undefined,
-      quadratic: undefined,
+      quadraticSquared: undefined,
       term: [0n, 0],
     });
     expect(errors(make({ quadratic: 0 }))).toStrictEqual({
       bound: undefined,
-      quadratic: [0n, 0],
+      quadraticSquared: [0n, 0],
       term: undefined,
     });
     expect(errors(make({ bound: 0 }))).toStrictEqual({
       bound: [0n, 0],
-      quadratic: undefined,
+      quadraticSquared: undefined,
       term: undefined,
     });
   });
 
-  test("{ bound: 0, term: 0 } fills quadratic with 0; { bound: 0, term: 0.1 } is a RangeError", () => {
+  // REVIEW PLACEHOLDER (#62: the quadratic error is kept squared)
+  // { bound: 0, term: 0 } fills quadratic with 0; { bound: 0, term: 0.1 } is a RangeError
+  //   -> { bound: 0, term: 0 } fills quadraticSquared with 0; { bound: 0, term: 0.1 } is a RangeError
+  test("{ bound: 0, term: 0 } fills quadraticSquared with 0; { bound: 0, term: 0.1 } is a RangeError", () => {
     expect(errors(make({ bound: 0, term: 0 }))).toStrictEqual(three([0n, 0]));
     expect(() => make({ bound: 0, term: 0.1 })).toThrow(RangeError);
   });
@@ -128,7 +153,7 @@ describe("BoundedInt.define: errors with huge or tiny exponents", () => {
     const C = make({ bound: [1n, 10000], term: [1n, -10000] });
     expect(errors(C)).toStrictEqual({
       bound: [1n, 10000],
-      quadratic: undefined,
+      quadraticSquared: undefined,
       term: [1n, -10000],
     });
     // The term, far below a step, shows every digit.
@@ -168,7 +193,11 @@ describe("errors(C): BoundedInt itself, and the errors of a class reused", () =>
     const A = make({ bound: 3, term: 1 });
     const B = BoundedInt.define({ name: "B", min: 0, max: 1000, step: 10, error: errors(A) });
     expect(B.scale).toBe(-1);
-    expect(errors(B)).toStrictEqual({ bound: [3n, 0], quadratic: undefined, term: [1n, 0] });
+    expect(errors(B)).toStrictEqual({
+      bound: [3n, 0],
+      quadraticSquared: undefined,
+      term: [1n, 0],
+    });
   });
 
   test("a child of a class without errors ({}) has half its own step: errors are never inherited", () => {
@@ -179,8 +208,6 @@ describe("errors(C): BoundedInt itself, and the errors of a class reused", () =>
     expect(errors(Hand)).toStrictEqual(three([5n, -2]));
   });
 
-  // REVIEW PLACEHOLDER (#58, review of #59: the constant error of a class is an ErrorSpec only)
-  //   static override error = 0.5;
   test("a class written by hand with its own scale: half its step by default, its error in the unit of the values", () => {
     class Cents extends BoundedInt {
       static override scale = 2;
@@ -194,8 +221,6 @@ describe("errors(C): BoundedInt itself, and the errors of a class reused", () =>
   });
 });
 
-// REVIEW PLACEHOLDER (#58, review of #59: a bare quantity is a TypeError, before its sign is read)
-//   ["-1", -1, RangeError],
 describe("a class written by hand whose errors are invalid is refused at its first use", () => {
   test.each<[string, unknown, typeof TypeError | typeof RangeError]>([
     ["{ bound: 1, quadratic: 1, term: 0.5 }", { bound: 1, quadratic: 1, term: 0.5 }, RangeError],

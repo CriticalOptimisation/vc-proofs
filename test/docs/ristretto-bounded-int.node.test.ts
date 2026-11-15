@@ -15,7 +15,7 @@ import { describe, expect, test } from "vitest";
 import { BoundedInt as GenericBoundedInt } from "../../src/core/bounded-int.js";
 import { BlindingContext, RistrettoElement } from "../../src/core/index.js";
 import vectors from "../vectors/blinding-context.json" with { type: "json" };
-import { read } from "./markdown.js";
+import { part, read } from "./markdown.js";
 
 const page = read("docs/core/blinding-context.md");
 const group = read("docs/core/ristretto255.md");
@@ -35,12 +35,11 @@ const Scalar = BlindingContext.fromEncoded(
   RistrettoElement,
 ).boundedInt;
 
-/** The text of the section `## <title>` of `text`, up to the next `## ` heading. */
+/** The text under the heading `title` of `text`, at any level, up to the next heading of its level or above. */
 function section(text: string, title: string): string {
-  const start = text.indexOf(`\n## ${title}\n`);
-  expect(start).toBeGreaterThan(-1);
-  const end = text.indexOf("\n## ", start + 1);
-  return text.slice(start, end === -1 ? undefined : end);
+  const found = part(text, title);
+  expect(found, title).toBeDefined();
+  return found ?? "";
 }
 
 /** The cells of the row of the table whose first cell is `` `name` ``. */
@@ -66,10 +65,6 @@ describe("docs/core/blinding-context.md, section The class of a group", () => {
     expect(page).toMatch(/\[the class of a group\]\(#the-class-of-a-group\)/i);
   });
 
-  // REVIEW PLACEHOLDER (#58: define stores the errors of every class it makes)
-  // it names every own member of the class: the constants scale, min and max
-  //   -> it names every own member of the class: the constants scale, min, max and error
-  //   expect(own.sort()).toEqual(["max", "min", "scale"]);
   test("it names every own member of the class: the constants scale, min, max and error", () => {
     const own = Object.getOwnPropertyNames(Scalar).filter(
       (name) => !["length", "name", "prototype"].includes(name),
@@ -78,11 +73,9 @@ describe("docs/core/blinding-context.md, section The class of a group", () => {
     for (const name of own) expect(text).toContain(`\`${name}\``);
   });
 
-  // REVIEW PLACEHOLDER (#58: define stores the errors of every class it makes, half a step by default)
-  // the table of constants shows the constants of the class: scale 0, [−0.5, ℓ − 0.5), no error; no order
-  //   -> the table of constants shows the constants of the class: scale 0, [−0.5, ℓ − 0.5), the errors of half a step; no order
-  //   expect(row(text, "error")[1]).toBe("absent: ½ step");
-  //   expect(Scalar.error).toBeUndefined();
+  // REVIEW PLACEHOLDER (#62: the quadratic error is kept squared)
+  //   expect(row(text, "error")[1]).toBe("½ step: `bound`, `quadratic` and `term` each `[5n, -1]`");
+  //   expect(Scalar.error as unknown).toStrictEqual({ bound: [5n, -1], quadratic: [5n, -1], term: [5n, -1] });
   test("the table of constants shows the constants of the class: scale 0, [−0.5, ℓ − 0.5), the errors of half a step; no order", () => {
     expect(row(text, "scale")[1]).toBe("`0`");
     expect(Scalar.scale).toBe(0);
@@ -92,10 +85,12 @@ describe("docs/core/blinding-context.md, section The class of a group", () => {
     expect(Scalar.max).toEqual([10n * L - 5n, -1]);
     expect(text).not.toMatch(/\| `order` /);
     expect("order" in Scalar).toBe(false);
-    expect(row(text, "error")[1]).toBe("½ step: `bound`, `quadratic` and `term` each `[5n, -1]`");
+    expect(row(text, "error")[1]).toBe(
+      "½ step: `bound` and `term` each `[5n, -1]`, `quadraticSquared` `[25n, -2]`",
+    );
     expect(Scalar.error as unknown).toStrictEqual({
       bound: [5n, -1],
-      quadratic: [5n, -1],
+      quadraticSquared: [25n, -2],
       term: [5n, -1],
     });
   });
@@ -200,10 +195,19 @@ describe("docs/core/ristretto255.md: the integers of Z_ℓ link to the blinding 
 });
 
 describe("docs/core/bounded-int.md: the notice of the BoundedInt of the entry point", () => {
-  test("it comes last, after the material of the generic class, and says that ./core gives a specialized subclass, the boundedInt of a blinding context", () => {
+  // REVIEW PLACEHOLDER (#62: the notice ends For developers, after Subclasses; the generic class is in Internals)
+  // it comes last, after the material of the generic class, and says that ./core gives a specialized subclass, the boundedInt of a blinding context
+  //   -> it ends For developers, after Subclasses, and says that ./core gives a specialized subclass, the boundedInt of a blinding context
+  //   expect(generic.indexOf("\n## The BoundedInt of the entry point\n")).toBeGreaterThan(
+  //     generic.indexOf("\n## Subclasses\n"),
+  //   );
+  test("it ends For developers, after Subclasses, and says that ./core gives a specialized subclass, the boundedInt of a blinding context", () => {
+    expect(section(generic, "For developers")).toContain(
+      "\n### The BoundedInt of the entry point\n",
+    );
     const notice = section(generic, "The BoundedInt of the entry point");
-    expect(generic.indexOf("\n## The BoundedInt of the entry point\n")).toBeGreaterThan(
-      generic.indexOf("\n## Subclasses\n"),
+    expect(generic.indexOf("\n### The BoundedInt of the entry point\n")).toBeGreaterThan(
+      generic.indexOf("\n### Subclasses\n"),
     );
     expect(notice).toMatch(/does not export the class of this page/);
     expect(notice).toMatch(/library: the `boundedInt` of a blinding context\./);

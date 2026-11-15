@@ -7,25 +7,19 @@
 import { describe, expect, test } from "vitest";
 import * as entryPoint from "../../src/core/index.js";
 import { RistrettoElement } from "../../src/core/index.js";
-import { read } from "./markdown.js";
+import { outline, part, read } from "./markdown.js";
 
 const page = read("docs/core/ristretto255.md");
 
-/** The text of the section `## <title>`, up to the next `## ` heading. */
+/** The text under the heading `title`, at any level, up to the next heading of its level or above. */
 function section(title: string): string {
-  const start = page.indexOf(`\n## ${title}\n`);
-  expect(start).toBeGreaterThan(-1);
-  const end = page.indexOf("\n## ", start + 1);
-  return page.slice(start, end === -1 ? undefined : end);
+  const text = part(page, title);
+  expect(text, title).toBeDefined();
+  return text ?? "";
 }
 
-/** The text of the subsection `### <title>`, up to the next heading. */
-function subsection(title: string): string {
-  const start = page.indexOf(`\n### ${title}\n`);
-  expect(start).toBeGreaterThan(-1);
-  const end = page.slice(start + 1).search(/\n##+ /);
-  return page.slice(start, end === -1 ? undefined : start + 1 + end);
-}
+/** The same as `section`: a subsection is found at any level too. */
+const subsection = section;
 
 /** The public members of a class: its static members and those of its prototype. */
 function members(cls: { readonly prototype: unknown }): string[] {
@@ -37,6 +31,30 @@ function members(cls: { readonly prototype: unknown }): string[] {
   );
   return [...statics.map((name) => `static ${name}`), ...instance];
 }
+
+describe("docs/core/ristretto255.md: three parts, for users, for developers, and the internals", () => {
+  test("its parts are For users, For developers and Internals, in that order, each a section of level 2", () => {
+    expect(outline(page).filter((line) => line.startsWith("## "))).toEqual([
+      "## For users",
+      "## For developers",
+      "## Internals",
+    ]);
+  });
+
+  test("For users says that the high-level entry point exports nothing from the page yet", () => {
+    expect(section("For users")).toMatch(
+      /`@criticaloptimisation\/vc-proofs`, exports nothing from this page\s+yet/,
+    );
+  });
+
+  test("For developers holds RistrettoElement, Scalars, The integers of Z_ℓ and Constant time; Internals, the checks against libsodium", () => {
+    const text = section("For developers");
+    for (const title of ["RistrettoElement", "Scalars", "The integers of Z_ℓ", "Constant time"]) {
+      expect(part(text, title), title).toBeDefined();
+    }
+    expect(part(section("Internals"), "Checked against libsodium")).toBeDefined();
+  });
+});
 
 const classes = [["RistrettoElement", RistrettoElement]] as const;
 
@@ -55,7 +73,7 @@ describe.each(classes)("docs/core/ristretto255.md, section %s", (title, cls) => 
 describe("docs/core/ristretto255.md documents scalars as bigints", () => {
   test("it has a section Scalars, and none for RistrettoScalar", () => {
     expect(section("Scalars")).toMatch(/`bigint`/);
-    expect(page).not.toMatch(/\n## RistrettoScalar\n/);
+    expect(page).not.toMatch(/\n#+ RistrettoScalar\n/);
   });
 
   test("the entry point exports no RistrettoScalar, and RistrettoElement no Scalar", () => {

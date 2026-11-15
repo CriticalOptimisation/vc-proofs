@@ -2,22 +2,23 @@
  * docs/core/bounded-int.md documents every public member of `BoundedInt` (#41) in its
  * table. The members are read from the class, so a member added without its
  * documentation fails here. The page is self-contained (#44): it names nothing that the
- * class does not define.
+ * class does not define. It has three parts (#62): for users, what
+ * `@criticaloptimisation/vc-proofs` exports; for developers, what `./core` exports; and the
+ * internals, the rest.
  */
 import { describe, expect, test } from "vitest";
 import * as module from "../../src/core/bounded-int.js";
 import { BoundedInt, type Decimal } from "../../src/core/bounded-int.js";
 import { classes, examples } from "../helpers/bounded-int-examples.js";
-import { read } from "./markdown.js";
+import { outline, part, read } from "./markdown.js";
 
 const page = read("docs/core/bounded-int.md");
 
-/** The text of the section `## <title>`, up to the next `## ` heading. */
+/** The text under the heading `title`, at any level, up to the next heading of its level or above. */
 function section(title: string): string {
-  const start = page.indexOf(`\n## ${title}\n`);
-  expect(start).toBeGreaterThan(-1);
-  const end = page.indexOf("\n## ", start + 1);
-  return page.slice(start, end === -1 ? undefined : end);
+  const text = part(page, title);
+  expect(text, title).toBeDefined();
+  return text ?? "";
 }
 
 /** The class constants, which have a table of their own (#44). */
@@ -36,6 +37,91 @@ function members(): string[] {
   );
   return [...statics.map((name) => `static ${name}`), ...instance, ...symbols];
 }
+
+/** The exports of `bounded-int.ts`, by name, read so that this file compiles before they exist. */
+const exported = module as unknown as Record<string, unknown>;
+
+/** The errors of a class, as `errors(C)` gives them (#62). */
+type Errors = Record<"bound" | "quadraticSquared" | "term", Decimal | undefined>;
+
+/** `errors(C)`, the export of `bounded-int.ts`. */
+function errorsOf(C: typeof BoundedInt): Errors {
+  const errors = exported.errors;
+  expect(typeof errors).toBe("function");
+  return (errors as (C: typeof BoundedInt) => Errors)(C);
+}
+
+/**
+ * The value that a cell of a table writes in TypeScript: an object of keys, numbers and
+ * decimals `[24999n, -4]`, or a name exported by `bounded-int.ts`.
+ */
+function literal(cell: string): unknown {
+  if (/^[A-Z_]+$/.test(cell)) return exported[cell];
+  const json = cell.replace(/(\w+):/g, '"$1":').replace(/(-?\d+)n\b/g, '"$1n"');
+  return JSON.parse(json, (_, value: unknown) =>
+    typeof value === "string" && /^-?\d+n$/.test(value) ? BigInt(value.slice(0, -1)) : value,
+  ) as unknown;
+}
+
+/** The cells of the rows of a table in `text` whose first cell matches `first`. */
+function rows(text: string, first: RegExp): string[][] {
+  return text
+    .split("\n")
+    .filter((line) => first.test(line))
+    .map((line) =>
+      line
+        .split("|")
+        .slice(1, -1)
+        .map((cell) => cell.trim().replace(/^`|`$/g, "")),
+    );
+}
+
+describe("docs/core/bounded-int.md: three parts, for users, for developers, and the internals", () => {
+  test("its parts are For users, For developers and Internals, in that order, each a section of level 2", () => {
+    expect(outline(page).filter((line) => line.startsWith("## "))).toEqual([
+      "## For users",
+      "## For developers",
+      "## Internals",
+    ]);
+  });
+
+  test("For users says that the high-level entry point exports nothing from the page yet", () => {
+    expect(section("For users")).toMatch(
+      /`@criticaloptimisation\/vc-proofs`, exports nothing from this page\s+yet/,
+    );
+  });
+
+  test("For developers names what ./core gives: the types Decimal and Quantity, NO_ERROR_PROCESSING, and the class context.boundedInt; it imports no BoundedInt", () => {
+    const text = section("For developers");
+    for (const name of ["Decimal", "Quantity", "NO_ERROR_PROCESSING", "context.boundedInt"]) {
+      expect(text).toContain(`\`${name}\``);
+    }
+    expect(text).toMatch(/const Int = context\.boundedInt;/);
+    expect(page).not.toMatch(/import \{[^}]*\bBoundedInt\b[^}]*\} from/);
+  });
+
+  test("Internals documents every other export of bounded-int.ts, which For developers does not name", () => {
+    const internals = section("Internals");
+    const developers = section("For developers");
+    for (const name of [
+      "decimal",
+      "MANTISSA",
+      "EXPONENT",
+      "errors",
+      "compare",
+      "normalize",
+      "product",
+      "sum",
+    ]) {
+      expect(internals).toMatch(new RegExp("\\| (?:`\\w+`, )*`" + name + "[`(]"));
+      expect(developers).not.toMatch(new RegExp("`" + name + "\\("));
+      expect(name in exported, name).toBe(true);
+    }
+    for (const type of ["ErrorSpec", "Errors"]) {
+      expect(internals).toContain(`| type \`${type}\``);
+    }
+  });
+});
 
 describe("docs/core/bounded-int.md, section BoundedInt", () => {
   test("the class has its public members: from, fromValue, define, low, high, the three errors, value, valueOf, toString, toLocaleString, toPrimitive", () => {
@@ -66,50 +152,63 @@ describe("docs/core/bounded-int.md, section BoundedInt", () => {
 });
 
 describe("docs/core/bounded-int.md, section The class constants", () => {
-  const text = () =>
-    page.slice(page.indexOf("\n### The class constants\n"), page.indexOf("\n### from\n"));
+  const text = () => section("The class constants");
 
-  test("the table names scale, min, max and error, not order, and BoundedInt has the constants it shows", () => {
+  // REVIEW PLACEHOLDER (#62: the constants of the generic class move to Internals, The generic class)
+  // the table names scale, min, max and error, not order, and BoundedInt has the constants it shows
+  //   -> the table names scale, min, max and error, not order; The generic class shows the constants of BoundedInt
+  //   expect(text()).toMatch(/\| `scale` .*\| `0` +\|/);
+  //   expect(text()).toMatch(/\| `min` .*\| `0n` +\|/);
+  //   expect(text()).toMatch(/\| `max` .*\| `32767.5` +\|/);
+  test("the table names scale, min, max and error, not order; The generic class shows the constants of BoundedInt", () => {
     for (const name of CONSTANTS) expect(text()).toMatch(new RegExp(`\\| \`${name}\` +\\|`));
     expect(text()).not.toContain("integerOnly");
     expect(text()).not.toMatch(/\| `order` /);
-    expect(text()).toMatch(/\| `scale` .*\| `0` +\|/);
-    expect(text()).toMatch(/\| `min` .*\| `0n` +\|/);
-    expect(text()).toMatch(/\| `max` .*\| `32767.5` +\|/);
+    const generic = section("The generic class");
+    expect(generic).toMatch(/\| `scale` +\| `0` +\|/);
+    expect(generic).toMatch(/\| `min` +\| `0n` +\|/);
+    expect(generic).toMatch(/\| `max` +\| `32767.5` +\|/);
+    expect(generic).toMatch(/\| `error` +\| absent: ½ step +\|/);
     expect([BoundedInt.scale, BoundedInt.min, BoundedInt.max]).toEqual([0, 0n, 32767.5]);
     expect("order" in BoundedInt).toBe(false);
     expect(BoundedInt.error).toBeUndefined();
   });
 
+  // REVIEW PLACEHOLDER (#62: the generic class and its exception move to Internals, The generic class)
+  //   expect(range).toMatch(/`0n` and `32767n` on `BoundedInt`, `0n` and `1000n` on\s+`Mass`/);
+  //   expect(range).toMatch(/A class whose\s+parent is `BoundedInt` is the exception/);
+  //   expect(text()).toMatch(
+  //     /\| more values than its parent, unless its parent is `BoundedInt` +\| `RangeError` \|/,
+  //   );
   test("the subsection The range of a class makes the bounds semi-open, gives low and high, counts the values of a byte, and refuses more values than the parent", () => {
-    const start = text().indexOf("\n#### The range of a class\n");
-    expect(start).toBeGreaterThan(-1);
-    const range = text().slice(start);
+    const range = section("The range of a class");
     expect(range).toContain("`min ≤ x < max`");
     expect(range).toContain("`x = max` is a `RangeError`");
     expect(range).toContain("`[−0.5, 255.5)`");
     expect(range).toMatch(/The static getters `low` and\s+`high` give them/);
-    expect(range).toMatch(/`0n` and `32767n` on `BoundedInt`, `0n` and `1000n` on\s+`Mass`/);
-    expect([BoundedInt.low, BoundedInt.high]).toEqual([0n, 32767n]);
+    expect(range).toMatch(/`0n` and `1000n` on `Mass`/);
     expect([classes().Mass.low, classes().Mass.high]).toEqual([0n, 1000n]);
     expect(range).toMatch(/A class holds `high − low \+ 1` distinct values/);
     expect(range).toMatch(/A class holds no more values than its parent, the class it extends/);
-    expect(range).toMatch(/A class whose\s+parent is `BoundedInt` is the exception/);
     expect(range).not.toContain("order");
-    expect(text()).toMatch(
-      /\| more values than its parent, unless its parent is `BoundedInt` +\| `RangeError` \|/,
-    );
+    expect(range).toMatch(/\| more values than its parent +\| `RangeError` \|/);
+    const generic = section("The generic class");
+    expect(generic).toMatch(/`0n` and `32767n`/);
+    expect([BoundedInt.low, BoundedInt.high]).toEqual([0n, 32767n]);
+    expect(generic).toMatch(/except a class whose parent is `BoundedInt`/);
   });
 
+  // REVIEW PLACEHOLDER (#62: the examples of For developers make their classes from Int, context.boundedInt)
+  //   'const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 }); // 0 to 255: 256 values',
   test("the example of The range of a class gives what it says", () => {
-    const range = text().slice(text().indexOf("\n#### The range of a class\n"));
+    const range = section("The range of a class");
     const code = range.slice(
       range.indexOf("```ts"),
       range.indexOf("```", range.indexOf("```ts") + 5),
     );
     const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 });
     expect(code).toContain(
-      'const Byte = BoundedInt.define({ name: "Byte", min: -0.5, max: 255.5 }); // 0 to 255: 256 values',
+      'const Byte = Int.define({ name: "Byte", min: -0.5, max: 255.5 }); // 0 to 255: 256 values',
     );
     expect([Byte.low, Byte.high]).toEqual([0n, 255n]);
     const Percent = Byte.define({ name: "Percent", min: -0.5, max: 100.5 });
@@ -147,15 +246,18 @@ describe("docs/core/bounded-int.md: a self-contained page", () => {
 });
 
 describe("docs/core/bounded-int.md, section define", () => {
+  // REVIEW PLACEHOLDER (#62: define is documented on Int, the class of a blinding context, whose classes hold no more values than it)
+  //   expect(text).toContain("`BoundedInt.define({ name, min, max, step?, error? })`");
+  //   expect(text).toMatch(
+  //     /\| more values than its parent, unless its parent is `BoundedInt` +\| `RangeError` \|/,
+  //   );
   test("define takes no order, ignores any other key, and refuses more values than the parent", () => {
-    const text = page.slice(page.indexOf("\n### define\n"), page.indexOf("\n## Rounding\n"));
-    expect(text).toContain("`BoundedInt.define({ name, min, max, step?, error? })`");
+    const text = section("define");
+    expect(text).toContain("`Int.define({ name, min, max, step?, error? })`");
     expect(text).toMatch(/typed as that class/);
     expect(text).toContain("Any other key of `spec` is ignored.");
     expect(text).not.toContain("order");
-    expect(text).toMatch(
-      /\| more values than its parent, unless its parent is `BoundedInt` +\| `RangeError` \|/,
-    );
+    expect(text).toMatch(/\| more values than its parent +\| `RangeError` \|/);
   });
 });
 
@@ -194,127 +296,193 @@ describe("docs/core/bounded-int.md, section Examples", () => {
 
   test("the page has no other row than these, on the five classes of its examples", () => {
     expect(Object.keys(classes())).toHaveLength(5);
-    const rows = section("Examples")
+    const lines = section("Examples")
       .split("\n")
       .filter((text) => text.startsWith("| `"));
-    expect(rows).toHaveLength(examples.length);
+    expect(lines).toHaveLength(examples.length);
   });
 });
 
-/** The exports of `bounded-int.ts`, by name, read so that this file compiles before they exist. */
-const exported = module as unknown as Record<string, unknown>;
-
-/** The text of the subsection `### <title>`, up to the next `### ` or `## ` heading. */
-function subsection(title: string): string {
-  const start = page.indexOf(`\n### ${title}\n`);
-  expect(start).toBeGreaterThan(-1);
-  const next = [page.indexOf("\n### ", start + 1), page.indexOf("\n## ", start + 1)].filter(
-    (i) => i !== -1,
-  );
-  return page.slice(start, Math.min(...next));
-}
-
 describe("docs/core/bounded-int.md, section The errors of a class", () => {
-  const text = () => subsection("The errors of a class");
+  const text = () => section("The errors of a class");
 
-  test("it gives the three errors, the three forms of error, {} that disables them, and the rules", () => {
-    for (const name of ["bound", "quadratic", "term"]) expect(text()).toContain(`**\`${name}\`**`);
-    expect(text()).toContain("\n#### Given to define\n");
+  // REVIEW PLACEHOLDER (#62: the quadratic error is kept squared, quadraticSquared; the rules are on squares)
+  // it gives the three errors, the three forms of error, {} that disables them, and the rules
+  //   -> it gives the three errors, the quadratic one kept squared, the three forms of error, {} and NO_ERROR_PROCESSING that disable them, and the rules on squares
+  //   for (const name of ["bound", "quadratic", "term"]) expect(text()).toContain(`**\`${name}\`**`);
+  //   expect(text()).toMatch(/\*\*an object\*\* `\{ bound\?, quadratic\?, term\? \}`/);
+  //   expect(text()).toContain("- `0 ≤ term ≤ quadratic ≤ bound`, between any two that are defined.");
+  test("it gives the three errors, the quadratic one kept squared, the three forms of error, {} and NO_ERROR_PROCESSING that disable them, and the rules on squares", () => {
+    for (const name of ["bound", "quadratic", "quadraticSquared", "term"]) {
+      expect(text()).toContain(`**\`${name}\`**`);
+    }
+    expect(text()).toMatch(/The class never\s+takes that root/);
+    expect(section("Given to define")).toBeDefined();
     expect(text()).toMatch(/\*\*left out\*\*: each of the three is half a step of the class/);
     expect(text()).toMatch(/\*\*a quantity\*\*, 0 or more: the three are equal to it/);
-    expect(text()).toMatch(/\*\*an object\*\* `\{ bound\?, quadratic\?, term\? \}`/);
+    expect(text()).toMatch(
+      /\*\*an object\*\* `\{ bound\?, quadratic\?, quadraticSquared\?, term\? \}`/,
+    );
+    expect(text()).toMatch(
+      /the square\s+of `quadratic` must equal `quadraticSquared`, exactly, else a `RangeError`/,
+    );
     expect(text()).toMatch(/`\{\}` leaves the three `undefined`: the class has no error/);
-    expect(text()).toContain("\n#### The rules\n");
-    expect(text()).toContain("- `0 ≤ term ≤ quadratic ≤ bound`, between any two that are defined.");
+    expect(text()).toMatch(/`NO_ERROR_PROCESSING`, a frozen object of three `undefined` errors/);
+    expect(section("The rules")).toBeDefined();
+    expect(text()).toContain(
+      "- `0 ≤ term² ≤ quadraticSquared ≤ bound²`, and `term ≤ bound`, between any two that are\n  defined.",
+    );
     expect(text()).toMatch(/If two are equal, the third is equal to them/);
     expect(text()).toMatch(/an `undefined` error stays `undefined`/);
     expect(text()).toMatch(/A class never takes the errors of its parent/);
-    expect(text()).toMatch(/Each is `undefined` where its error is\./);
+    expect(text()).toMatch(/Each is\s+`undefined` where its error is\./);
   });
 
+  // REVIEW PLACEHOLDER (#62: the table has the column quadraticSquared, and rows for quadraticSquared and NO_ERROR_PROCESSING)
+  //   expect(rows).toHaveLength(13);
+  //   for (const [error, bound, quadratic, term] of rows) {
+  //   const expected = [bound, quadratic, term].map((cell) => cell === "[5n, −1 − k]" ? "0.05" : cell);
+  //   expect([shown(got?.bound), shown(got?.quadratic), shown(got?.term)], error).toEqual(expected);
   test("its table gives what define gives, for a class of scale 1", () => {
-    const errors = exported.errors as
-      ((C: typeof BoundedInt) => Record<string, unknown>) | undefined;
-    expect(typeof errors).toBe("function");
-    const rows = text()
-      .split("\n")
-      .filter(
-        (line) =>
-          line.startsWith("| left out") || line.startsWith("| `{") || line.startsWith("| `0"),
-      )
-      .map((line) =>
-        line
-          .split("|")
-          .slice(1, -1)
-          .map((cell) => cell.trim().replace(/^`|`$/g, "")),
-      );
-    expect(rows).toHaveLength(13);
+    const table = rows(section("The rules"), /^\| (left out|`\{|`0|`NO_ERROR_PROCESSING)/);
+    expect(table).toHaveLength(21);
+    expect(section("The rules")).toMatch(/\| `bound` +\| `quadraticSquared` +\| `term` +\|/);
     /** A cell as the number it shows, or `undefined`. */
-    const shown = (d: unknown) =>
-      d === undefined
-        ? "undefined"
-        : String(Number(`${String((d as Decimal)[0])}e${String((d as Decimal)[1])}`));
-    for (const [error, bound, quadratic, term] of rows) {
+    const shown = (d: Decimal | undefined) =>
+      d === undefined ? "undefined" : String(Number(`${String(d[0])}e${String(d[1])}`));
+    const defaults: Record<string, string> = {
+      "[5n, −1 − k]": "0.05",
+      "[25n, −2 − 2k]": "0.0025",
+    };
+    for (const [error, bound, quadraticSquared, term] of table) {
       const spec: Record<string, unknown> = { name: "E", min: 0, max: 100.05, step: 0.1 };
-      if (error !== "left out") {
-        spec.error = JSON.parse((error ?? "").replace(/(\w+):/g, '"$1":')) as unknown;
-      }
+      if (error !== "left out") spec.error = literal(error ?? "");
       if (bound === "RangeError") {
         expect(() => BoundedInt.define(spec as never), error).toThrow(RangeError);
         continue;
       }
-      const got = errors?.(BoundedInt.define(spec as never));
-      const expected = [bound, quadratic, term].map((cell) =>
-        cell === "[5n, −1 − k]" ? "0.05" : cell,
+      const got = errorsOf(BoundedInt.define(spec as never));
+      const expected = [bound, quadraticSquared, term].map((cell) => defaults[cell ?? ""] ?? cell);
+      expect([shown(got.bound), shown(got.quadraticSquared), shown(got.term)], error).toEqual(
+        expected,
       );
-      expect([shown(got?.bound), shown(got?.quadratic), shown(got?.term)], error).toEqual(expected);
     }
   });
 
-  test("the class constants say that error holds the three errors, never inherited", () => {
-    const constants = page.slice(
-      page.indexOf("\n### The class constants\n"),
-      page.indexOf("\n#### The range of a class\n"),
+  test("its example of NO_ERROR_PROCESSING gives what it says", () => {
+    const given = section("Given to define");
+    expect(given).toContain(
+      'import { NO_ERROR_PROCESSING } from "@criticaloptimisation/vc-proofs/core";',
     );
-    expect(constants).toMatch(
-      /\| `error` +\| the three errors of the values, `\{ bound, quadratic, term \}`/,
-    );
-    expect(constants).toMatch(/inherits those of its base, except `error`/);
-    expect(constants).toMatch(/`−308`, `COARSEST_SCALE`, to\s+`323`, `FINEST_SCALE`/);
+    expect(given).toContain("Raw.errorBound; // undefined, as quadraticError and termError");
+    expect(given).toContain('Raw.fromValue(123n).toString(); // "12.3": every digit');
+    const none = exported.NO_ERROR_PROCESSING;
+    expect(none).toBeDefined();
+    const Raw = BoundedInt.define({
+      name: "Raw",
+      min: 0,
+      max: 100.05,
+      step: 0.1,
+      error: none as never,
+    });
+    expect([Raw.errorBound, Raw.quadraticError, Raw.termError]).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(Raw.fromValue(123n).toString()).toBe("12.3");
+    expect(given).toMatch(/It\s+does not say that the values are exact/);
   });
 
+  // REVIEW PLACEHOLDER (#62: the constant error is { bound, quadraticSquared, term }; COARSEST_SCALE and FINEST_SCALE move to Internals)
+  //   /\| `error` +\| the three errors of the values, `\{ bound, quadratic, term \}`/,
+  //   expect(constants).toMatch(/`−308`, `COARSEST_SCALE`, to\s+`323`, `FINEST_SCALE`/);
+  test("the class constants say that error holds the three errors, never inherited", () => {
+    const constants = section("The class constants");
+    expect(constants).toMatch(
+      /\| `error` +\| the three errors of the values, `\{ bound, quadraticSquared, term \}`/,
+    );
+    expect(constants).toMatch(/inherits those of its base, except `error`/);
+    expect(section("The generic class")).toMatch(
+      /`COARSEST_SCALE` and `FINEST_SCALE` name the limits of the scale, `−308`\s+and `323`/,
+    );
+  });
+
+  // REVIEW PLACEHOLDER (#62: errors(C) gives quadraticSquared; the object form takes quadraticSquared)
+  //   /\| `error` not an object `\{ bound\?, quadratic\?, term\? \}`, a quantity included +\| `TypeError` +\|/,
+  //   expect(errors(Quarter)).toStrictEqual({ bound: [25n, -2], quadratic: [25n, -2], term: [25n, -2] });
   test("a class written by hand declares error as an object only, never a bare quantity, and its example gives what it says", () => {
     expect(page).toMatch(
-      /\| `error` not an object `\{ bound\?, quadratic\?, term\? \}`, a quantity included +\| `TypeError` +\|/,
+      /\| `error` not an object `\{ bound\?, quadratic\?, quadraticSquared\?, term\? \}`, a quantity included +\| `TypeError` +\|/,
     );
     expect(page).toMatch(/A class written by hand declares `error` as an object of errors,/);
     expect(page).toMatch(/never as a bare quantity/);
     expect(page).toContain(
       "`static override error = { bound: 0.25, quadratic: 0.25 }` gives three errors of 0.25",
     );
-    const errors = exported.errors as (C: typeof BoundedInt) => unknown;
     class Quarter extends BoundedInt {
       static override error = { bound: 0.25, quadratic: 0.25 };
     }
-    expect(errors(Quarter)).toStrictEqual({
+    expect(errorsOf(Quarter)).toStrictEqual({
       bound: [25n, -2],
-      quadratic: [25n, -2],
+      quadraticSquared: [625n, -4],
       term: [25n, -2],
     });
   });
 
-  test("the display rounds at the first defined of term, quadratic and bound, else shows every digit", () => {
-    const display = subsection("valueOf, toString and toLocaleString");
-    expect(display).toMatch(/the first defined of `term`, `quadratic` and\s+`bound`, in steps/);
-    expect(display).toMatch(
-      /When the three errors are `undefined`, `j` is 0:\s+every digit is shown/,
+  test("The getters: quadraticError is the root of quadraticSquared over max − min, the nearest number; the order always holds", () => {
+    const getters = section("The getters");
+    expect(getters).toMatch(/`√quadraticSquared \/ \(max − min\)`/);
+    expect(getters).toMatch(/Each is the `number` nearest to its exact ratio, the root included/);
+    expect(getters).toMatch(/`termError ≤ quadraticError ≤ errorBound` always holds/);
+  });
+
+  test("The accuracy of the errors: exact where they are kept and combined, approximate only in a number or a display", () => {
+    const accuracy = section("The accuracy of the errors");
+    expect(accuracy).toMatch(
+      /\| kept by the class, the constant `error` +\|.*\| exact, every digit kept; no root taken +\|/,
     );
+    expect(accuracy).toMatch(/\| the rules +\|.*\| exact +\|/);
+    expect(accuracy).toMatch(/\| combined by the modules of the library +\|.*\| exact +\|/);
+    expect(accuracy).toMatch(/\| `errorBound`, `quadraticError`, `termError` +\|/);
+    expect(accuracy).toMatch(/the position that the exact error gives/);
+    expect(accuracy).toMatch(/neither changes them/);
+  });
+
+  // REVIEW PLACEHOLDER (#62: quadratic is the root of quadraticSquared; the first two digits decide)
+  //   expect(display).toMatch(/the first defined of `term`, `quadratic` and\s+`bound`, in steps/);
+  //   expect(display).toMatch(/When the three errors are `undefined`, `j` is 0:\s+every digit is shown/);
+  test("the display rounds at the first defined of term, quadratic and bound, else shows every digit; the first two digits of the error decide", () => {
+    const display = section("valueOf, toString and toLocaleString");
+    expect(display).toMatch(
+      /the first defined of `term`, `quadratic` and\s+`bound`, in steps; `quadratic` is the root of `quadraticSquared`/,
+    );
+    expect(display).toMatch(
+      /When the\s+three errors are `undefined`, `j` is 0: every digit is shown/,
+    );
+    expect(display).toMatch(/Only the first two\s+significant digits of the error decide `j`/);
+  });
+
+  test("the table of the display with Kilo shows what the code gives", () => {
+    const display = section("valueOf, toString and toLocaleString");
+    const table = rows(display, /^\| `\{/);
+    expect(table).toHaveLength(7);
+    for (const [error, , , string] of table) {
+      const Kilo = BoundedInt.define({
+        name: "Kilo",
+        min: 0,
+        max: 100.05,
+        step: 0.1,
+        error: literal(error ?? "") as never,
+      });
+      expect(Kilo.from(12.34).toString(), error).toBe(JSON.parse(string ?? "") as string);
+    }
   });
 });
 
 describe("docs/core/bounded-int.md, section define: the direct scale and the errors", () => {
   test("the scale is k = 1 − digits(n) − e, refused outside −308 … 323, never brought back; error takes three forms", () => {
-    const text = subsection("define");
+    const text = section("define");
     expect(text).toContain("so `k = 1 − digits(n) − e`");
     expect(text).toMatch(/`\[9461n, 12\]`, gives\s+`k = −15`/);
     expect(text).toMatch(/It is never brought\s+back to the nearest limit/);
@@ -332,11 +500,22 @@ describe("docs/core/bounded-int.md, section define: the direct scale and the err
 });
 
 describe("docs/core/bounded-int.md, section For the other modules of the library", () => {
-  // REVIEW PLACEHOLDER (#58: the page names MANTISSA and EXPONENT in one cell, `MANTISSA`, `EXPONENT`)
-  //   expect(text).toMatch(new RegExp("\\| `" + name + "[`(]"));
+  // REVIEW PLACEHOLDER (#62: the arithmetic is exported too, and NO_ERROR_PROCESSING)
+  //   for (const name of ["decimal", "MANTISSA", "EXPONENT", "errors"]) {
+  //   expect(text).toMatch(/exports only the types\s+`Quantity` and `Decimal`/);
   test("it names each export of bounded-int.ts for the other modules, and each exists", () => {
     const text = section("For the other modules of the library");
-    for (const name of ["decimal", "MANTISSA", "EXPONENT", "errors"]) {
+    for (const name of [
+      "decimal",
+      "MANTISSA",
+      "EXPONENT",
+      "compare",
+      "normalize",
+      "product",
+      "sum",
+      "errors",
+      "NO_ERROR_PROCESSING",
+    ]) {
       // In the first cell of a row, alone or after the other names of the cell.
       expect(text).toMatch(new RegExp("\\| (?:`\\w+`, )*`" + name + "[`(]"));
       expect(name in exported, name).toBe(true);
@@ -344,7 +523,33 @@ describe("docs/core/bounded-int.md, section For the other modules of the library
     for (const type of ["Quantity", "Decimal", "ErrorSpec", "Errors"]) {
       expect(text).toContain(`| type \`${type}\``);
     }
-    expect(text).toMatch(/exports only the types\s+`Quantity` and `Decimal`/);
+    expect(text).toMatch(
+      /exports only\s+the types `Quantity` and `Decimal`, which its signatures name, and `NO_ERROR_PROCESSING`/,
+    );
+    expect(text).toMatch(
+      /\| `errors\(C\)` +\| the frozen errors `\{ bound, quadraticSquared, term \}`/,
+    );
+  });
+});
+
+describe("docs/core/bounded-int.md, Internals: the display position and the quadratic error getter", () => {
+  test("The display position rounds the error down to n < 100 first, takes the root of the rough square, and says why nothing is lost", () => {
+    const text = section("The display position");
+    expect(text).toMatch(/\*\*Rounded down to `n < 100`\*\*, as the first step/);
+    expect(text).toMatch(/`r = ⌊√m⌋`/);
+    expect(text).toMatch(/\*\*`j = position\(ε\)`\*\*/);
+    expect(text).toMatch(/\*\*Why nothing is lost\.\*\*/);
+    expect(text).toMatch(/the errors stay as they are kept/);
+  });
+
+  test("The quadratic error getter: the exact cases, the quotient, Newton's iteration for 2 iterations, the clamp; the display never reads it", () => {
+    const text = section("The quadratic error getter");
+    expect(text).toMatch(/\*\*The exact cases\.\*\*/);
+    expect(text).toMatch(/at least 60 digits/);
+    expect(text).toMatch(/\*\*Newton's iteration\*\*, `s_\{i\+1\} = \(s_i \+ X \/ s_i\) \/ 2`/);
+    expect(text).toMatch(/two iterations, a\s+fixed number/);
+    expect(text).toMatch(/clamped between `termError` and `errorBound`/);
+    expect(text).toMatch(/The display never reads this getter\./);
   });
 });
 
