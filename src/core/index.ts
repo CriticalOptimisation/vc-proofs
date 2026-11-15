@@ -15,12 +15,15 @@
  * exported as types, and so are `Decimal` and `Quantity`, the quantities its signatures
  * name. `NO_ERROR_PROCESSING`, the errors disabled by name, is the one value of
  * `bounded-int.ts` it exports; the helpers of `bounded-int.ts` for the other modules are
- * not exported.
+ * not exported. `LinearCombination` gives the commitment to a linear combination of
+ * committed values (docs/core/linear-combination.md); `GroupElement`, the elements of a
+ * group, lives in `interfaces.ts` and is not exported.
  */
 export { BlindingContext } from "./blinding-context.js";
 export type { Blinded, Committed, Group } from "./blinding-context.js";
 export { NO_ERROR_PROCESSING } from "./bounded-int.js";
 export type { Decimal, Quantity } from "./bounded-int.js";
+export { LinearCombination } from "./linear-combination.js";
 export { requestHash } from "./request-hash.js";
 export { RistrettoElement } from "./ristretto.js";
 

@@ -22,22 +22,10 @@
  * The functions exported below the class are for the tests, not for the entry point.
  */
 import { BoundedInt as GenericBoundedInt } from "./bounded-int.js";
+import type { GroupElement } from "./interfaces.js";
 
 /** The length at which the queue of blindings stops filling. */
 const QUEUE_LENGTH = 10;
-
-/**
- * What a context needs of the elements of its group. Written with `this`, so that a class
- * whose methods take and return its own instances, such as `RistrettoElement`, satisfies
- * it. The scalars of every group are `bigint`s (docs/core/ristretto255.md, *Scalars*).
- */
-interface GroupElement {
-  encode(): Uint8Array;
-  equals(other: this): boolean;
-  add(other: this): this;
-  subtract(other: this): this;
-  multiplyScalar(n: bigint): this;
-}
 
 /**
  * A group for a blinding context, of elements `E`: the members of the table in
