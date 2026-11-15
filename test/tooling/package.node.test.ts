@@ -20,7 +20,13 @@ const tsc = require.resolve("typescript/bin/tsc");
  */
 const surface: Record<string, string[]> = {
   "": [],
-  "/core": ["BlindingContext", "LinearCombination", "NO_ERROR_PROCESSING", "RistrettoElement", "requestHash"],
+  "/core": [
+    "BlindingContext",
+    "LinearCombination",
+    "NO_ERROR_PROCESSING",
+    "RistrettoElement",
+    "requestHash",
+  ],
 };
 const entries = Object.keys(surface);
 

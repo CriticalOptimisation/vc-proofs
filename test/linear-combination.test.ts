@@ -13,9 +13,9 @@
  * `context.boundedInt`, the class of the group, as an application makes them.
  */
 import { describe, expect, test } from "vitest";
-import { errors, BoundedInt as GenericBoundedInt } from "../src/core/bounded-int.js";
+import { errors, type Errors, BoundedInt as GenericBoundedInt } from "../src/core/bounded-int.js";
 import * as entryPoint from "../src/core/index.js";
-import { RistrettoElement } from "../src/core/index.js";
+import { NO_ERROR_PROCESSING, RistrettoElement } from "../src/core/index.js";
 import generatorVectors from "./vectors/generator-h.json" with { type: "json" };
 
 /** A class of bounded integers. */
@@ -155,16 +155,11 @@ const massMinusReading = () =>
 const modL = (x: bigint) => ((x % L) + L) % L;
 
 /**
- * The errors of a class as they are stored, the quadratic error squared
- * (docs/core/linear-combination.md, The errors of the result): exact decimals, with no
- * square root. Read through `errors`, whose type does not name them yet.
+ * The errors of a class as they are stored, `{ bound, quadraticSquared, term }`
+ * (docs/core/bounded-int.md, Kept as decimals): exact decimals, the quadratic error
+ * squared, with no square root.
  */
-interface StoredErrors {
-  readonly bound: readonly [bigint, number] | undefined;
-  readonly quadraticSquared: readonly [bigint, number] | undefined;
-  readonly term: readonly [bigint, number] | undefined;
-}
-const stored = (C: BoundedIntClass): StoredErrors => errors(C) as unknown as StoredErrors;
+const stored = (C: BoundedIntClass): Errors => errors(C);
 
 /** The `Committed` of an opening. */
 const committedOf = (b: Blinded): Committed => ({
@@ -240,7 +235,7 @@ describe("LinearCombination: the constructor and the class of the result", () =>
 
 describe("LinearCombination: the errors of the result", () => {
   /** The rows of the table of the examples, with the errors as decimals. */
-  const rows: [string, () => Combination, StoredErrors][] = [
+  const rows: [string, () => Combination, Errors][] = [
     [
       "Age: bound 1, the square of the quadratic error 0.5² + 0.5² = 0.5, term 0.5",
       age,
@@ -272,6 +267,27 @@ describe("LinearCombination: the errors of the result", () => {
       "0.2·x: the three 0.2 × 0.00005 = 0.00001, half the step of the result",
       () => combination({ name: "Fifth", terms: [[0.2, Fraction]] }),
       { bound: [1n, -5], quadraticSquared: [1n, -10], term: [1n, -5] },
+    ],
+    [
+      "Mass + Raw, Raw with NO_ERROR_PROCESSING: the three undefined, as Raw's",
+      () =>
+        combination({
+          name: "MassPlusRaw",
+          terms: [
+            [1n, Mass],
+            [
+              1n,
+              Scalar.define({
+                name: "Raw",
+                min: 0,
+                max: 100.05,
+                step: 0.1,
+                error: NO_ERROR_PROCESSING,
+              }),
+            ],
+          ],
+        }),
+      { bound: undefined, quadraticSquared: undefined, term: undefined },
     ],
     [
       "the empty combination: the three 0",

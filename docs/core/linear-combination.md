@@ -7,8 +7,7 @@ can compute, alone, a commitment to any linear combination of the hidden values:
 from a birth date and today's date, a balance from a credit and a debit. A proof about
 that one commitment, such as a range proof, is then a proof about the combination.
 
-The low-level entry point, `@criticaloptimisation/vc-proofs/core`, gives the class
-`LinearCombination`. A combination is a list of terms `aᵢ·Tᵢ`: a coefficient `aᵢ`, a
+A combination is a list of terms `aᵢ·Tᵢ`: a coefficient `aᵢ`, a
 [quantity](bounded-int.md#quantities), and `Tᵢ`, a class of
 [bounded integers](bounded-int.md). It is built once, from classes only, and knows no
 group and no context. It is used with a [blinding context](blinding-context.md), by two
@@ -57,7 +56,27 @@ const C = Age.combine(context, [
 C.equals(age.commitment); // true
 ```
 
-## Values and errors
+The page has three parts:
+
+- [For users](#for-users): what the high-level entry point, `@criticaloptimisation/vc-proofs`,
+  exports from this page;
+- [For developers](#for-developers): what the low-level entry point,
+  `@criticaloptimisation/vc-proofs/core`, exports from this page;
+- [For Maintainers](#for-maintainers): the rest, which only the modules of the library see.
+
+## For users
+
+The high-level entry point, `@criticaloptimisation/vc-proofs`, exports nothing from this page
+yet: it is a placeholder, whose functions are fixed by the issues of the issuer, the wallet
+and the verifier. A developer who builds on the primitives reads
+[For developers](#for-developers).
+
+## For developers
+
+The low-level entry point, `@criticaloptimisation/vc-proofs/core`, exports the class
+`LinearCombination`.
+
+### Values and errors
 
 - **Immutable.** A combination never changes once built. Its terms are copied by the
   constructor, so a later change to the caller's array changes nothing.
@@ -71,7 +90,7 @@ C.equals(age.commitment); // true
   that does not fit the group of the context, a count of inputs other than the count of
   terms, or a commitment given twice. The messages name the method. See [Errors](#errors).
 
-## LinearCombination
+### LinearCombination
 
 | Member                                   | Returns                                                                |
 | ---------------------------------------- | ---------------------------------------------------------------------- |
@@ -81,7 +100,7 @@ C.equals(age.commitment); // true
 | `combine(context, committed)`            | the commitment to the combination, an element of the group             |
 | `combineBlinded(context, openings)`      | the commitment to the combination with its opening, a frozen `Blinded` |
 
-### The constructor
+#### The constructor
 
 `new LinearCombination({ name, terms })` takes:
 
@@ -95,7 +114,7 @@ C.equals(age.commitment); // true
 Any other key of the spec is ignored. The constructor computes, once, the coefficients
 and the class of the result.
 
-### The coefficients
+#### The coefficients
 
 The values of the terms are counted in steps of their classes, `10^-kᵢ` (see
 [The class constants](bounded-int.md#the-class-constants)), and the coefficients may be
@@ -126,79 +145,21 @@ The coefficients grow with the spread of the exponents: a coefficient `[1n, -30]
 class of scale 0 gives `k = 30`, and multiplies every other term by `10^30`. A `bigint`
 holds them exactly; the cost is in the size of the integers.
 
-### The class of the result
+#### The class of the result
 
 `boundedInt` is the class of the bounded integers of the result, made once by the
-constructor and the same object on every read. It is made with the
-[`define`](bounded-int.md#define) of the generic class of bounded integers, not of the
-class of a group: its parent is the generic class, so it may hold more integers than any
-group has scalars, and [the group at use](#the-group-at-use) decides whether it fits.
+constructor and the same object on every read. It is not made from the class of a group:
+it may hold more integers than any group has scalars, and
+[the group at use](#the-group-at-use) decides whether it fits.
 
 - **Its scale** is `k`, the scale of the coefficients.
 - **Its range**: `low = Σ a′ᵢ · (a′ᵢ > 0 ? lowᵢ : highᵢ)` and
   `high = Σ a′ᵢ · (a′ᵢ > 0 ? highᵢ : lowᵢ)`, the least and the greatest integer that the
-  values of the terms can give. The class is made with the bounds
-  `[low · 10^-k, (high + ½) · 10^-k)`, so that its `low` and `high` are exactly these.
-  It holds `high − low + 1 = 1 + Σ |a′ᵢ| · (highᵢ − lowᵢ)` integers.
-- **Its errors**, in the unit of the result, from the errors of the terms (see
-  [The errors of a class](bounded-int.md#the-errors-of-a-class)) and the decimal
-  coefficients `aᵢ`: `bound = Σ |aᵢ| · boundᵢ`, the worst case; the quadratic error
-  `√Σ (aᵢ · quadraticᵢ)²`, for independent errors; `term = max |aᵢ| · termᵢ`, the least
-  accurate term. See [The errors of the result](#the-errors-of-the-result).
+  values of the terms can give. It holds `high − low + 1 = 1 + Σ |a′ᵢ| · (highᵢ − lowᵢ)`
+  integers.
+- **Its errors**: see [The errors of the result](#the-errors-of-the-result).
 - **Its name** is the `name` given to the constructor. It is frozen, as every class made
   by `define`.
-
-### The errors of the result
-
-The three errors are exact decimals `[n, e]`, absolute, in the unit of the values. The
-quadratic error is kept **squared**, as `quadraticSquared`: a square root is seldom a
-decimal, while a square of a decimal always is. So the combination computes every error
-with products, sums and comparisons of decimals, and never takes a root. Only a person
-sees the root: the digits a value shows, which its class decides (see
-[valueOf, toString and toLocaleString](bounded-int.md#valueof-tostring-and-tolocalestring)).
-
-The operations, on `bigint`s:
-
-| Operation      | On decimals                                                                        |
-| -------------- | ---------------------------------------------------------------------------------- |
-| product        | `[n, e] · [n′, e′] = [n·n′, e + e′]`                                               |
-| square         | `[n, e]² = [n², 2e]`                                                               |
-| sum            | align on `m = min(e, e′)`, adding trailing zeros: `[n·10^(e−m) + n′·10^(e′−m), m]` |
-| largest        | the `compare` of bounded integers, exact                                           |
-| trailing zeros | removed at the end: `[50n, -2]` is `[5n, -1]`                                      |
-
-For each term, with `|aᵢ| = [|nᵢ|, eᵢ]` and the errors of its class `Tᵢ`, as it stores
-them:
-
-1. `boundᵢ′ = |aᵢ| · boundᵢ`, and `bound = Σ boundᵢ′`, aligned and added in order;
-2. `qᵢ′ = |aᵢ|² · quadraticSquaredᵢ = [nᵢ² · n_q, 2eᵢ + e_q]`, and
-   `quadraticSquared = Σ qᵢ′`, aligned and added the same way: the squares are added as
-   they are stored, so their exponents are already those of squares, and their alignment
-   is that of any sum;
-3. `termᵢ′ = |aᵢ| · termᵢ`, and `term` is the largest of them.
-
-An error is `undefined` as soon as one term has it `undefined`: a sum with an unknown
-part is unknown. With no term, the three are 0: the constant is exact. A coefficient of 0
-adds 0 to each.
-
-**Worked: `2·Mass − Reading`.** `Mass` is known to half its step, 0.05: `bound` and `term`
-`[5n, -2]`, `quadraticSquared` `[25n, -4]`. `Reading` likewise, at 0.005: `[5n, -3]` and
-`[25n, -6]`. The coefficients are `|2| = [2n, 0]` and `|−1| = [1n, 0]`.
-
-- `bound`: `[2n, 0] · [5n, -2] = [10n, -2]`, and `[5n, -3]`; aligned on `−3`,
-  `100 + 5 = 105`: `[105n, -3]`, 0.105.
-- `quadraticSquared`: `[2n, 0]² · [25n, -4] = [4n, 0] · [25n, -4] = [100n, -4]`, and
-  `[25n, -6]`; aligned on `−6`, `10000 + 25 = 10025`: `[10025n, -6]`, 0.010025. Its root,
-  about 0.1001, is never computed.
-- `term`: the larger of `[10n, -2]` and `[5n, -3]`: `[1n, -1]`, 0.1.
-
-The rules `term ≤ quadratic ≤ bound` are checked on squares: `0.01 ≤ 0.010025 ≤ 0.011025`.
-
-**Worked: `0.2·x`**, the example of [The coefficients](#the-coefficients). `x` is known to
-`[5n, -5]`, squared `[25n, -10]`; `|0.2| = [2n, -1]`. `bound` and `term` are
-`[2n, -1] · [5n, -5] = [10n, -6]`, that is `[1n, -5]`; `quadraticSquared` is
-`[4n, -2] · [25n, -10] = [100n, -12]`, that is `[1n, -10]`, the square of `10^-5`. All three
-are half the step of the result.
 
 The class of the result is a class of bounded integers like any other: it is a valid
 term of a further combination, over any group.
@@ -215,13 +176,42 @@ Later.boundedInt.low; // -365250n
 Later.boundedInt.high; // 730500n
 ```
 
-### The empty combination
+#### The errors of the result
+
+The class of the result carries the three errors of a class (see
+[The errors of a class](bounded-int.md#the-errors-of-a-class)), in the unit of the
+result, computed from the errors of the term classes and the decimal coefficients `aᵢ`:
+
+| Error              | Of the result               | Meaning                 |
+| ------------------ | --------------------------- | ----------------------- |
+| `bound`            | `Σ \|aᵢ\| · boundᵢ`         | the worst case          |
+| `quadraticSquared` | `Σ aᵢ² · quadraticSquaredᵢ` | independent errors      |
+| `term`             | `max \|aᵢ\| · termᵢ`        | the least accurate term |
+
+The quadratic error is combined as its square, `quadraticSquared`, as every class keeps
+it: the sum of the squares is exact, and no root is taken. The three are exact decimals,
+as [`errors`](bounded-int.md#kept-as-decimals) gives them for any class.
+
+An error is `undefined` as soon as one term has it `undefined`: a sum with an unknown part
+is unknown. A term class made with [`NO_ERROR_PROCESSING`](bounded-int.md#given-to-define)
+gives a result with no error, whose values show every digit. With no term, the three are
+0: the constant is exact. A coefficient of 0 adds 0 to each.
+
+The class of the result is made by `define`, so [the rules](bounded-int.md#the-rules) of the
+errors apply to it: they hold for the formulas above, and fill in an error the formulas
+leave `undefined` when the two others are equal.
+
+The values of the result show the digits that its errors give (see
+[valueOf, toString and toLocaleString](bounded-int.md#valueof-tostring-and-tolocalestring)):
+a value of `2·Mass − Reading` of the [examples](#examples) shows the tenth, the accuracy
+of `2·Mass`.
+
+#### The empty combination
 
 A combination of no terms is the constant 0. Its class is the integer 0 alone, at the
 scale 0, with errors of 0: the constant is exact. It is made without alignment.
 
-- `combine` returns the identity element of the group, the sum of no commitments,
-  computed as `context.group.canonicalGenerator().multiplyScalar(0n)`.
+- `combine` returns the identity element of the group, the sum of no commitments.
 - `combineBlinded` returns `{ commitment, value, blinding }`, with that identity, the
   value 0 of the class of the result, and the blinding factor 0 of the class of the
   group: `isOpeningOf` accepts it.
@@ -231,7 +221,7 @@ random blinding factor would give them two different ones. A commitment to the e
 combination hides nothing, and needs not: there is no hidden value, and everyone knows
 that the combination is 0.
 
-## The group at use
+### The group at use
 
 A commitment binds its value mod `ℓ`, `ℓ` the `ORDER` of the group. The commitment to the
 combination binds `M mod ℓ`, `M = Σ a′ᵢ·qᵢ` the integer of the result, and `M` lies in
@@ -251,16 +241,8 @@ before any arithmetic, whose message names the combination and the group:
 
 **The check is on the result only.** The classes of the terms are not compared with the
 class of the group, neither by their count of integers nor by their parents: a
-combination of classes made from any root is valid over any group it fits. A check of
-the terms would add nothing, since a result that fits implies terms that fit. For a term
-`j` with `a′ⱼ ≠ 0`, `|a′ⱼ| ≥ 1`, since `a′ⱼ` is an integer, so
-
-```
-high − low + 1  =  1 + Σ |a′ᵢ| · (highᵢ − lowᵢ)  ≥  1 + (highⱼ − lowⱼ)
-```
-
-and a class of the result that holds at most `ℓ` integers has terms that hold at most `ℓ`
-each. A term of coefficient 0 adds nothing to the result, so its class plays no part.
+combination of classes made from any root is valid over any group it fits, and a result
+that fits implies terms that fit (see [Why the result is enough](#why-the-result-is-enough)).
 
 One combination may serve several groups: `Age` holds 730501 integers, and fits
 ristretto255, whose `ℓ` is about `2^252`, but not a group of order 65536. A combination
@@ -273,7 +255,7 @@ term lies within its class, which the holder knows, and the verifier does not: a
 commitment alone shows nothing of its value. A proof about the combination must also
 prove, for each term, that its committed value lies within its class.
 
-### combine
+#### combine
 
 `combine(context, committed)` returns `Σ a′ᵢ·Cᵢ`, an element of the group of `context`,
 with `Cᵢ` the commitment of term `i`. It is for the verifier, who holds commitments and
@@ -284,11 +266,10 @@ the classes of their values, and no opening.
 - the `type` of each must be the class of its term, `Tᵢ` itself;
 - the result is the element only: its class is `boundedInt`, which the verifier has.
 
-It uses the `add` and `multiplyScalar` of the elements, and `canonicalGenerator()` of
-the group for the empty combination. It checks the classes, not the commitments: a
-commitment that opens to a value outside its class is the business of the proof.
+It checks the classes, not the commitments: a commitment that opens to a value outside
+its class is the business of the proof.
 
-### combineBlinded
+#### combineBlinded
 
 `combineBlinded(context, openings)` returns the commitment to the combination with its
 opening, a frozen [`Blinded`](blinding-context.md#committed-and-blinded)
@@ -304,33 +285,26 @@ commitment.
 - `blinding` is `context.boundedInt.fromValue((Σ a′ᵢ·rᵢ) mod ℓ)`, with `rᵢ` the blinding
   factor of term `i`, a value of the class of the group.
 
-The integers are read through the `value` getter of each bounded integer. Since
-`Σ a′ᵢ·(qᵢ·g + rᵢ·h) = (Σ a′ᵢ·qᵢ)·g + (Σ a′ᵢ·rᵢ)·h`, the result opens its commitment
+Since `Σ a′ᵢ·(qᵢ·g + rᵢ·h) = (Σ a′ᵢ·qᵢ)·g + (Σ a′ᵢ·rᵢ)·h`, the result opens its commitment
 whenever each input opens its own. `combineBlinded` does not check the inputs: a holder
 checks the result with [isOpeningOf](blinding-context.md#isopeningof) before trusting
-it, as any `Blinded` that `blind` did not return.
+it, as any `Blinded` that `blind` did not return. The blinding factor of the result may be
+0, as any other value of the class of the group.
 
-The blinding factor of the result may be 0, as any other value of the class of the group:
-when the `rᵢ` are independent and uniform, and one `a′ᵢ` is not a multiple of `ℓ`, the sum
-is uniform too. `Σ a′ᵢ·rᵢ` is `bigint` arithmetic, whose timing depends on the sizes of
-the integers (see [Constant time](blinding-context.md#constant-time)); `h` is never
-multiplied.
-
-### Each commitment once
+#### Each commitment once
 
 The same commitment may not be given for two terms: `combine` and `combineBlinded`
 refuse it with a `RangeError`. A combination that names one value twice, such as `x − x`
-on one commitment, or `x + x`, must be written with its terms factored: `0·x`, `2·x`.
-Two terms of one commitment would hide that the combination is a constant, or a multiple
-of one term, behind the look of a sum of independent values: their errors would be
-counted as independent, and the blinding factor of `x − x` is 0 by construction. The
+on one commitment, or `x + x`, must be written with its terms factored: `0·x`, `2·x`. The
 commitments are compared with the `equals` of the elements of the group.
 
-## Examples
+### Examples
 
 The classes, made from the class of the group, `Scalar = context.boundedInt`:
 
 ```ts
+import { NO_ERROR_PROCESSING } from "@criticaloptimisation/vc-proofs/core";
+
 const DayCount = Scalar.define({ name: "DayCount", min: -0.5, max: 365250.5 }); // 0 to 365250, k = 0
 const Mass = Scalar.define({ name: "Mass", min: 0, max: 100.05, step: 0.1 }); // 0 to 1000, k = 1
 const Reading = Scalar.define({ name: "Reading", min: -7.99, max: 15.995, step: 0.01 }); // −799 to 1599, k = 2
@@ -341,6 +315,13 @@ const Sensor = Scalar.define({
   step: 0.1,
   error: { quadratic: 0.08 },
 });
+const Raw = Scalar.define({
+  name: "Raw",
+  min: 0,
+  max: 100.05,
+  step: 0.1,
+  error: NO_ERROR_PROCESSING,
+});
 const Fraction = Scalar.define({ name: "Fraction", min: 0, max: 0.09995, step: 0.0001 }); // 0 to 999, k = 4
 ```
 
@@ -350,6 +331,7 @@ const Fraction = Scalar.define({ name: "Fraction", min: 0, max: 0.09995, step: 0
 | `[[2n, Mass], [-1n, Reading]]`      | 2   | `[20n, -1n]`   | `-1599n`   | `20799n`   | 0.105       | 0.010025           | 0.1         |
 | `[[0.5, DayCount]]`                 | 1   | `[5n]`         | `0n`       | `1826250n` | 0.25        | 0.0625             | 0.25        |
 | `[[1n, Sensor], [-1n, Mass]]`       | 1   | `[1n, -1n]`    | `-1000n`   | `1000n`    | `undefined` | 0.0089             | `undefined` |
+| `[[1n, Mass], [1n, Raw]]`           | 1   | `[1n, 1n]`     | `0n`       | `2000n`    | `undefined` | `undefined`        | `undefined` |
 | `[[0.2, Fraction]]`                 | 5   | `[2n]`         | `0n`       | `1998n`    | 0.00001     | 0.0000000001       | 0.00001     |
 | `[]`                                | 0   | `[]`           | `0n`       | `0n`       | 0           | 0                  | 0           |
 
@@ -365,12 +347,13 @@ const Fraction = Scalar.define({ name: "Fraction", min: 0, max: 0.09995, step: 0
 - **`Sensor − Mass`**: `Sensor` knows only a quadratic error, so the result has no bound
   and no error of its least accurate term: `0.08² + 0.05² = 0.0089`. Its values show the
   digits of its quadratic error.
+- **`Mass + Raw`**: `Raw` has no error, so neither has the result.
 - **`0.2·Fraction`**: the worked example of [The coefficients](#the-coefficients), the
   equation `r = 2·x` at the scale 5. `Fraction` is known to half its step, 0.00005, so
   the result is known to `0.2 × 0.00005 = 0.00001`: half its own step.
 - **`[]`**: the empty combination, the constant 0.
 
-## Errors
+### Errors
 
 | Case                                                                                                                                                                              | Error                                |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
@@ -380,6 +363,100 @@ const Fraction = Scalar.define({ name: "Fraction", min: 0, max: 0.09995, step: 0
 | `combine`, `combineBlinded`: the inputs not an array; an input not an object; a `type`, a `value.constructor` or a `blinding.constructor` not the class expected                  | `TypeError`                          |
 | `combine`, `combineBlinded`: a count of inputs other than the count of terms                                                                                                      | `RangeError`                         |
 | `combine`, `combineBlinded`: the same commitment for two terms                                                                                                                    | `RangeError`                         |
+
+## For Maintainers
+
+This part documents `src/core/linear-combination.ts` for the maintainers of the library.
+Nothing in it is a member that an entry point exports.
+
+### The module
+
+`linear-combination.ts` imports at run time only `bounded-int.ts`: the generic class
+`BoundedInt`, `decimal`, `errors`, and the arithmetic of decimals, `compare`, `product`
+and `sum` (see
+[For the other modules of the library](bounded-int.md#for-the-other-modules-of-the-library)).
+It imports as types only `GroupElement`, from `interfaces.ts`, the file of the core
+interfaces, of which it uses the operations of an abelian group (`add`, `multiplyScalar` by
+an integer, `equals`), and `BlindingContext`, `Committed` and `Blinded`, from
+`blinding-context.ts`. A combination keeps three private fields: `#result`, the class of
+the result, which the getter `boundedInt` reads; `#coefficients`, the frozen `a′ᵢ`; and
+`#terms`, the frozen copy of the term classes.
+
+### The class of the result
+
+The constructor makes `#result` with the `define` of the generic `BoundedInt` of
+`bounded-int.ts`, never with that of the class of a group. A class whose parent is the
+generic class is exempt from the count of values of its parent (see
+[The generic class](bounded-int.md#the-generic-class)), so the constructor never compares
+the result with a group. Its spec:
+
+- `step: [1n, −k]`, `min: [low, −k]` and `max: [10·high + 5, −(k + 1)]`: the bounds
+  `[low · 10^-k, (high + ½) · 10^-k)`, whose `low` and `high` are exactly those of the
+  combination;
+- `error: { bound, quadraticSquared, term }`, the three computed as below, `quadraticSquared`
+  given as it is, never as a `quadratic` that `define` would square.
+
+The empty combination is `{ min: -0.5, max: 0.5, error: 0 }`, with no alignment. Its
+identity element is `context.group.canonicalGenerator().multiplyScalar(0n)`: neither method
+uses `h`.
+
+### The errors, exactly
+
+The errors are combined with the arithmetic of `bounded-int.ts`, at full length, on the
+decimals that `errors(Tᵢ)` gives, with `|aᵢ| = [|nᵢ|, eᵢ]`:
+
+1. `bound = sum(…, product(|aᵢ|, boundᵢ))`, over the terms, from `[0n, 0]`;
+2. `quadraticSquared = sum(…, product(product(|aᵢ|, |aᵢ|), quadraticSquaredᵢ))`: the
+   squares are added as they are stored, so their exponents are already those of squares;
+3. `term`, the largest `product(|aᵢ|, termᵢ)`, by `compare`, from `[0n, 0]`.
+
+`product` and `sum` normalize their result, so no trailing zero is left.
+
+**Worked: `2·Mass − Reading`.** `Mass` is known to half its step: `bound` and `term`
+`[5n, -2]`, `quadraticSquared` `[25n, -4]`. `Reading` likewise: `[5n, -3]` and
+`[25n, -6]`. The coefficients are `|2| = [2n, 0]` and `|−1| = [1n, 0]`.
+
+- `bound`: `product([2n, 0], [5n, -2])` is `[1n, -1]`; with `[5n, -3]`, `sum` aligns on
+  `−3`, `100 + 5`: `[105n, -3]`, 0.105.
+- `quadraticSquared`: `product([4n, 0], [25n, -4])` is `[1n, -2]`; with `[25n, -6]`, `sum`
+  aligns on `−6`, `10000 + 25`: `[10025n, -6]`, 0.010025. Its root, about 0.1001, is never
+  computed.
+- `term`: the larger of `[1n, -1]` and `[5n, -3]`: `[1n, -1]`, 0.1.
+
+The rules of `define` hold, on squares: `0.01 ≤ 0.010025 ≤ 0.011025`.
+
+**Worked: `0.2·x`**, the example of [The coefficients](#the-coefficients). `x` is known to
+`[5n, -5]`, squared `[25n, -10]`; `|0.2| = [2n, -1]`. `bound` and `term` are
+`product([2n, -1], [5n, -5])`, `[1n, -5]`; `quadraticSquared` is
+`product([4n, -2], [25n, -10])`, that is `[1n, -10]`, the square of `10^-5`. All three are
+half the step of the result.
+
+### Why the result is enough
+
+A check of the terms against the group would add nothing. For a term `j` with `a′ⱼ ≠ 0`,
+`|a′ⱼ| ≥ 1`, since `a′ⱼ` is an integer, so
+
+```
+high − low + 1  =  1 + Σ |a′ᵢ| · (highᵢ − lowᵢ)  ≥  1 + (highⱼ − lowⱼ)
+```
+
+and a class of the result that holds at most `ℓ` integers has terms that hold at most `ℓ`
+each. A term of coefficient 0 adds nothing to the result, so its class plays no part.
+
+### The blinding factor of the result
+
+When the `rᵢ` are independent and uniform, and one `a′ᵢ` is not a multiple of `ℓ`, the sum
+`Σ a′ᵢ·rᵢ mod ℓ` is uniform too, 0 included. It is `bigint` arithmetic, whose timing depends
+on the sizes of the integers (see [Constant time](blinding-context.md#constant-time)); `h`
+is never multiplied.
+
+### Why each commitment once
+
+Two terms of one commitment would hide that the combination is a constant, or a multiple
+of one term, behind the look of a sum of independent values: their errors would be
+counted as independent, and the blinding factor of `x − x` is 0 by construction. So the
+terms must be factored, and the methods refuse the same commitment twice rather than
+factor it themselves.
 
 <!--
 Change History
