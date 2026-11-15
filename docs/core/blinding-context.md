@@ -458,4 +458,5 @@ Change History
 | #55 | Committed and Blinded; blind(x) of a bounded integer whose class fits the group; isOpeningOf(opening); boundedInt() and the class of a group; ORDER; the group of fromEncoded is required (#48) |
 | #59 | context.boundedInt is a getter; the errors of Ristretto255Scalar, ½ step each (#58) |
 | #60 | a blinding factor or a queued scalar may be 0: r is uniform over the whole class of the group (#56) |
+| #63 | For users, For developers, For Maintainers; the errors of Ristretto255Scalar keep quadraticSquared (#62) |
 -->

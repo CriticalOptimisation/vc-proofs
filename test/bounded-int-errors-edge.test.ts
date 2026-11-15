@@ -280,3 +280,4 @@ describe("BoundedInt.define: the scale k = 1 − digits(n) − e, at the ends", 
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #59    | new: the edge cases of the three errors and of the direct scale (#58) |
+// | #63    | the errors keep quadraticSquared, also those of 0 (#62) |

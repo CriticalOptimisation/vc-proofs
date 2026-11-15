@@ -357,4 +357,5 @@ Change History
 | #53 | section BoundedInt: no order; low and high; no class made from it holds more than ℓ integers; the generic define (#52) |
 | #55 | section The integers of Z_ℓ, moved to the blinding context; Scalars through context.boundedInt() (#48) |
 | #59 | context.boundedInt, a getter (#58) |
+| #63 | For users, For developers, For Maintainers (#62) |
 -->

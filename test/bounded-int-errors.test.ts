@@ -470,3 +470,4 @@ describe("BoundedInt classes: the first two digits of the error decide the displ
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #59    | new: the three errors, their rules, getters, display; the exports of bounded-int.ts; a hand-written error is an object only (#58) |
+// | #63    | quadraticSquared and its rules on squares; NO_ERROR_PROCESSING; the getter and the display from two digits; three different errors with an equal pair refused (#62) |

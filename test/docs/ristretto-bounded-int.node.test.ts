@@ -235,3 +235,4 @@ describe("docs/core/bounded-int.md: the notice of the BoundedInt of the entry po
 // | #53    | no order; low and high; own members min and max; the generic define (#52) |
 // | #55    | the class of a group in blinding-context.md, from context.boundedInt() (#48) |
 // | #59    | own error of ½ step; context.boundedInt, a getter (#58) |
+// | #63    | quadraticSquared in the errors of the class; the notice ends For developers (#62) |

@@ -36,3 +36,4 @@ export { RistrettoElement } from "./ristretto.js";
 // | #53    | header: the BoundedInt of Z_ℓ holds at most ℓ integers, as every class made from it (#52) |
 // | #55    | export the types Blinded and Committed; no BoundedInt (#48) |
 // | #59    | export the types Decimal and Quantity; context.boundedInt (#58) |
+// | #63    | export NO_ERROR_PROCESSING (#62) |

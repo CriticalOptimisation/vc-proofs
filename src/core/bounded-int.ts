@@ -851,3 +851,4 @@ export function errors(C: BoundedIntClass): Errors {
 // | #47    | decimal classes: scale, the exact bounds [min, max), order, error; numbers rounded to 15 digits; from, fromValue, define; exact decimals on bigints; valueOf, toString, toLocaleString (#44) |
 // | #53    | no order: a class holds no more values than its parent, checked parent first; static low and high; define<T>(this: T) (#52) |
 // | #59    | three errors as frozen decimals, own and never inherited, under the rules; the constant error is an ErrorSpec, a quantity only in define; getters may be undefined; display at the first defined error; k = 1 - digits(n) - e, COARSEST_SCALE and FINEST_SCALE; exports decimal, MANTISSA, EXPONENT, errors, ErrorSpec, Errors (#58) |
+// | #63    | the quadratic error kept squared, quadraticSquared; NO_ERROR_PROCESSING; exports product and sum; the display position from a rough error of two digits; quadraticError by Newton's iteration on bigints (#62) |

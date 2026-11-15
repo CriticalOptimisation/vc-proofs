@@ -98,3 +98,8 @@ describe("sum(a, b): a + b, exact, aligned on the smaller exponent, normalized",
     expect(compare(q, product([5n, -1], [5n, -1]))).toBe(0);
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #63    | new: compare, normalize, product and sum, exact (#62) |

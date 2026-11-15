@@ -548,3 +548,8 @@ describe("the labels of a single quantity, ignored keys, decimals equal once nor
     );
   });
 });
+
+// --- Change History -------------------------------------------------------
+// | PR     | Summary                                                       |
+// |--------|---------------------------------------------------------------|
+// | #63    | new: the edge cases of the quadratic error kept squared, its display position and its getter; sum and product at the edges (#62) |

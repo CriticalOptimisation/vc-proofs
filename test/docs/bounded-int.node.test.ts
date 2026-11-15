@@ -561,3 +561,4 @@ describe("docs/core/bounded-int.md, For Maintainers: the display position and th
 // | #51    | imports the generic BoundedInt of bounded-int.ts; placeholders of #47 removed (#49) |
 // | #53    | low and high; no order; The integers and The number of values; define without order (#52) |
 // | #59    | The errors of a class, its table against define; the display; the direct scale; For the other modules of the library; a class written by hand declares error as an object only; placeholders of #53 removed (#58) |
+// | #63    | three parts; quadraticSquared, the rules on squares, NO_ERROR_PROCESSING; the display position and the quadratic error getter; product and sum (#62) |

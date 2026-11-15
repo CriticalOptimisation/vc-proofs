@@ -163,3 +163,4 @@ export function hosts(text: string): string[] {
 // | PR     | Summary                                                       |
 // |--------|---------------------------------------------------------------|
 // | #28    | helpers of the documentation checks (#27)                     |
+// | #63    | part and outline: the sections at any level (#62) |
