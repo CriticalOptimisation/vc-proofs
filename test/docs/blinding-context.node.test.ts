@@ -13,7 +13,7 @@ import { BoundedInt as GenericBoundedInt } from "../../src/core/bounded-int.js";
 import * as entryPoint from "../../src/core/index.js";
 import { RistrettoElement } from "../../src/core/index.js";
 import vectors from "../vectors/blinding-context.json" with { type: "json" };
-import { read } from "./markdown.js";
+import { outline, part, read } from "./markdown.js";
 
 /** A commitment and its opening, as the page documents them. */
 interface Blinded {
@@ -46,12 +46,11 @@ function fromHex(text: string): Uint8Array {
   return Uint8Array.from(text.match(/../g) ?? [], (pair) => parseInt(pair, 16));
 }
 
-/** The text of the section `## <title>`, up to the next `## ` heading. */
+/** The text under the heading `title`, at any level, up to the next heading of its level or above. */
 function section(title: string): string {
-  const start = page.indexOf(`\n## ${title}\n`);
-  expect(start).toBeGreaterThan(-1);
-  const end = page.indexOf("\n## ", start + 1);
-  return page.slice(start, end === -1 ? undefined : end);
+  const text = part(page, title);
+  expect(text, title).toBeDefined();
+  return text ?? "";
 }
 
 /** The public members of a class: its static members and those of its prototype. */
@@ -65,6 +64,83 @@ function members(cls: { readonly prototype: unknown } | undefined): string[] {
   );
   return [...statics.map((name) => `static ${name}`), ...instance];
 }
+
+describe("docs/core/blinding-context.md: three parts, for users, for developers, and for maintainers", () => {
+  test("its parts are For users, For developers and For Maintainers, in that order, each a section of level 2", () => {
+    expect(outline(page).filter((line) => line.startsWith("## "))).toEqual([
+      "## For users",
+      "## For developers",
+      "## For Maintainers",
+    ]);
+  });
+
+  test("For users says that the high-level entry point exports nothing from the page yet", () => {
+    expect(section("For users")).toMatch(
+      /`@criticaloptimisation\/vc-proofs`, exports nothing from this page\s+yet/,
+    );
+  });
+
+  test("For developers holds the class, its members, the class of a group, Committed and Blinded, and the group", () => {
+    const text = section("For developers");
+    for (const title of [
+      "BlindingContext",
+      "The validation",
+      "blind",
+      "isOpeningOf",
+      "The class of a group",
+      "Committed and Blinded",
+      "The group",
+    ]) {
+      expect(part(text, title), title).toBeDefined();
+    }
+    expect(text).toMatch(
+      /exports the class\s+`BlindingContext`, and the types `Group`, `Committed` and `Blinded`/,
+    );
+  });
+
+  test("For Maintainers holds the constructor, the queue of blindings, constant time and the test vectors", () => {
+    const text = section("For Maintainers");
+    for (const title of [
+      "The constructor",
+      "Immutability",
+      "The promise of the validation",
+      "The blinding factors",
+      "The queue of blindings",
+      "Constant time",
+      "The type parameter",
+      "Test vectors",
+    ]) {
+      expect(part(text, title), title).toBeDefined();
+    }
+    expect(section("The constructor")).toMatch(/1\. it copies `h` and `message`, synchronously/);
+    expect(section("The constructor")).toMatch(
+      /The copies are intended, and must not be optimized away/,
+    );
+  });
+
+  test("For developers states what a caller relies on; why the implementation is correct and robust is For Maintainers", () => {
+    const developers = section("For developers");
+    for (const moved of [
+      /copies/,
+      /may change freely/,
+      /unhandled\s+rejection/,
+      /WebCrypto/,
+      /hides `m` perfectly/,
+      /`\(r \+ s\)·h − s·h`/,
+      /exists only for the type checker/,
+    ]) {
+      expect(developers).not.toMatch(moved);
+    }
+    const maintainers = section("For Maintainers");
+    expect(section("Immutability")).toMatch(/Every byte array it returns/);
+    expect(section("The promise of the validation")).toMatch(
+      /does not cause an unhandled\s+rejection/,
+    );
+    expect(section("The blinding factors")).toMatch(/hides `m` perfectly only when `r` is uniform/);
+    expect(maintainers).toMatch(/`\(r \+ s\)·h − s·h`/);
+    expect(section("The type parameter")).toMatch(/exists only for the type checker/);
+  });
+});
 
 describe("docs/core/blinding-context.md, section BlindingContext", () => {
   test("the class has the public members of the plan, and no message", () => {
@@ -122,12 +198,6 @@ describe("docs/core/blinding-context.md, section Committed and Blinded", () => {
       fromHex(vectors.context.messageHex),
       RistrettoElement,
     );
-    // REVIEW PLACEHOLDER (#58: context.boundedInt is a getter)
-    //   the example used to call context.boundedInt(), and checked only that it was a function,
-    //   which a class is too: it now reads the class and checks it.
-    //   expect(typeof context.boundedInt).toBe("function");
-    //   const Scalar = context.boundedInt?.();
-    //   if (Scalar === undefined) return;
     const Scalar = context.boundedInt as typeof GenericBoundedInt;
     expect(Object.getPrototypeOf(Scalar)).toBe(GenericBoundedInt);
     const Days = Scalar.define({ name: "Days", min: -0.5, max: 65535.5 });
@@ -198,3 +268,4 @@ test("the pages and the README call no boundedInt(): context.boundedInt is a get
 // | #40    | new: the page names every public member, and the serialization (#39) |
 // | #55    | boundedInt; the example of Committed and Blinded; the RangeError of blind; a required group (#48) |
 // | #59    | context.boundedInt, a getter; no boundedInt() in the pages (#58) |
+// | #63    | three parts: For users, For developers, For Maintainers; For developers holds no proof of correctness (#62) |
