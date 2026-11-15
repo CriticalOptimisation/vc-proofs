@@ -22,7 +22,27 @@ const r = RistrettoElement.randomScalar(); // a bigint
 const blinding = h.multiplyScalar(r); // r·h
 ```
 
-## Values and errors
+The page has three parts:
+
+- [For users](#for-users): what the high-level entry point, `@criticaloptimisation/vc-proofs`,
+  exports from this page;
+- [For developers](#for-developers): what the low-level entry point,
+  `@criticaloptimisation/vc-proofs/core`, exports from this page;
+- [Internals](#internals): the rest, which only the maintainers of the library need.
+
+## For users
+
+The high-level entry point, `@criticaloptimisation/vc-proofs`, exports nothing from this page
+yet: it is a placeholder, whose functions are fixed by the issues of the issuer, the wallet
+and the verifier. A developer who builds on the primitives reads
+[For developers](#for-developers).
+
+## For developers
+
+The low-level entry point, `@criticaloptimisation/vc-proofs/core`, exports the class
+`RistrettoElement`. Its scalars are `bigint`s, with no class of their own.
+
+### Values and errors
 
 - **Immutable.** No method changes its instance or its arguments. Each operation returns a
   new instance, and every `encode()` returns a new array, which the caller may change
@@ -37,7 +57,7 @@ const blinding = h.multiplyScalar(r); // r·h
   length, invalid or non-canonical encoding); `RangeError` for a valid value that the
   operation refuses (a refused DST, a refused generator, the inverse of 0).
 
-## RistrettoElement
+### RistrettoElement
 
 | Member                             | Returns                                         | libsodium counterpart                     |
 | ---------------------------------- | ----------------------------------------------- | ----------------------------------------- |
@@ -62,7 +82,7 @@ const blinding = h.multiplyScalar(r); // r·h
 | `negate()`                         | `−this`                                         | none                                      |
 | `multiplyScalar(n)`                | `n·this`, for any `bigint` `n`                  | `crypto_scalarmult_ristretto255`          |
 
-### decode and encode
+#### decode and encode
 
 `decode` is the decoding of
 [RFC 9496, Section 4.3.1](https://www.rfc-editor.org/rfc/rfc9496.html#section-4.3.1). It
@@ -75,7 +95,7 @@ Decoding checks only that the bytes encode an element. It says nothing about whe
 element came from: see [Runtime use](../generator-h.md#runtime-use) for a published
 generator.
 
-### The identity
+#### The identity
 
 The neutral element is a valid element, encoded as 32 zero bytes. `decode` accepts it, as
 RFC 9496 and libsodium do; `identity()` returns it, and `isIdentity()` tells it apart.
@@ -85,14 +105,14 @@ Whether a caller may receive the identity is that caller's policy, decided by ea
 caller: a commitment equal to the identity, for instance, may be refused by the code
 that reads it. Such a caller checks `isIdentity()` after `decode`.
 
-### equals
+#### equals
 
 `equals` is the equality of
 [RFC 9496, Section 4.3.3](https://www.rfc-editor.org/rfc/rfc9496.html#section-4.3.3), as
 `@noble/curves` implements it: it computes both of the RFC's comparisons before it
 combines them, and it does not encode either element.
 
-### multiplyScalar
+#### multiplyScalar
 
 `P.multiplyScalar(n)` is `n·P` for any `bigint` `n` (see [Scalars](#scalars)): the sum
 of `n` copies of `P` for `n > 0`, the identity for `n = 0`, and `(−n)·(−P)` for `n < 0`.
@@ -114,7 +134,7 @@ The multiplication thus runs for every scalar: its timing does not reveal whethe
 libsodium's `crypto_scalarmult_ristretto255` refuses a result equal to the identity;
 `multiplyScalar` returns it.
 
-### fromUniformBytes
+#### fromUniformBytes
 
 `fromUniformBytes(bytes)` is the element derivation of
 [RFC 9496, Section 4.3.4](https://www.rfc-editor.org/rfc/rfc9496.html#section-4.3.4):
@@ -124,7 +144,7 @@ libsodium's `crypto_scalarmult_ristretto255` refuses a result equal to the ident
 must be uniformly random, such as the output of a hash: on other inputs, the derived
 element is not uniformly distributed.
 
-### hashToGroup
+#### hashToGroup
 
 `hashToGroup(message, dst)` is `hash_to_ristretto255` of
 [RFC 9380, Appendix B](https://www.rfc-editor.org/rfc/rfc9380.html#appendix-B), with
@@ -155,7 +175,7 @@ vectors of their own: `expand_message_xmd` in RFC 9380, Appendix K.3, and the el
 derivation in RFC 9496, Appendix A.3. The whole chain is checked on the vectors of
 [The generator h](../generator-h.md#test-vectors), which three implementations agree on.
 
-### deriveGenerator and GENERATOR_DST
+#### deriveGenerator and GENERATOR_DST
 
 `deriveGenerator(message)` derives a Pedersen generator, such as `h`, with nothing up
 anyone's sleeve. It is `hashToGroup(message, RistrettoElement.GENERATOR_DST)`, and it
@@ -176,7 +196,7 @@ const derived = await RistrettoElement.deriveGenerator(message);
 const valid = derived.equals(RistrettoElement.decode(published)); // decode throws on bad bytes
 ```
 
-### SUITE_NAME and randomScalar
+#### SUITE_NAME and randomScalar
 
 With `SUITE_NAME` and `randomScalar`, the class `RistrettoElement` is a
 [group](blinding-context.md#the-group) for a blinding context, which uses no other group
@@ -187,7 +207,7 @@ the `Fn` of `@noble/curves` (see [Scalars](#scalars)). It belongs to `RistrettoE
 for the same reason as they do, `ℓ`; unlike them, it is also a member of the group of a
 blinding context.
 
-### ORDER, encodeScalar, decodeScalar and invertScalar
+#### ORDER, encodeScalar, decodeScalar and invertScalar
 
 These four members, with `randomScalar` (see above), are the scalar operations that need
 the order `ℓ` of the group. They are pure operations on `bigint`s; they belong to
@@ -213,7 +233,7 @@ the order `ℓ` of the group. They are pure operations on `bigint`s; they belong
   `(n mod ℓ)^(ℓ − 2)` with the `Fn` of `@noble/curves`: the exponent is public, unlike
   the steps of an extended Euclid, which depend on `n`.
 
-## Scalars
+### Scalars
 
 A scalar is a `bigint`, any integer: there is no scalar class. `n·P` is `P` added to
 itself `n` times, `(((P + P) + P) + …) + P`. However cyclic the group, nothing bounds the
@@ -249,14 +269,14 @@ defined for every integer `n`, in any group.
   integers of Z_ℓ holds `ℓ` integers, and no class made from it holds more
   (see [The integers of Z_ℓ](#the-integers-of-z_ℓ)).
 
-## The integers of Z_ℓ
+### The integers of Z_ℓ
 
 The bounded integers of ristretto255, the integers `0 … ℓ − 1` and the classes made from
 them, come from the blinding context, which commits to them: `context.boundedInt`, for
 a context over `RistrettoElement` (see
 [The class of a group](blinding-context.md#the-class-of-a-group)).
 
-## Constant time
+### Constant time
 
 No JavaScript code can promise constant time: `bigint` operations, the JIT compiler and
 the garbage collector all have timings that depend on data. The classes do what can be
@@ -292,7 +312,11 @@ JavaScript (see [Scalars](#scalars)), whose timing depends on the size of its op
 The reduction mod `ℓ` at the start of each multiplication bounds the size of what the
 multiplication itself works on.
 
-## Checked against libsodium
+## Internals
+
+This part documents how the class is checked, for the maintainers of the library.
+
+### Checked against libsodium
 
 The tests check `RistrettoElement` against the RFC vectors and against
 [libsodium](https://github.com/jedisct1/libsodium), an implementation in C written apart

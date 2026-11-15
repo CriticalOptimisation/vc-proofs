@@ -32,7 +32,27 @@ const opening = await context.blind(Days.from(20000n)); // { commitment, value, 
 const opens = await context.isOpeningOf(opening); // true
 ```
 
-## Values and errors
+The page has three parts:
+
+- [For users](#for-users): what the high-level entry point, `@criticaloptimisation/vc-proofs`,
+  exports from this page;
+- [For developers](#for-developers): what the low-level entry point,
+  `@criticaloptimisation/vc-proofs/core`, exports from this page;
+- [Internals](#internals): the rest, which only the modules of the library see.
+
+## For users
+
+The high-level entry point, `@criticaloptimisation/vc-proofs`, exports nothing from this page
+yet: it is a placeholder, whose functions are fixed by the issues of the issuer, the wallet
+and the verifier. A developer who builds on the primitives reads
+[For developers](#for-developers).
+
+## For developers
+
+The low-level entry point, `@criticaloptimisation/vc-proofs/core`, exports the class
+`BlindingContext`, and the types `Group`, `Committed` and `Blinded`.
+
+### Values and errors
 
 - **Immutable.** A context never changes once built. Every byte array it returns is a new
   one, which the caller may change freely.
@@ -51,7 +71,7 @@ const opens = await context.isOpeningOf(opening); // true
   `RangeError` for a value whose class holds more integers than the group has scalars
   (see [blind](#blind)).
 
-## BlindingContext
+### BlindingContext
 
 | Member                                  | Returns                                                         |
 | --------------------------------------- | --------------------------------------------------------------- |
@@ -63,7 +83,7 @@ const opens = await context.isOpeningOf(opening); // true
 | `blind(x)`                              | a promise: a commitment to `x`, with its opening                |
 | `isOpeningOf(opening)`                  | a promise: whether `opening` opens its commitment               |
 
-### fromEncoded
+#### fromEncoded
 
 `fromEncoded(h, message, group)` takes the published encoding of `h`, the message it
 was derived from, and the [group](#the-group) of the context, such as
@@ -74,20 +94,14 @@ not a `Uint8Array`, when `group` is left out, when `group.ORDER` is not a `bigin
 the canonical encoding of an element (RFC 9496, Section 4.3.1). Otherwise it returns a
 new context, synchronously, and the validation runs in the background.
 
-### The validation
+#### The validation
 
-The constructor, which every factory calls, does three things, in this order:
-
-1. it copies `h` and `message`, synchronously, as its first statements;
-2. it decodes its copy of `h`;
-3. it starts the validation, on its copies only, and keeps the promise of its result.
-
-The copy of the message goes to the validation only: the context keeps no field for it,
-and has no member that gives it back. No party needs the message again once the context
-is built. A caller that changes its arrays after `fromEncoded` returns, even before the
-validation ends, changes nothing in the context: neither what is checked nor what is
-held. The validation is private. If it is ever made public, it must make local copies
-of its parameters in the same way, before its first `await`.
+`fromEncoded` copies `h` and `message` before anything else, and the validation runs
+on its copies only (see [The constructor](#the-constructor)). A caller that changes its
+arrays after `fromEncoded` returns, even before the validation ends, changes nothing in
+the context: neither what is checked nor what is held. The context keeps no field for the
+message, and has no member that gives it back: no party needs it again once the context
+is built.
 
 **The check**: `h` is valid when it equals `group.hashToGroup(message,
 group.GENERATOR_DST)`. For ristretto255, that is `hash_to_ristretto255(message,
@@ -115,14 +129,14 @@ application that wants to fail at load time awaits `serialize()` once, which it 
 for its pin anyway. A context that fails its check and is never used does not cause an
 unhandled rejection.
 
-### group
+#### group
 
 `group` is the group given to `fromEncoded`, for ristretto255 the class
 `RistrettoElement` itself. The canonical generator is
 `context.group.canonicalGenerator()`; for ristretto255, the neutral element is
 `context.group.identity()`.
 
-### boundedInt
+#### boundedInt
 
 `context.boundedInt`, a getter, is the class of the integers of the group of the
 context, for ristretto255 the integers of Z_ℓ: the class of the blinding factors, and the
@@ -130,7 +144,7 @@ base of the classes of the values (see [The class of a group](#the-class-of-a-gr
 is made once for the group, at the first context over it, and shared by all of its
 contexts: every read, on any context over the same group, gives the same object.
 
-### serialize
+#### serialize
 
 The **suite** of a context is the group and the generator `h`: that is all a prover
 written from scratch needs, from the [protocol](../protocol.md), to produce the same
@@ -158,7 +172,7 @@ For the age-check context of [The generator h](../generator-h.md#vector-age-chec
 52697374726574746f323535249aa3ca590fa8d666326390ef5b7b422b92231a320746e5013c9be76e407347
 ```
 
-### blind
+#### blind
 
 `blind(x)` resolves to the opening of a new commitment to `x`, a frozen
 [`Blinded`](#committed-and-blinded) `{ commitment, value, blinding }`:
@@ -187,7 +201,7 @@ scalars`.
 Anything other than a bounded integer, a `bigint` and a `number` included, is a
 `TypeError`, as a rejection. `blind` of 0 is allowed, and gives `r·h`.
 
-### isOpeningOf
+#### isOpeningOf
 
 `isOpeningOf(opening)` resolves to whether `opening.commitment = m·g + r·h`, with `m` the
 integer of `opening.value` and `r` that of `opening.blinding`. The `opening` is a
@@ -206,26 +220,7 @@ multiplied by the long-lived `r` itself (see [Constant time](#constant-time)). `
 is a sum of `bigint`s, which the multiplication reduces mod `ℓ`. **Check a witness
 once, on receipt**, not at each use.
 
-### The queue of blindings
-
-Most of the cost of `blind` is the multiplication `r·h`, about three quarters of it;
-drawing `r` is negligible. Each context therefore keeps a queue of up to 10 pairs
-`(x, x·h)`, with `x` random, each used once, by `blind` (as `(r, r·h)`) or by
-`isOpeningOf` (as `(s, s·h)`).
-
-- The scalars `x` come from the `randomScalar()` of the group, each draw kept, `0n`
-  included.
-- The queue starts filling at the first call to `blind` or `isOpeningOf`, after the
-  validation succeeded. A context that is invalid, or never used for them, holds no
-  random scalar.
-- It is refilled in the background, one pair per macrotask (`setTimeout`), so that the
-  program is never held for more than one multiplication at a time, and the refill runs
-  while the program waits on I/O.
-- A call that finds the queue empty computes its pair on the spot: it never waits for
-  the queue.
-- Contexts do not share their queues.
-
-## The class of a group
+### The class of a group
 
 The values a context commits to, and its blinding factors, are
 [bounded integers](bounded-int.md). Their base is the class of the group, which
@@ -235,12 +230,12 @@ For ristretto255, it is `Ristretto255Scalar`, the `context.boundedInt` of a cont
 that page documents every member it inherits, `define` included, and only its constants
 differ.
 
-| Constant | On `Ristretto255Scalar`                                 |
-| -------- | ------------------------------------------------------- |
-| `scale`  | `0`                                                     |
-| `min`    | `-0.5`                                                  |
-| `max`    | `ℓ − 0.5`, kept as `[10n * ℓ - 5n, -1]`                 |
-| `error`  | ½ step: `bound`, `quadratic` and `term` each `[5n, -1]` |
+| Constant | On `Ristretto255Scalar`                                                    |
+| -------- | -------------------------------------------------------------------------- |
+| `scale`  | `0`                                                                        |
+| `min`    | `-0.5`                                                                     |
+| `max`    | `ℓ − 0.5`, kept as `[10n * ℓ - 5n, -1]`                                    |
+| `error`  | ½ step: `bound` and `term` each `[5n, -1]`, `quadraticSquared` `[25n, -2]` |
 
 - **The bounds** `[−0.5, ℓ − 0.5)` are `ℓ` equal buckets of width 1, one for each integer
   from 0 to `ℓ − 1`: every value of `[i − 0.5, i + 0.5)` rounds to `i`. The bounds
@@ -292,7 +287,7 @@ Scalar.define({ name: "Full", min: 0n, max: ℓ }); // RangeError: ℓ + 1 value
 Byte.define({ name: "Word", min: -0.5, max: 65535.5 }); // RangeError: more values than Byte
 ```
 
-## Committed and Blinded
+### Committed and Blinded
 
 A commitment travels in two forms, two plain structures that anyone may build. The entry
 point exports them as types.
@@ -348,7 +343,7 @@ await context.isOpeningOf(received); // whether the issuer's opening holds
 The encoding of these structures into bytes, and the signature of the issuer, belong to
 the [protocol](../protocol.md), not to the context.
 
-## The group
+### The group
 
 The context does its arithmetic only through its group, a value held in a field, and
 never names `RistrettoElement` itself: the caller gives `RistrettoElement` to
@@ -385,7 +380,43 @@ held in a variable cannot be called with `new` when its constructor is private, 
 constructor of `RistrettoElement` is; the context uses only the static members of its
 group. The entry point exports `Group`, `Committed` and `Blinded` as types.
 
-## Constant time
+## Internals
+
+This part documents what `src/core/blinding-context.ts` does behind its members, for the
+maintainers of the library. Nothing in it is a member that an entry point exports.
+
+### The constructor
+
+The constructor, which every factory calls, does three things, in this order:
+
+1. it copies `h` and `message`, synchronously, as its first statements;
+2. it decodes its copy of `h`;
+3. it starts the validation, on its copies only, and keeps the promise of its result.
+
+The copy of the message goes to the validation only. The validation is private. If it is
+ever made public, it must make local copies of its parameters in the same way, before its
+first `await`.
+
+### The queue of blindings
+
+Most of the cost of `blind` is the multiplication `r·h`, about three quarters of it;
+drawing `r` is negligible. Each context therefore keeps a queue of up to 10 pairs
+`(x, x·h)`, with `x` random, each used once, by `blind` (as `(r, r·h)`) or by
+`isOpeningOf` (as `(s, s·h)`).
+
+- The scalars `x` come from the `randomScalar()` of the group, each draw kept, `0n`
+  included.
+- The queue starts filling at the first call to `blind` or `isOpeningOf`, after the
+  validation succeeded. A context that is invalid, or never used for them, holds no
+  random scalar.
+- It is refilled in the background, one pair per macrotask (`setTimeout`), so that the
+  program is never held for more than one multiplication at a time, and the refill runs
+  while the program waits on I/O.
+- A call that finds the queue empty computes its pair on the spot: it never waits for
+  the queue.
+- Contexts do not share their queues.
+
+### Constant time
 
 The rules of [ristretto255](ristretto255.md#constant-time) apply. The context follows
 them:
@@ -401,7 +432,7 @@ them:
 - the pairs of the queue are secret, like the blinding factors they become: they stay in
   the private fields of their context.
 
-## Test vectors
+### Test vectors
 
 `test/vectors/blinding-context.json` gives the serialization of the age-check context
 and two commitments `C = m·g + r·h` with fixed `m` and `r`, one with `m = 0`. The
