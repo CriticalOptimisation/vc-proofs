@@ -13,10 +13,13 @@
  * from which the classes of the values are made (docs/core/blinding-context.md, *The
  * class of a group*). `Committed` and `Blinded`, the two forms of a commitment, are
  * exported as types, and so are `Decimal` and `Quantity`, the quantities its signatures
- * name; the helpers of `bounded-int.ts` for the other modules are not exported.
+ * name. `NO_ERROR_PROCESSING`, the errors disabled by name, is the one value of
+ * `bounded-int.ts` it exports; the helpers of `bounded-int.ts` for the other modules are
+ * not exported.
  */
 export { BlindingContext } from "./blinding-context.js";
 export type { Blinded, Committed, Group } from "./blinding-context.js";
+export { NO_ERROR_PROCESSING } from "./bounded-int.js";
 export type { Decimal, Quantity } from "./bounded-int.js";
 export { requestHash } from "./request-hash.js";
 export { RistrettoElement } from "./ristretto.js";
